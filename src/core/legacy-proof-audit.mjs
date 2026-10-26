@@ -78,8 +78,31 @@ function parseVector(s,len,code) {
   return a;
 }
 
-/** @param {{snapshot:object,proofRow:any[],rawRow:any[],scopeKey:string}} input */
-export function auditLegacyProof({snapshot,proofRow,rawRow,scopeKey}={}) {
+/**
+ * Optional G3 storage-row witness (the original 32-column sheet row).
+ * Without this witness hashes are self-consistent but COMMIT is not attested.
+ * The SHA binds the original serialized JSON, not merely its decoded meaning.
+ */
+function verifyStorageCommit(row,snapshot) {
+  need(Array.isArray(row)&&row.length===32,'LEGACY_STORAGE_ROW_SHAPE');
+  need(row[0]==='COMMITTED','LEGACY_STORAGE_NOT_COMMITTED');
+  need(row[1]===snapshot.runId&&row[2]===snapshot.scope&&
+    row[3]===snapshot.key&&Number(row[4])===snapshot.rawRowNumber,
+    'LEGACY_STORAGE_IDENTITY_DRIFT');
+  const n=Number(row[6]);
+  need(Number.isInteger(n)&&n>=1&&n<=24,'LEGACY_STORAGE_CHUNK_COUNT');
+  const chunks=row.slice(8,8+n);
+  need(chunks.every(x=>typeof x==='string'&&x.length>0&&x.length<=12000)&&
+    row.slice(8+n).every(x=>x===''||x===null),
+    'LEGACY_STORAGE_CHUNKS_INVALID');
+  const original=chunks.join('');
+  need(sha(row[5])&&hash(original)===row[5],'LEGACY_STORAGE_CHUNK_HASH');
+  let doc;try{doc=JSON.parse(original);}catch{fail('LEGACY_STORAGE_JSON_INVALID');}
+  need(JSON.stringify(doc)===JSON.stringify(snapshot),
+    'LEGACY_STORAGE_DOCUMENT_MISMATCH');
+}
+/** @param {{snapshot:object,proofRow:any[],rawRow:any[],scopeKey:string,g3StorageRow?:any[]}} input */
+export function auditLegacyProof({snapshot,proofRow,rawRow,scopeKey,g3StorageRow}={}) {
   need(snapshot&&typeof snapshot==='object'&&Array.isArray(proofRow)&&
     proofRow.length===10&&Array.isArray(rawRow)&&rawRow.length===25,
     'LEGACY_INPUT_SHAPE');
@@ -90,6 +113,7 @@ export function auditLegacyProof({snapshot,proofRow,rawRow,scopeKey}={}) {
     proofRow[1]===scopeKey,'LEGACY_JOB_IDENTITY_DRIFT');
   need(Number.isInteger(snapshot.rawRowNumber)&&snapshot.rawRowNumber>=4&&
     snapshot.rawRowNumber<=219,'LEGACY_RAW_ROW_INDEX');
+  if(g3StorageRow!==undefined)verifyStorageCommit(g3StorageRow,snapshot);
   const producer=snapshot.producer;
   need(producer?.overallComplete===true&&producer?.bossComplete===true&&
     producer?.dateFilterVerified===true&&producer?.pageSetComplete===true,
@@ -143,6 +167,8 @@ export function auditLegacyProof({snapshot,proofRow,rawRow,scopeKey}={}) {
     proofState:proofRow[6],verifiedBossSlots:observed,
     snapshotHashesMatch:true,rawMetricsMatch:true,storedUYConsistent:true,
     kpiUY:uy,pendingUYColumns:pendingUY,
+    sourceCommitAttested:g3StorageRow!==undefined,
+    auditLevel:g3StorageRow===undefined?'SELF_CONSISTENT_UNATTESTED':'G3_COMMIT_WITNESSED',
     perRankActorIdentityAvailable:false,canPromoteToNewActorProof:false,
     furtherWclRequests:0,readOnly:true
   };
