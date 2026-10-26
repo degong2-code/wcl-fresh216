@@ -126,3 +126,22 @@ User approval is required before step 1's live queries. No automation is enabled
 5. **Complexity**: minimal modules and deployment prerequisites, no redundant version-specific wrappers.
 
 All reported results must separate synthetic CI PASS from real same-fight evidence parity and paid-point observations.
+
+## Existing private RAW/PROOF migration: do not fabricate actor provenance
+
+Source-level audit of the old installed `Code.js` confirms that the 10-column proof row stores `job_key`, `scope`, `ranking_sha256`, `boss_rank_sha256`, a JSON vector of 100 verified boss DPS values, attempted-fight hashes, status, counts and update timestamp. **It does not store a durable per-rank WCL actor ID / exact matching witness.**
+
+Implications:
+- Retain old proof rows and their source hashes intact; do not rerun WCL merely to import them and do not discard their historical value.
+- A copied `boss[100]` vector alone cannot become a newly proven `EXACT_SAME_FIGHT_ACTOR` record. The correct label is **legacy validated evidence with its original provenance/limitations**, not a new matching claim.
+- Exact cross-generation parity requires a trusted, private read-only snapshot/proof witness with matching scope + rank/source digests. If actor-level original evidence is absent, preserve that limitation explicitly. Do not reconstruct missing actor IDs from the amount array or guess anonymous identities.
+- Before any migration, freeze/compare originals and use private fixtures through a non-public read-only channel. Published CI must use artificial code/report IDs, not raw player/report data.
+- Preserve the stopped collector's cursor 43 and previous progress independently from the prototype. There is no authorization to rewrite that proof ledger.
+
+## WCL report revision binding now prototyped
+
+The new `src/adapters/wcl-rankings-envelope.mjs` constructs a GraphQL **query object only** (no WCL HTTP) with one `report(code)`, `report.code`, `report.revision`, and same-fight `overall:rankings(dps)` / `boss:rankings(bossdps)`; it requests `rateLimitData.currentRequest.total`. It rejects any mismatched report/revision, partial GraphQL error, malformed rankings shape, or unexpected HTTP result before the strict actor join. Unknown billing stays null.
+
+The WCL official schema documents Report revision as incrementing on re-exports and report.rankings as **non-frozen JSON**. This tells us what to request, **not** whether adding fields is point-neutral or whether a different API path is cheaper. Only a future authorized, measured request can answer those questions.
+
+GitHub checkpoint hardening: `registerPlan` now refuses a rank slot mapped to two distinct report/fights or job snapshot SHA changes across separate registered batches. This avoids duplicate charged lookups and silent evidence lineage drift after resume.
