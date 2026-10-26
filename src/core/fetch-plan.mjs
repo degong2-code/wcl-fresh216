@@ -70,7 +70,8 @@ export function planFightFetches(slots) {
     // Provenance stays attached to each slot; a group is not an actor match.
     groups.get(groupKey).slots.push({
       jobKey: s.jobKey, rank: s.rank, snapshotSha: s.snapshotSha,
-      totalDps: s.totalDps, className: s.className, specName: s.specName
+      totalDps: s.totalDps, className: s.className, specName: s.specName,
+      name: typeof s.name === 'string' ? s.name : ''
     });
   }
 
