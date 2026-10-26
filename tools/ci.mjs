@@ -29,6 +29,16 @@ for (const file of files) {
     }
   }
 }
+// New architecture prototype is intentionally independent of legacy installed source.
+if (fs.existsSync('tests/fetch-plan.test.mjs')) {
+  const run = spawnSync('node', ['--test', 'tests/fetch-plan.test.mjs'],
+    {encoding:'utf8', timeout:30000, maxBuffer:1024*1024});
+  if (run.status !== 0) {
+    fail('Global fetch planner offline test failed');
+    process.stderr.write((run.stderr || '') + (run.stdout || '').slice(-4000));
+  } else console.log('PASS pure-core global fetch planner offline tests');
+}
+
 if (manifest.source_imported) {
   for (const file of manifest.expected_tests_when_imported) {
     if (!fs.existsSync(file)) { fail('Missing required imported test: ' + file); continue; }
