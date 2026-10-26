@@ -68,7 +68,7 @@ test('changed snapshot rank or amount must fail rather than mix proofs',()=>{
   const {state}=makeReady();
   const mutated=plans();
   mutated[0].slots[0].snapshotSha='f'.repeat(64);
-  assert.throws(()=>registerPlan(state,mutated),/FETCH_PLAN_DRIFT/);
+  assert.throws(()=>registerPlan(state,mutated),/JOB_SNAPSHOT_DRIFT/);
 });
 test('HTTP 504 or 429 is uncertain; do not automatically retry or invent zero cost',()=>{
   for(const code of ['HTTP_504','HTTP_429']){
