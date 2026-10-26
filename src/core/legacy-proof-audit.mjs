@@ -72,7 +72,7 @@ function verifiedMetricRows(rows,label,scope) {
 function parseVector(s,len,code) {
   need(typeof s==='string',code);
   let a;try{a=JSON.parse(s);}catch{fail(code);}
-  need(Array.isArray(a)&&a.length===len,code);
+  need(Array.isArray(a)&&(len===undefined||a.length===len),code);
   return a;
 }
 
