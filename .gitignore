@@ -1,0 +1,36 @@
+# Secrets and locally bound Apps Script configuration
+.env
+.env.*
+!.env.example
+.clasp.json
+.clasprc.json
+credentials.json
+token.json
+*secret*.json
+*credentials*.json
+
+# Installed dependencies and output
+node_modules/
+dist/
+build/
+coverage/
+.cache/
+*.log
+*.zip
+
+# Never track private WCL/Google datasets
+private/
+raw/
+proof/
+checkpoints/
+receipts-live/
+data/live/
+artifacts/live/
+*.sqlite
+*.db
+
+# Editor / OS
+.vscode/
+.idea/
+.DS_Store
+Thumbs.db
