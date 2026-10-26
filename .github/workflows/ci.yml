@@ -1,8 +1,9 @@
 name: Offline checks (no WCL access)
 on:
   push:
-    branches: [main, 'work/**']
+    branches: [main]
   pull_request:
+    branches: [main]
   workflow_dispatch:
 
 permissions:
