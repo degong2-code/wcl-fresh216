@@ -30,13 +30,14 @@ for (const file of files) {
   }
 }
 // New architecture prototype is intentionally independent of legacy installed source.
-if (fs.existsSync('tests/fetch-plan.test.mjs')) {
-  const run = spawnSync('node', ['--test', 'tests/fetch-plan.test.mjs'],
+for (const file of ['tests/fetch-plan.test.mjs', 'tests/resolve-proof.test.mjs']) {
+  if (!fs.existsSync(file)) { fail('Missing expected pure-core test: ' + file); continue; }
+  const run = spawnSync('node', ['--test', file],
     {encoding:'utf8', timeout:30000, maxBuffer:1024*1024});
   if (run.status !== 0) {
-    fail('Global fetch planner offline test failed');
+    fail('Pure-core offline test failed: ' + file);
     process.stderr.write((run.stderr || '') + (run.stdout || '').slice(-4000));
-  } else console.log('PASS pure-core global fetch planner offline tests');
+  } else console.log('PASS pure-core offline suite: ' + file);
 }
 
 if (manifest.source_imported) {
