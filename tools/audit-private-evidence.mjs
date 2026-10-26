@@ -6,6 +6,7 @@
  * report IDs, player DPS, Sheet IDs, source paths, or ranking snapshots.
  *
  * Usage: node tools/audit-private-evidence.mjs /absolute/private/path/records.json
+ *    or: python3 tools/private-sheet-audit.py /absolute/path/sheet.xlsx | node tools/audit-private-evidence.mjs -
  * Input: {"records":[{"snapshot":{...},"proofRow":[...10],"rawRow":[...25],
  *                   "scopeKey":"...","g3StorageRow":[...32]}]}
  * g3StorageRow is optional, but missing it means source commit is UNATTESTED.
@@ -16,15 +17,22 @@ import {auditLegacyProof} from '../src/core/legacy-proof-audit.mjs';
 
 const fail=code=>{process.stdout.write(JSON.stringify({status:'BLOCKED',code})+'\n');process.exitCode=1;};
 const arg=process.argv.slice(2);
-if(arg.length!==1||!path.isAbsolute(arg[0])){
+if(arg.length!==1||(arg[0]!=='-'&&!path.isAbsolute(arg[0]))){
   fail('PRIVATE_ABSOLUTE_JSON_PATH_REQUIRED');
 }else{
   let records;
   try{
-    const stat=fs.lstatSync(arg[0]);
-    if(!stat.isFile()||stat.size>64*1024*1024||stat.size===0)
+    let raw;
+    if(arg[0]==='-')raw=fs.readFileSync(0,'utf8');
+    else {
+      const stat=fs.lstatSync(arg[0]);
+      if(!stat.isFile()||stat.size>64*1024*1024||stat.size===0)
+        throw Error('PRIVATE_INPUT_INVALID');
+      raw=fs.readFileSync(arg[0],'utf8');
+    }
+    if(Buffer.byteLength(raw,'utf8')>64*1024*1024 || !raw)
       throw Error('PRIVATE_INPUT_INVALID');
-    const input=JSON.parse(fs.readFileSync(arg[0],'utf8'));
+    const input=JSON.parse(raw);
     if(!input||!Array.isArray(input.records)||input.records.length===0||
        input.records.length>216) throw Error('PRIVATE_INPUT_INVALID');
     records=input.records;
