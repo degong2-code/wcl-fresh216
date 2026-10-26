@@ -50,7 +50,7 @@ export function planFightFetches(slots) {
     pending++;
 
     // Do not merge different fight IDs or report revisions (known G4.20 limitation).
-    // If revision is unknown, reuse is only within this in-memory plan.
+    // In-memory grouping is allowed; persistent reuse always needs freshness checking.
     const groupKey = JSON.stringify([
       s.scopeKey, s.reportCode, s.fightId, s.encounterId,
       s.difficulty, s.reportRevision ?? null
@@ -63,7 +63,7 @@ export function planFightFetches(slots) {
         encounterId: s.encounterId,
         difficulty: s.difficulty,
         reportRevision: s.reportRevision ?? null,
-        durableReuseAllowed: s.reportRevision != null,
+        revisionKnown: s.reportRevision != null,
         slots: []
       });
     }
