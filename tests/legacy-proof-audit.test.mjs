@@ -166,7 +166,7 @@ test('a staged G3 snapshot is never treated as committed',()=>{
 });
 test('G3 chunk tampering, extra trailing payload or different run identity fail closed',()=>{
   const input=make();
-  const tampered=committedG3Row(input.snapshot);tampered[8]+='x';
+  const tampered=committedG3Row(input.snapshot);tampered[8]='X'+tampered[8].slice(1);
   assert.throws(()=>auditLegacyProof({...input,g3StorageRow:tampered}),/LEGACY_STORAGE_CHUNK_HASH/);
   const trailing=committedG3Row(input.snapshot);trailing[31]='unexpected';
   assert.throws(()=>auditLegacyProof({...input,g3StorageRow:trailing}),/LEGACY_STORAGE_CHUNKS_INVALID/);
