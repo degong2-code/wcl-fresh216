@@ -166,7 +166,9 @@ def select_records(raw, proof, g3):
 def main():
     if len(sys.argv) != 2 or not Path(sys.argv[1]).is_absolute():
         reject("PRIVATE_XLSX_PATH")
-    if sys.stdout.isatty():\n        reject("PRIVATE_PIPE_REQUIRED")\n    file = Path(sys.argv[1])
+    if sys.stdout.isatty():
+        reject("PRIVATE_PIPE_REQUIRED")
+    file = Path(sys.argv[1])
     if not file.is_file() or file.is_symlink():
         reject("PRIVATE_XLSX_FILE")
     if file.stat().st_size <= 0 or file.stat().st_size > MAX_FILE:
