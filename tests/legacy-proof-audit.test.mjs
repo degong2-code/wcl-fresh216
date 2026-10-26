@@ -26,13 +26,12 @@ const make=({missing=[],status='DONE',uyBlank=false}={})=>{
     Math.round(r.amount*0.7*100)/100);
   const observed=values.filter(v=>v!==null).length;
   const total=overall.map(r=>r.amount),bv=boss.map(r=>r.amount);
-  const rawRow=[
-    '네크잘리','Hunter','Marksmanship','meta',
-    ...metrics(total),...metrics(bv),100,100,'','','',
-    ...Array(5).fill('')
-  ];
-  // A:T must be 20 columns; U:Y is the five non-boss ratios.
-  rawRow.length=25;
+  const rawRow=Array(25).fill('');
+  rawRow.splice(0,4,'네크잘리','Hunter','Marksmanship','meta');
+  metrics(total).forEach((v,i)=>{rawRow[i+4]=v;});
+  metrics(bv).forEach((v,i)=>{rawRow[i+9]=v;});
+  rawRow[14]=100;rawRow[15]=100;
+  // A:T includes 20 source cells, U:Y starts exactly at index 20.
   const snapshot={version:1,scope,runId:'PRIVATE_FAKE_TEST_RUN',
     rawRowNumber:4,key:job,encounter:3470,capturedAt:'synthetic',
     producer:{overallComplete:true,bossComplete:true,
