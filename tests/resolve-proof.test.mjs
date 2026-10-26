@@ -60,3 +60,7 @@ test('reproduces 0.005 amount tolerance but rejects outside tolerance', () => {
   assert.equal(resolveExactBossDps(slot(),report([actor({amount:1000.004})]))?.bossDps,700);
   assert.equal(resolveExactBossDps(slot(),report([actor({amount:1000.006})])),null);
 });
+
+test('a tiny boss DPS overshoot is rejected rather than creating negative non-boss share',()=>{
+  assert.equal(resolveExactBossDps(slot(),report([actor()],[actor({amount:1000.003})])),null);
+});
