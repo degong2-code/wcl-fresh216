@@ -140,3 +140,36 @@ test('require old RAW overall and boss top100 readiness flags',()=>{
   const z=make();z.rawRow[19]='error';
   assert.throws(()=>auditLegacyProof(z),/LEGACY_RAW_TOP100_NOT_READY/);
 });
+
+const committedG3Row=(snapshot)=>{
+  const json=JSON.stringify(snapshot);
+  const pieces=[];
+  for(let i=0;i<json.length;i+=12000)pieces.push(json.slice(i,i+12000));
+  if(pieces.length>24)throw Error('synthetic G3 fixture overflow');
+  const row=['COMMITTED',snapshot.runId,snapshot.scope,snapshot.key,
+    snapshot.rawRowNumber,sha(json),pieces.length,snapshot.capturedAt];
+  while(row.length<32)row.push(pieces[row.length-8]||'');
+  return row;
+};
+test('G3 committed storage receipt upgrades only source attestation, not actor-proof promotion',()=>{
+  const input=make();
+  assert.equal(auditLegacyProof(input).auditLevel,'SELF_CONSISTENT_UNATTESTED');
+  const attested=auditLegacyProof({...input,g3StorageRow:committedG3Row(input.snapshot)});
+  assert.equal(attested.auditLevel,'G3_COMMIT_WITNESSED');
+  assert.equal(attested.sourceCommitAttested,true);
+  assert.equal(attested.canPromoteToNewActorProof,false);
+});
+test('a staged G3 snapshot is never treated as committed',()=>{
+  const input=make();
+  const row=committedG3Row(input.snapshot);row[0]='STAGED';
+  assert.throws(()=>auditLegacyProof({...input,g3StorageRow:row}),/LEGACY_STORAGE_NOT_COMMITTED/);
+});
+test('G3 chunk tampering, extra trailing payload or different run identity fail closed',()=>{
+  const input=make();
+  const tampered=committedG3Row(input.snapshot);tampered[8]+='x';
+  assert.throws(()=>auditLegacyProof({...input,g3StorageRow:tampered}),/LEGACY_STORAGE_CHUNK_HASH/);
+  const trailing=committedG3Row(input.snapshot);trailing[31]='unexpected';
+  assert.throws(()=>auditLegacyProof({...input,g3StorageRow:trailing}),/LEGACY_STORAGE_CHUNKS_INVALID/);
+  const mismatch=committedG3Row(input.snapshot);mismatch[1]='wrong-run';
+  assert.throws(()=>auditLegacyProof({...input,g3StorageRow:mismatch}),/LEGACY_STORAGE_IDENTITY_DRIFT/);
+});
