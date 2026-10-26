@@ -29,7 +29,7 @@ export function joinFightEvidence(group, report) {
       continue;
     }
     verified.push({
-      jobKey:s.jobKey,rank:s.rank,
+      jobKey:s.jobKey,rank:s.rank,snapshotSha:s.snapshotSha,
       proof:{
         ...witness,snapshotSha:s.snapshotSha,reportCode:group.reportCode,
         fightId:group.fightId,encounterId:group.encounterId,
