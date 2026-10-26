@@ -33,7 +33,20 @@ export function newCheckpoint(scopeKey,runId){
 export function registerPlan(state,groups){
   ok(state?.schema===1&&state.status==='ACTIVE','NOT_ACTIVE');
   ok(Array.isArray(groups),'GROUPS_INVALID');
-  const out=clone(state),seen=new Set();
+  const out=clone(state),seen=new Set(),seenRank=new Map(),jobSnapshots=new Map();
+  // A ranked position must map to one immutable fight and one snapshot
+  // across ALL groups, including groups checkpointed in earlier ticks.
+  for(const [existingKey,entry] of Object.entries(out.entries)){
+    for(const item of entry.slots){
+      const rankKey=JSON.stringify([state.scopeKey,item.jobKey,item.rank]);
+      ok(!seenRank.has(rankKey),'CHECKPOINT_DUPLICATE_RANK');
+      seenRank.set(rankKey,existingKey);
+      const jobKey=JSON.stringify([state.scopeKey,item.jobKey]);
+      const prior=jobSnapshots.get(jobKey);
+      ok(!prior||prior===item.snapshotSha,'CHECKPOINT_SNAPSHOT_DRIFT');
+      jobSnapshots.set(jobKey,item.snapshotSha);
+    }
+  }
   for(const g of groups){
     ok(g?.scopeKey===state.scopeKey && g.reportCode &&
       Number.isSafeInteger(g.fightId)&&g.fightId>0 &&
@@ -47,6 +60,20 @@ export function registerPlan(state,groups){
       a.jobKey.localeCompare(b.jobKey)||a.rank-b.rank);
     const fingerprints=slots.map(keyOf);
     ok(new Set(fingerprints).size===slots.length,'DUPLICATE_RANK');
+    for(const item of slots){
+      ok(typeof item.jobKey==='string'&&item.jobKey.length>0 &&
+        Number.isInteger(item.rank)&&item.rank>=1&&item.rank<=100 &&
+        /^[a-f0-9]{64}$/i.test(item.snapshotSha||'') &&
+        Number.isFinite(item.totalDps)&&item.totalDps>0,'RANK_SLOT_INVALID');
+      const rankKey=JSON.stringify([state.scopeKey,item.jobKey,item.rank]);
+      const previousGroup=seenRank.get(rankKey);
+      ok(!previousGroup||previousGroup===key,'RANK_MAPPED_TO_MULTIPLE_FIGHTS');
+      seenRank.set(rankKey,key);
+      const jobKey=JSON.stringify([state.scopeKey,item.jobKey]);
+      const prior=jobSnapshots.get(jobKey);
+      ok(!prior||prior===item.snapshotSha,'JOB_SNAPSHOT_DRIFT');
+      jobSnapshots.set(jobKey,item.snapshotSha);
+    }
     const old=out.entries[key];
     if(old){
       ok(JSON.stringify(old.slots)===JSON.stringify(slots),'FETCH_PLAN_DRIFT');
