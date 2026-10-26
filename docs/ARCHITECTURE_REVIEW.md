@@ -7,7 +7,7 @@ Status: **ARCHITECTURE REVIEW / NO LIVE ACTIVATION**. This is not a collector re
 - Complete a selected difficulty's **216 jobs** (8 encounters × 27 specs), each from a verified top-100 ranking snapshot.
 - Preserve same-fight, same-character **total DPS + boss DPS** attribution. Do not guess null or anonymous evidence.
 - Produce rank 1/30/100, top-30/top-100 averages and the five non-boss KPIs for Google Sheets U:Y.
-- Prior 4h 09m 46s end-to-end runtime is the comparison baseline; 5–10× improvement remains an **unproved aspiration**.
+- Prior 4h 09m 46s end-to-end runtime is a **historical comparison baseline**, not an acceptance threshold. Seek the shortest realistically attainable runtime and lowest actual WCL points **without compromising EXACT-100**; report measured improvements and overhead honestly, even when incremental.
 - Rank snapshots, evidence quality, WCL point consumption, total elapsed time and operational simplicity matter more than G4.x version count.
 
 ## Confirmed code-level issues (from private installed-source review)
@@ -106,3 +106,23 @@ Use one **previously proven, non-anonymous** report/fight and the exact same sco
 5. Prefer the route with **lower observed cost at equal evidence**. If the table path cannot preserve exact DPS or only shifts quota type, retain rankings while optimizing report/fight reuse. Do not generalize a single fight's cost to 216 jobs without additional measured cohort evidence.
 
 User approval is required before step 1's live queries. No automation is enabled by this document.
+
+## Durable checkpoint prototype — available, not deployed
+
+- `src/core/checkpoint.mjs` implements strict, pure state transitions with a private per-run scope. A fetch transitions `READY → IN_FLIGHT` **before** any HTTP call. The caller must durably commit that transition first. Responses become `COMPLETED` or `COMPLETED_PARTIAL` only after the exact evidence join covers every referenced slot. The original snapshot SHA stays linked to each accepted proof.
+- Uncertain `HTTP_429`, `HTTP_504`, auth/partial errors and crashes during `IN_FLIGHT` become `NEEDS_REVIEW`, **never silently READY**. Already completed groups cannot be fetched again in this run. No automatic retries have been implemented for uncertain requests. Missing WCL point observations stay `null`, not 0; cost totals stay unknown if any attempted request lacks a cost witness.
+- `src/adapters/json-checkpoint-store.mjs` persists this state to a private absolute filesystem path with restrictive permissions, atomic rename, fsync and fail-closed lock. It is a small prototype for a **persistent private volume**, not an approved GitHub Actions production store. A Codespace or Actions ephemeral disk is insufficient for unattended whole-run durability. On lock contention/stale lock, stop for investigation rather than delete state blindly.
+- `tests/checkpoint.test.mjs`: interrupted request, duplicate attempt, stopped/resumed state, uncertain cost, partial proof, corrupted provenance and read-after-restart cases using synthetic data. No real WCL calls or private proof evidence.
+- One interface, one checkpoint machine. Do not add a new collector-version layer for individual incidents. Route all future hosts/adapters through these same state transitions; migrate only after actual identity/provenance checks.
+
+**Explicitly incomplete:** LIVE WCL fetch adapter, existing RAW/PROOF ingestion, a persistent production checkpoint backend, Google Sheets batching/publishing, credentials, UI/progress/cancel orchestration, real-evidence parity and 216-job measurement. The temporary JSON store must never be committed into Public Git or uploaded as a public CI artifact.
+
+### Engineering scorecard (relative, not a fixed multiplier)
+
+1. **Correctness first**: verified EXACT-100 jobs out of 216; same-fight/same-actor provenance and no guessed KPI.
+2. **Cost**: measured WCL point spend per completed job, measured/unknown request coverage, failed-request cost and successful evidence per point.
+3. **Time**: measured wall-clock time to complete useful evidence including rate-wait/retries, separately from CPU/Sheets time. Any improvement is welcome; no arbitrary mandatory speedup factor.
+4. **Resilience**: no accidental duplicate charged requests, safe cancellation/resume, durable proof after crashes and 429/504 incidents.
+5. **Complexity**: minimal modules and deployment prerequisites, no redundant version-specific wrappers.
+
+All reported results must separate synthetic CI PASS from real same-fight evidence parity and paid-point observations.
