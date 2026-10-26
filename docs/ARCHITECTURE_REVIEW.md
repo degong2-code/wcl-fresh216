@@ -93,7 +93,7 @@ The Public Draft PR includes five pure-core components/suites; NONE of these is 
 
 The new core was demonstrated in CI end-to-end using **synthetic** 100-rank input: rank snapshot → fight grouping → evidence-join → EXACT100 KPI. The test deliberately creates inputs without private report IDs or actor identities. Proof values are **only** considered verified when joined to a known report code, known report revision, same fight/encounter/difficulty, unique actor, class/spec and raw DPS amount. A known revision is not itself a license for cross-run cache reuse: freshness and provenance must be revalidated.
 
-Seven offline Node test suites currently total **53 test declarations**, one of which compares **500 deterministic simulated cases** to the extracted legacy matching algorithm. Original G4.13/G4.15/G4.25 75 historical cases are not yet present or executed by this CI. CI passing is **NOT** an end-to-end latency/point improvement claim.
+Eight offline Node test suites currently total **65 test declarations**, one of which compares **500 deterministic simulated cases** to the extracted legacy matching algorithm. Original G4.13/G4.15/G4.25 75 historical cases are not yet present or executed by this CI. CI passing is **NOT** an end-to-end latency/point improvement claim.
 
 ## Single decision-grade future LIVE measurement (not authorized or executed)
 
@@ -149,3 +149,20 @@ GitHub checkpoint hardening: `registerPlan` now refuses a rank slot mapped to tw
 ## Latest offline integrity result
 
 CI verification of public Draft PR #2 at `b2841c450f4c042d74265bd301479ef353efdb96`: **53/53 synthetic/offline Node tests passed** across seven suites; see https://github.com/degong2-code/wcl-fresh216/actions/runs/40357305273. This does not run the original 75 historical tests, a WCL call, or a real private RAW/PROOF parity test. Actual API points and elapsed end-to-end collection time have **not** been measured by this prototype.
+
+## Legacy RAW/PROOF read-only compatibility audit
+
+Added `src/core/legacy-proof-audit.mjs` and 12 offline tests. The auditor takes an **existing private** G3 snapshot document, its original 10-column proof row, and the 25-column RAW row (A:Y). It checks:
+
+- Original sorted 100-rank overall/boss snapshots with KST date bounds and frozen `wcl35RankFingerprint_` SHA256 behavior
+- Committed producer completeness flags, expected job/scope, both independent snapshot SHA digests and PROOF source hashes
+- RAW A:T rank 1/30/100 and top-30/top-100 metrics, including readiness markers for both complete top-100 rankings
+- 100 boss-DPS proof values, count/status consistency, hashed attempt references, and the **existing** U:Y non-boss KPI semantics (individual ranks + ratio of sums)
+- Blank but derivable U:Y cells reported as missing; contradictory filled U:Y cells fail closed
+- `DONE` with only partial rank coverage classified `LEGACY_VALIDATED_PARTIAL`, **not** EXACT100
+
+It returns only calculated aggregates and an explicit `canPromoteToNewActorProof:false` marker. It does **not** access Google Sheets, WCL, files or credentials; it cannot reproduce missing per-rank actor identities. It is not a replacement for an authenticated read of real private historical evidence.
+
+CI: 65 synthetic/offline declarations across eight suites. The previous 75 historical regression tests are still NOT present and **no** actual private RAW/PROOF rows have been compared to the new engine. Live points, timing and 216-job throughput remain **unmeasured**.
+
+To complete empirical migration parity later, point this read-only auditor at a user-authorized **private** source read (G3 snapshot, matching PROOF row and RAW A:Y) without publishing raw reports, player names or Sheet IDs. The audit output may be reduced to aggregate counts and conflicts; never commit the source inputs to a public repository.
