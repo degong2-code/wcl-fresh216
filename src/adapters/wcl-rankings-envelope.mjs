@@ -37,7 +37,7 @@ export function decodeRankingsEnvelope(group,httpStatus,body){
   const data=body?.data;
   const observedPoints=pointsOf(data);
   if(httpStatus!==200 || !body || typeof body!=='object' ||
-     (Array.isArray(body.errors)&&body.errors.length>0))
+     (body.errors!=null&&(!Array.isArray(body.errors)||body.errors.length>0)))
     return {status:'UNCERTAIN_HTTP_OR_GRAPHQL',report:null,observedPoints};
   const report=data?.reportData?.report;
   if(!report||report.code!==group?.reportCode ||
