@@ -152,3 +152,15 @@ test('persistent JSON store survives new object / restarts and refuses overwrite
     assert.equal(fs.statSync(file).mode & 0o777,0o600);
   }finally{fs.rmSync(root,{recursive:true,force:true});}
 });
+
+test('the same rank cannot be charged through two fight groups, across sessions or one plan',()=>{
+  const {state}=makeReady();
+  const conflict=planFightFetches([raw({fightId:99})]).groups;
+  assert.throws(()=>registerPlan(state,conflict),/RANK_MAPPED_TO_MULTIPLE_FIGHTS/);
+  assert.throws(()=>planFightFetches([raw(),raw({fightId:99})]),/DUPLICATE_RANK_SLOT/);
+});
+test('checkpoint enforces one ranking snapshot across distinct rank groups',()=>{
+  const {state}=makeReady();
+  const foreign=planFightFetches([raw({rank:20,fightId:99,snapshotSha:'f'.repeat(64)})]).groups;
+  assert.throws(()=>registerPlan(state,foreign),/JOB_SNAPSHOT_DRIFT/);
+});
