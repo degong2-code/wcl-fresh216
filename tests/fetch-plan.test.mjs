@@ -58,7 +58,7 @@ test('unknown report revision blocks durable cache assumption', () => {
   const p = planFightFetches([slot({reportRevision:null}),
     slot({rank:4,reportRevision:null})]);
   assert.equal(p.distinctFightRequests, 1);
-  assert.equal(p.groups[0].durableReuseAllowed, false);
+  assert.equal(p.groups[0].revisionKnown, false);
 });
 
 test('reject rank/source drift, duplicate slots and invalid DPS', () => {
