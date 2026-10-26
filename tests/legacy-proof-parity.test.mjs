@@ -77,7 +77,7 @@ const pick=(n)=>{seed=(Math.imul(seed,1664525)+1013904223)>>>0;return seed%n;};
 test('500 offline legacy-vs-new equivalence cases (synthetic same-fight shape)',()=>{
   let proved=0,rejected=0;
   for(let k=0;k<500;k++){
-    const mode=pick(12), d=1000 + pick(1000);
+    const mode=k%12, d=1000 + pick(1000);
     const base=actor(1,'ExampleHunter',d);
     const all=[base],boss=[actor(1,'ExampleHunter',d*0.65)];
     const s=slot(d);
