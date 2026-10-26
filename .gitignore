@@ -23,6 +23,8 @@ private/
 raw/
 proof/
 checkpoints/
+*.checkpoint.json
+*.checkpoint.json.lock/
 receipts-live/
 data/live/
 artifacts/live/
