@@ -117,6 +117,6 @@ test('strictening: malformed actor identifier with boolean type is rejected as i
 test('strictening: positive, integer fight/encounter/difficulty scope required',()=>{
   const r={overall:{data:[fight([actor(1,'ExampleHunter',1000)])]},
     boss:{data:[fight([actor(1,'ExampleHunter',800)])}};
-  assert.equal(resolveExactBossDps(slot(1000,{fightId:0}),r),null);
+  assert.equal(resolveExactBossDps({...slot(1000),fightId:0},r),null);
   assert.equal(resolveExactBossDps({...slot(1000),encounterId:-1},r),null);
 });
