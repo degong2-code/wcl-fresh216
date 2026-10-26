@@ -1,0 +1,189 @@
+/**
+ * Pure durable-state contract: NO network, clock, filesystem or Google access.
+ * Each fetch attempt is written BEFORE its external HTTP call.
+ * After an interruption an IN_FLIGHT request is uncertain and NEVER auto-retried.
+ *
+ * Caller MUST atomically persist each resulting state before continuing.
+ * A successfully observed HTTP response alone is not a durable checkpoint.
+ */
+const fail=(code)=>{throw new Error(code);};
+const ok=(v,code)=>{if(!v)fail(code);};
+const keyOf=(s)=>JSON.stringify([s.jobKey,s.rank,s.snapshotSha]);
+const requestKey=(g)=>JSON.stringify([
+  g.scopeKey,g.reportCode,g.fightId,g.encounterId,
+  g.difficulty,g.reportRevision??null
+]);
+const idFields=(g)=>({
+  scopeKey:g.scopeKey,reportCode:g.reportCode,fightId:g.fightId,
+  encounterId:g.encounterId,difficulty:g.difficulty,
+  reportRevision:g.reportRevision??null
+});
+const slotShape=(s)=>({
+  jobKey:s.jobKey,rank:s.rank,snapshotSha:s.snapshotSha,
+  totalDps:s.totalDps,className:s.className,specName:s.specName,
+  name:s.name??''
+});
+const clone=(o)=>structuredClone(o);
+const numCost=(v)=>v===null||(typeof v==='number'&&Number.isFinite(v)&&v>=0);
+
+export function newCheckpoint(scopeKey,runId){
+  ok(typeof scopeKey==='string'&&scopeKey&&typeof runId==='string'&&runId,'INVALID_RUN_ID');
+  return {schema:1,scopeKey,runId,version:0,status:'ACTIVE',entries:{}};
+}
+export function registerPlan(state,groups){
+  ok(state?.schema===1&&state.status==='ACTIVE','NOT_ACTIVE');
+  ok(Array.isArray(groups),'GROUPS_INVALID');
+  const out=clone(state),seen=new Set();
+  for(const g of groups){
+    ok(g?.scopeKey===state.scopeKey && g.reportCode &&
+      Number.isSafeInteger(g.fightId)&&g.fightId>0 &&
+      Number.isSafeInteger(g.encounterId)&&g.encounterId>0 &&
+      Number.isSafeInteger(g.difficulty)&&g.difficulty>0 &&
+      (g.reportRevision==null || Number.isSafeInteger(g.reportRevision)) &&
+      Array.isArray(g.slots)&&g.slots.length>0,'GROUP_INVALID');
+    const key=requestKey(g);
+    ok(!seen.has(key),'DUPLICATE_FETCH_GROUP');seen.add(key);
+    const slots=g.slots.map(slotShape).sort((a,b)=>
+      a.jobKey.localeCompare(b.jobKey)||a.rank-b.rank);
+    const fingerprints=slots.map(keyOf);
+    ok(new Set(fingerprints).size===slots.length,'DUPLICATE_RANK');
+    const old=out.entries[key];
+    if(old){
+      ok(JSON.stringify(old.slots)===JSON.stringify(slots),'FETCH_PLAN_DRIFT');
+      continue;
+    }
+    out.entries[key]={
+      key,identity:idFields(g),slots,status:'READY',attempt:null,
+      result:null,incident:null,observedPoints:null,wallMs:null
+    };
+  }
+  out.version++;return out;
+}
+export function readyFetches(state){
+  ok(state?.schema===1,'CHECKPOINT_INVALID');
+  if(state.status!=='ACTIVE')return [];
+  return Object.values(state.entries)
+    .filter(e=>e.status==='READY')
+    .sort((a,b)=>b.slots.length-a.slots.length||a.key.localeCompare(b.key))
+    .map(e=>({key:e.key,...clone(e.identity),slots:clone(e.slots)}));
+}
+export function beginFetch(state,key,attemptId,atMs){
+  ok(state?.status==='ACTIVE','NOT_ACTIVE');
+  const entry=state.entries?.[key];
+  ok(entry,'FETCH_NOT_PLANNED');
+  ok(entry.status==='READY','FETCH_NOT_READY');
+  ok(typeof attemptId==='string'&&attemptId.length>0&&Number.isSafeInteger(atMs)&&atMs>=0,
+    'INVALID_ATTEMPT');
+  // Unique within this run, including completed/failed attempts.
+  ok(!Object.values(state.entries).some(e=>e.attempt?.id===attemptId),'DUPLICATE_ATTEMPT_ID');
+  const out=clone(state);
+  const target=out.entries[key];
+  target.status='IN_FLIGHT';target.attempt={id:attemptId,startedAtMs:atMs};
+  out.version++;return out;
+}
+function attempted(state,key,attemptId){
+  const e=state?.entries?.[key];
+  ok(e,'FETCH_NOT_PLANNED');
+  ok(e.status==='IN_FLIGHT'&&e.attempt?.id===attemptId,'ATTEMPT_NOT_CURRENT');
+  return e;
+}
+export function completeFetch(state,key,attemptId,joined,{points=null,wallMs=null}={}){
+  const e=attempted(state,key,attemptId);
+  ok(numCost(points),'POINT_COST_INVALID');
+  ok(wallMs===null||(Number.isFinite(wallMs)&&wallMs>=0),'WALL_TIME_INVALID');
+  ok(joined&&Array.isArray(joined.verified)&&Array.isArray(joined.unresolved),
+    'JOIN_RESULT_INVALID');
+  const expected=new Map(e.slots.map(s=>[keyOf(s),s])),covered=new Set();
+  const committed=[];
+  for(const row of joined.verified){
+    const proof=row?.proof;
+    const rk=keyOf(row);
+    const original=expected.get(rk);
+    ok(original&&!covered.has(rk),'PROOF_SLOT_MISMATCH');covered.add(rk);
+    ok(proof?.proofType==='EXACT_SAME_FIGHT_ACTOR'&&
+      typeof proof.actorRef==='string'&&proof.actorRef&&
+      typeof proof.bossDps==='number'&&Number.isFinite(proof.bossDps)&&
+      proof.bossDps>=0&&proof.bossDps<=original.totalDps+0.005 &&
+      proof.snapshotSha===original.snapshotSha &&
+      proof.reportCode===e.identity.reportCode &&
+      proof.fightId===e.identity.fightId &&
+      proof.encounterId===e.identity.encounterId &&
+      proof.difficulty===e.identity.difficulty &&
+      Number.isSafeInteger(proof.reportRevision)&&proof.reportRevision>=0 &&
+      (e.identity.reportRevision===null ||
+       proof.reportRevision===e.identity.reportRevision),'INVALID_PROOF');
+    committed.push({
+      jobKey:row.jobKey,rank:row.rank,snapshotSha:row.snapshotSha,proof:clone(proof)
+    });
+  }
+  const unresolved=[];
+  for(const row of joined.unresolved){
+    const rk=keyOf(row);
+    ok(expected.has(rk)&&!covered.has(rk),'UNRESOLVED_SLOT_MISMATCH');
+    covered.add(rk);
+    unresolved.push({jobKey:row.jobKey,rank:row.rank,snapshotSha:row.snapshotSha});
+  }
+  ok(covered.size===expected.size,'INCOMPLETE_JOIN_COVERAGE');
+  const out=clone(state),target=out.entries[key];
+  target.status=unresolved.length?'COMPLETED_PARTIAL':'COMPLETED';
+  target.result={verified:committed,unresolved};
+  target.observedPoints=points;target.wallMs=wallMs;
+  out.version++;return out;
+}
+export function uncertainFailure(state,key,attemptId,{code,points=null,wallMs=null}={}){
+  attempted(state,key,attemptId);
+  ok(typeof code==='string'&&/^[A-Z0-9_]{2,60}$/.test(code),'INCIDENT_CODE_INVALID');
+  ok(numCost(points),'POINT_COST_INVALID');
+  ok(wallMs===null||(Number.isFinite(wallMs)&&wallMs>=0),'WALL_TIME_INVALID');
+  const out=clone(state),e=out.entries[key];
+  e.status='NEEDS_REVIEW';e.incident={code,automaticRetry:false};
+  e.observedPoints=points;e.wallMs=wallMs;
+  out.version++;return out;
+}
+export function recoverCheckpoint(state){
+  ok(state?.schema===1,'CHECKPOINT_INVALID');
+  const out=clone(state);
+  let changed=false;
+  for(const e of Object.values(out.entries)){
+    if(e.status==='IN_FLIGHT'){
+      e.status='NEEDS_REVIEW';
+      e.incident={code:'INTERRUPTED_IN_FLIGHT',automaticRetry:false};
+      changed=true;
+    }
+  }
+  if(changed)out.version++;
+  return out;
+}
+export function stopCheckpoint(state){
+  ok(state?.schema===1,'CHECKPOINT_INVALID');
+  const out=recoverCheckpoint(state);
+  if(out.status!=='STOPPED'){out.status='STOPPED';out.version++;}
+  return out;
+}
+export function resumeCheckpoint(state){
+  ok(state?.schema===1&&state.status==='STOPPED','NOT_STOPPED');
+  const out=clone(state);out.status='ACTIVE';out.version++;
+  // NEEDS_REVIEW entries intentionally never return to READY.
+  return out;
+}
+export function checkpointStats(state){
+  ok(state?.schema===1,'CHECKPOINT_INVALID');
+  const counts={READY:0,IN_FLIGHT:0,COMPLETED:0,COMPLETED_PARTIAL:0,NEEDS_REVIEW:0};
+  let witnessedPoints=0,pointsUnobserved=0,proofs=0,unresolved=0;
+  for(const e of Object.values(state.entries)){
+    counts[e.status]=(counts[e.status]||0)+1;
+    if(e.attempt){
+      if(e.observedPoints===null)pointsUnobserved++;
+      else witnessedPoints+=e.observedPoints;
+    }
+    if(e.result){proofs+=e.result.verified.length;unresolved+=e.result.unresolved.length;}
+  }
+  return {version:state.version,runStatus:state.status,counts,
+    witnessedPoints,pointsUnobserved,pointsTotalConfirmed:pointsUnobserved===0?witnessedPoints:null,
+    verifiedSlotEvidence:proofs,unresolvedSlotEvidence:unresolved};
+}
+export function committedProofs(state){
+  ok(state?.schema===1,'CHECKPOINT_INVALID');
+  return Object.values(state.entries).flatMap(e=>
+    e.result?clone(e.result.verified):[]);
+}
