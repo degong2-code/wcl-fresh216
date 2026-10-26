@@ -125,3 +125,18 @@ test('same raw input remains unchanged on repeated comparisons',()=>{
   assert.deepEqual(auditLegacyProof(x),auditLegacyProof(x));
   assert.equal(JSON.stringify(x),before);
 });
+
+test('deny unsorted G3 producer snapshot before hash validation',()=>{
+  const x=make();
+  [x.snapshot.overall[1],x.snapshot.overall[2]]=
+    [x.snapshot.overall[2],x.snapshot.overall[1]];
+  assert.throws(()=>auditLegacyProof(x),/OVERALL_UNSORTED/);
+});
+test('require old RAW overall and boss top100 readiness flags',()=>{
+  const x=make();x.rawRow[14]=99;
+  assert.throws(()=>auditLegacyProof(x),/LEGACY_RAW_TOP100_NOT_READY/);
+  const y=make();y.rawRow[15]=0;
+  assert.throws(()=>auditLegacyProof(y),/LEGACY_RAW_TOP100_NOT_READY/);
+  const z=make();z.rawRow[19]='error';
+  assert.throws(()=>auditLegacyProof(z),/LEGACY_RAW_TOP100_NOT_READY/);
+});
