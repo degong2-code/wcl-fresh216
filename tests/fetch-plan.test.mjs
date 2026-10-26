@@ -22,8 +22,7 @@ test('cross-job same fight is planned once but rank provenance stays separate', 
   assert.equal(p.reusedReferences, 1);
   assert.equal(p.groups[0].slots.length, 2);
   assert.notEqual(p.groups[0].slots[0].snapshotSha, p.groups[0].slots[1].snapshotSha);
-  assert.equal(p.groups[0].slots[0].totalDps, 901);
-  assert.equal(p.groups[0].slots[1].totalDps, 1000);
+  assert.deepEqual(p.groups[0].slots.map(x => x.totalDps), [1000, 901]);
   assert.equal('bossDps' in p.groups[0], false);
 });
 
