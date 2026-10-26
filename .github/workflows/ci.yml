@@ -1,0 +1,32 @@
+name: Offline checks (no WCL access)
+on:
+  push:
+    branches: [main, 'work/**']
+  pull_request:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  offline:
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+      - name: Validate tracked files and migration state
+        run: node tools/ci.mjs
+      - name: Publish accurate verification scope
+        if: always()
+        shell: bash
+        run: |
+          echo "### WCL Fresh216" >> "$GITHUB_STEP_SUMMARY"
+          echo "This workflow makes **zero WCL API requests** and performs no Google Sheets writes." >> "$GITHUB_STEP_SUMMARY"
+          if [ -f migration/source-manifest.json ]; then
+            node -e "const m=require('./migration/source-manifest.json');console.log('**Installed-source parity:** '+(m.installed_source_verified?'VERIFIED':'NOT VERIFIED')+'; **source imported:** '+m.source_imported)" >> "$GITHUB_STEP_SUMMARY"
+          fi
