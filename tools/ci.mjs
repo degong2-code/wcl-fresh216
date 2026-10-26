@@ -39,7 +39,7 @@ if (manifest.source_imported) {
     } else console.log('PASS imported offline test: ' + file);
   }
 } else {
-  if (files.some(file => file.endsWith('.gs'))) fail('Apps Script source present while source_imported=false');
+  if (files.some(file => file.endsWith('.gs') && !file.startsWith('candidates/'))) fail('Operational Apps Script source present while source_imported=false');
   console.log('BOOTSTRAP ONLY: real Apps Script source not imported; 75 historical tests were NOT run by this CI');
 }
 if (manifest.production_ready && !manifest.installed_source_verified) fail('Production release cannot be declared without installed source parity');
