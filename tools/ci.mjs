@@ -14,7 +14,7 @@ const forbidden = [
   /(^|\/)\.clasp(?:rc)?\.json$/i,
   /(^|\/)(credentials|token)\.json$/i,
   /(^|\/)(private|raw|proof|checkpoints)\//i,
-  /\.(zip|sqlite|db)$/i,
+  /\.(zip|sqlite|db|xlsx|xls|ods|csv)$/i,
   /\.checkpoint\.json$/i
 ];
 for (const file of files) {
