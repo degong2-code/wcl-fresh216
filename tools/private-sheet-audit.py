@@ -24,7 +24,7 @@ SHEET_NAME = "{%s}name" % NS["m"]
 SAFE_CODES = {
     "PRIVATE_XLSX_PATH", "PRIVATE_XLSX_FILE", "PRIVATE_XLSX_SIZE",
     "PRIVATE_XLSX_ARCHIVE", "PRIVATE_XLSX_SCHEMA", "PRIVATE_XLSX_TAB_MISSING",
-    "PRIVATE_XLSX_VALUE", "PRIVATE_XLSX_FORMULA", "PRIVATE_XLSX_TOO_LARGE"
+    "PRIVATE_XLSX_VALUE", "PRIVATE_XLSX_FORMULA", "PRIVATE_XLSX_TOO_LARGE",\n    "PRIVATE_PIPE_REQUIRED"
 }
 
 class PrivateInputError(Exception):
@@ -165,7 +165,7 @@ def select_records(raw, proof, g3):
 def main():
     if len(sys.argv) != 2 or not Path(sys.argv[1]).is_absolute():
         reject("PRIVATE_XLSX_PATH")
-    file = Path(sys.argv[1])
+    if sys.stdout.isatty():\n        reject("PRIVATE_PIPE_REQUIRED")\n    file = Path(sys.argv[1])
     if not file.is_file() or file.is_symlink():
         reject("PRIVATE_XLSX_FILE")
     if file.stat().st_size <= 0 or file.stat().st_size > MAX_FILE:
