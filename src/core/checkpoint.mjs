@@ -103,7 +103,7 @@ export function completeFetch(state,key,attemptId,joined,{points=null,wallMs=nul
     ok(proof?.proofType==='EXACT_SAME_FIGHT_ACTOR'&&
       typeof proof.actorRef==='string'&&proof.actorRef&&
       typeof proof.bossDps==='number'&&Number.isFinite(proof.bossDps)&&
-      proof.bossDps>=0&&proof.bossDps<=original.totalDps+0.005 &&
+      proof.bossDps>=0&&proof.bossDps<=original.totalDps &&
       proof.snapshotSha===original.snapshotSha &&
       proof.reportCode===e.identity.reportCode &&
       proof.fightId===e.identity.fightId &&
