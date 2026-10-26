@@ -20,7 +20,7 @@ const arg=process.argv.slice(2);
 if(arg.length!==1||(arg[0]!=='-'&&!path.isAbsolute(arg[0]))){
   fail('PRIVATE_ABSOLUTE_JSON_PATH_REQUIRED');
 }else{
-  let records;
+  let records,sourceCounts;
   try{
     let raw;
     if(arg[0]==='-')raw=fs.readFileSync(0,'utf8');
@@ -33,14 +33,27 @@ if(arg.length!==1||(arg[0]!=='-'&&!path.isAbsolute(arg[0]))){
     if(Buffer.byteLength(raw,'utf8')>64*1024*1024 || !raw)
       throw Error('PRIVATE_INPUT_INVALID');
     const input=JSON.parse(raw);
-    if(!input||!Array.isArray(input.records)||input.records.length===0||
-       input.records.length>216) throw Error('PRIVATE_INPUT_INVALID');
+    if(!input||!Array.isArray(input.records)||input.records.length>216||
+       (input.records.length===0&&!input.sourceCounts))
+      throw Error('PRIVATE_INPUT_INVALID');
+    if(input.sourceCounts){
+      const m=input.sourceCounts;
+      const fields=['sourceRows','proofRowsPresent','committedRowsWithProof',
+        'missingCommitForProof','proofRowsMissing'];
+      if(fields.some(k=>!Number.isSafeInteger(m[k])||m[k]<0)||
+         m.sourceRows!==216||m.proofRowsPresent!==m.committedRowsWithProof+
+         m.missingCommitForProof||m.sourceRows!==m.proofRowsPresent+
+         m.proofRowsMissing||m.committedRowsWithProof!==input.records.length)
+         throw Error('PRIVATE_INPUT_INVALID');
+    }
     records=input.records;
+    sourceCounts=input.sourceCounts||null;
   }catch{
     fail('PRIVATE_INPUT_UNAVAILABLE_OR_INVALID');
   }
   if(records){
     const result={status:'COMPLETE_READ_ONLY',records:records.length,
+      sourceCounts,
       sourceCommitAttested:0,selfConsistentUnattested:0,
       legacyExact100:0,legacyPartial:0,verifiedSlots:0,
       errors:[],wclRequests:0,sheetsWrites:0,
@@ -69,8 +82,9 @@ if(arg.length!==1||(arg[0]!=='-'&&!path.isAbsolute(arg[0]))){
       else result.legacyPartial++;
       result.verifiedSlots+=data.verifiedBossSlots;
     }
-    result.status=result.errors.length?'REQUIRES_REVIEW':'COMPLETE_READ_ONLY';
+    result.status=(result.errors.length||(sourceCounts?.missingCommitForProof||0)>0)?
+      'REQUIRES_REVIEW':'COMPLETE_READ_ONLY';
     process.stdout.write(JSON.stringify(result)+'\n');
-    if(result.errors.length)process.exitCode=1;
+    if(result.status==='REQUIRES_REVIEW')process.exitCode=1;
   }
 }
