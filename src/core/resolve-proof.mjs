@@ -11,7 +11,8 @@ const num = (v) => {
 };
 const same = (a,b) => String(a ?? '').trim().toLowerCase() === String(b ?? '').trim().toLowerCase();
 const actorRef = (r) => {
-  const id = Number(r?.id);
+  const rawId = r?.id;
+  const id = (typeof rawId === 'number' || typeof rawId === 'string') ? Number(rawId) : NaN;
   if (Number.isSafeInteger(id) && id > 0) return 'id:' + id;
   const name = String(r?.name ?? '').trim().toLowerCase();
   return name && name !== 'anonymous' ? 'name:' + name : null;
@@ -35,7 +36,8 @@ const witnessRoster = (ranking, slot) => {
  */
 export function resolveExactBossDps(slot, report) {
   if (!slot || !report || !Number.isInteger(slot.fightId) ||
-      !Number.isInteger(slot.encounterId) || !Number.isInteger(slot.difficulty))
+      !Number.isInteger(slot.encounterId) || !Number.isInteger(slot.difficulty) ||
+      slot.fightId <= 0 || slot.encounterId <= 0 || slot.difficulty <= 0)
     return null;
   const total = num(slot.totalDps);
   if (!(total > 0)) return null;
