@@ -52,7 +52,7 @@ export function registerPlan(state,groups){
       Number.isSafeInteger(g.fightId)&&g.fightId>0 &&
       Number.isSafeInteger(g.encounterId)&&g.encounterId>0 &&
       Number.isSafeInteger(g.difficulty)&&g.difficulty>0 &&
-      (g.reportRevision==null || Number.isSafeInteger(g.reportRevision)) &&
+      (g.reportRevision==null || (Number.isSafeInteger(g.reportRevision)&&g.reportRevision>=0)) &&
       Array.isArray(g.slots)&&g.slots.length>0,'GROUP_INVALID');
     const key=requestKey(g);
     ok(!seen.has(key),'DUPLICATE_FETCH_GROUP');seen.add(key);
