@@ -78,3 +78,31 @@ RankingSnapshot → GlobalFetchPlanner → WCLFetchAdapter → ExactProofValidat
 - Never start/restart those jobs, change triggers, write Sheets, upload credentials, or run paid WCL tests through public PR CI without separate approval.
 - New planner source is a **non-operational offline prototype**; it cannot fetch WCL, infer boss DPS, commit proofs or publish sheets.
 - Only promote a future architecture after a controlled direct comparison, rather than treating old scripts as mandatory foundations.
+
+## Implementation progress (offline, no LIVE authorization)
+
+The Public Draft PR includes five pure-core components/suites; NONE of these is an installed or deployable WCL collector:
+
+| Core module | Contract / current result |
+| --- | --- |
+| `src/core/fetch-plan.mjs` | Pending ranks grouped across jobs by scope + report + fight + encounter + difficulty + revision; keeps per-rank snapshot provenance; actor name preserved |
+| `src/core/resolve-proof.mjs` | Same-fight, unique actor and exact BossDPS validator; refuses ambiguous evidence |
+| `src/core/evidence-join.mjs` | Joins an already-fetched report with per-rank proof; requires matching report code and report revision; returns unresolved ranks explicitly |
+| `src/core/job-kpis.mjs` | Builds rank 1/30/100, first 30/100 averages and U:Y non-boss share from exactly proved same-rank BossDPS; missing proofs make dependent metrics null |
+| `tests/legacy-proof-parity.test.mjs` | Independent historical recover() oracle verified on **500 synthetic report shapes**; not real WCL proof replay |
+
+The new core was demonstrated in CI end-to-end using **synthetic** 100-rank input: rank snapshot → fight grouping → evidence-join → EXACT100 KPI. The test deliberately creates inputs without private report IDs or actor identities. Proof values are **only** considered verified when joined to a known report code, known report revision, same fight/encounter/difficulty, unique actor, class/spec and raw DPS amount. A known revision is not itself a license for cross-run cache reuse: freshness and provenance must be revalidated.
+
+Five offline Node test suites currently total **32 test declarations**, one of which compares **500 deterministic simulated cases** to the extracted legacy matching algorithm. Original G4.13/G4.15/G4.25 75 historical cases are not yet present or executed by this CI. CI passing is **NOT** an end-to-end latency/point improvement claim.
+
+## Single decision-grade future LIVE measurement (not authorized or executed)
+
+Use one **previously proven, non-anonymous** report/fight and the exact same scope/snapshot. Compare *separate requests*, without modifying the reference proof or restarting the stopped collector:
+
+1. Baseline: query `report.rankings(fightIDs:[id],playerMetric:dps|bossdps)`; retain the legacy DPS and same-actor witness.
+2. Candidate: query `report.table(...)` with matched `fightIDs`, `dataType`, `sourceID`, boss `targetID`/encounter rules and any required actor/pet ownership translations. Target classification, effective fight DPS denominator, pets and absorbs must not be assumed equivalent.
+3. Measure each request's elapsed time, rate-limit `currentRequest` charge when observable, response bytes and retry/error status; unknown failure costs remain **null**.
+4. Compare actor identity, total DPS, BossDPS and both 30/100 rank-aggregate semantics against the frozen witness. Mark any mismatch as a failure; no interpolation or expected savings projection until parity is demonstrated.
+5. Prefer the route with **lower observed cost at equal evidence**. If the table path cannot preserve exact DPS or only shifts quota type, retain rankings while optimizing report/fight reuse. Do not generalize a single fight's cost to 216 jobs without additional measured cohort evidence.
+
+User approval is required before step 1's live queries. No automation is enabled by this document.
