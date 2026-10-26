@@ -93,7 +93,7 @@ The Public Draft PR includes five pure-core components/suites; NONE of these is 
 
 The new core was demonstrated in CI end-to-end using **synthetic** 100-rank input: rank snapshot → fight grouping → evidence-join → EXACT100 KPI. The test deliberately creates inputs without private report IDs or actor identities. Proof values are **only** considered verified when joined to a known report code, known report revision, same fight/encounter/difficulty, unique actor, class/spec and raw DPS amount. A known revision is not itself a license for cross-run cache reuse: freshness and provenance must be revalidated.
 
-Five offline Node test suites currently total **32 test declarations**, one of which compares **500 deterministic simulated cases** to the extracted legacy matching algorithm. Original G4.13/G4.15/G4.25 75 historical cases are not yet present or executed by this CI. CI passing is **NOT** an end-to-end latency/point improvement claim.
+Seven offline Node test suites currently total **53 test declarations**, one of which compares **500 deterministic simulated cases** to the extracted legacy matching algorithm. Original G4.13/G4.15/G4.25 75 historical cases are not yet present or executed by this CI. CI passing is **NOT** an end-to-end latency/point improvement claim.
 
 ## Single decision-grade future LIVE measurement (not authorized or executed)
 
@@ -145,3 +145,7 @@ The new `src/adapters/wcl-rankings-envelope.mjs` constructs a GraphQL **query ob
 The WCL official schema documents Report revision as incrementing on re-exports and report.rankings as **non-frozen JSON**. This tells us what to request, **not** whether adding fields is point-neutral or whether a different API path is cheaper. Only a future authorized, measured request can answer those questions.
 
 GitHub checkpoint hardening: `registerPlan` now refuses a rank slot mapped to two distinct report/fights or job snapshot SHA changes across separate registered batches. This avoids duplicate charged lookups and silent evidence lineage drift after resume.
+
+## Latest offline integrity result
+
+CI verification of public Draft PR #2 at `b2841c450f4c042d74265bd301479ef353efdb96`: **53/53 synthetic/offline Node tests passed** across seven suites; see https://github.com/degong2-code/wcl-fresh216/actions/runs/40357305273. This does not run the original 75 historical tests, a WCL call, or a real private RAW/PROOF parity test. Actual API points and elapsed end-to-end collection time have **not** been measured by this prototype.
