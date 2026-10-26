@@ -14,7 +14,8 @@ const forbidden = [
   /(^|\/)\.clasp(?:rc)?\.json$/i,
   /(^|\/)(credentials|token)\.json$/i,
   /(^|\/)(private|raw|proof|checkpoints)\//i,
-  /\.(zip|sqlite|db)$/i
+  /\.(zip|sqlite|db)$/i,
+  /\.checkpoint\.json$/i
 ];
 for (const file of files) {
   if (forbidden.some(re => re.test(file))) fail('Forbidden tracked filename: ' + file);
