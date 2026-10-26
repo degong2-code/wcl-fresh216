@@ -59,6 +59,8 @@ function dates(scope) {
 function verifiedMetricRows(rows,label,scope) {
   need(Array.isArray(rows)&&rows.length===100,label+'_NOT_EXACT100_SNAPSHOT');
   const {from,to}=dates(scope);
+  // G3 producer required its source snapshot be in descending ranking order.
+  for(let i=1;i<100;i++)need(Number(rows[i-1]?.amount)>=Number(rows[i]?.amount),label+'_UNSORTED');
   const selected=rows.slice().sort((a,b)=>Number(b.amount)-Number(a.amount));
   for(let i=0;i<100;i++){
     const r=selected[i],value=legacyNumber(r?.amount),ts=startMs(r||{});
@@ -99,6 +101,8 @@ export function auditLegacyProof({snapshot,proofRow,rawRow,scopeKey}={}) {
     bossRanks.fingerprint===snapshot.bossSha256,'LEGACY_RANK_SNAPSHOT_HASH_DRIFT');
   need(proofRow[2]===overall.fingerprint&&proofRow[3]===bossRanks.fingerprint,
     'LEGACY_PROOF_SNAPSHOT_HASH_DRIFT');
+  need(Number(rawRow[14])===100&&Number(rawRow[15])===100&&
+    !rawRow[19],'LEGACY_RAW_TOP100_NOT_READY');
   const expectedRaw=[...metric(overall.amounts),...metric(bossRanks.amounts)];
   const mismatches=expectedRaw.filter((v,i)=>{
     const prior=legacyNumber(rawRow[i+4]);
