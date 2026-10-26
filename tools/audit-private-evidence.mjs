@@ -82,8 +82,8 @@ if(arg.length!==1||(arg[0]!=='-'&&!path.isAbsolute(arg[0]))){
       else result.legacyPartial++;
       result.verifiedSlots+=data.verifiedBossSlots;
     }
-    result.status=(result.errors.length||(sourceCounts?.missingCommitForProof||0)>0)?
-      'REQUIRES_REVIEW':'COMPLETE_READ_ONLY';
+    result.status=(result.errors.length||(sourceCounts?.missingCommitForProof||0)>0||
+      records.length===0)?'REQUIRES_REVIEW':'COMPLETE_READ_ONLY';
     process.stdout.write(JSON.stringify(result)+'\n');
     if(result.status==='REQUIRES_REVIEW')process.exitCode=1;
   }
