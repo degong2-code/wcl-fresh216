@@ -76,3 +76,8 @@ test('does not mutate inputs or attempt WCL network access', () => {
   assert.equal(a.status, 'PENDING');
   assert.equal(p.distinctFightRequests, 1);
 });
+
+test('report revision zero is valid, but negative revision is invalid',()=>{
+  assert.equal(planFightFetches([slot({reportRevision:0})]).groups[0].reportRevision,0);
+  assert.throws(()=>planFightFetches([slot({reportRevision:-1})]),/REVISION_INVALID/);
+});
