@@ -1,0 +1,29 @@
+{
+  "schema_version": 1,
+  "source_imported": false,
+  "installed_source_verified": false,
+  "production_ready": false,
+  "baseline": "historical G4.25 release candidate only; currently installed Apps Script full source not exported",
+  "verified_offline_tests_from_attachment": {
+    "G413_incremental": "12/12 PASS",
+    "G415_auth": "22/22 PASS",
+    "G425_planner": "41/41 PASS"
+  },
+  "source_package_sha256": {
+    "G413_core": "0b85b02fcce5d362bd543aafeb63334a5ce26310d0e373d7fcb22e52080b591e",
+    "G413_parent": "8f920ad36335b4961ea05d2e18eb5fb36e6fe01d928c3e9673bda3ad6713407c",
+    "G415": "1894fa0183e9aa463919ec5e04f624269562d67fa7e093e9f0319ac7289cca8c",
+    "G425_gated": "f20c13d5fb73d8c1270a06284d7929d23b5da38e0e03435110f64b4a7e66d34e"
+  },
+  "expected_tests_when_imported": [
+    "tests/test_g425.js",
+    "g413/test_g413_incremental.js",
+    "g415/test_g415.js"
+  ],
+  "protections": {
+    "no_wcl_api_in_ci": true,
+    "no_live_secrets_in_repo": true,
+    "no_clasp_push_in_ci": true,
+    "no_google_sheets_writes_in_ci": true
+  }
+}
