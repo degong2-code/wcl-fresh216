@@ -30,7 +30,7 @@ for (const file of files) {
   }
 }
 // New architecture prototype is intentionally independent of legacy installed source.
-for (const file of ['tests/fetch-plan.test.mjs', 'tests/resolve-proof.test.mjs']) {
+for (const file of ['tests/fetch-plan.test.mjs', 'tests/resolve-proof.test.mjs', 'tests/legacy-proof-parity.test.mjs']) {
   if (!fs.existsSync(file)) { fail('Missing expected pure-core test: ' + file); continue; }
   const run = spawnSync('node', ['--test', file],
     {encoding:'utf8', timeout:30000, maxBuffer:1024*1024});
