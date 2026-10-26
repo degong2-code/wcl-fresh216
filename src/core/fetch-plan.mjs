@@ -18,7 +18,7 @@ function validateSlot(s) {
   requireTrue(nonempty(s.reportCode) && /^[\x21-\x7E]+$/.test(s.reportCode), "REPORT_CODE_INVALID");
   requireTrue(positiveInt(s.fightId) && positiveInt(s.encounterId), "FIGHT_MISSING");
   requireTrue(Number.isInteger(s.difficulty) && s.difficulty > 0, "DIFFICULTY_MISSING");
-  requireTrue(s.reportRevision == null || positiveInt(s.reportRevision), "REVISION_INVALID");
+  requireTrue(s.reportRevision == null || (Number.isSafeInteger(s.reportRevision) && s.reportRevision >= 0), "REVISION_INVALID");
 }
 
 /**
