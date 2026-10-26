@@ -78,3 +78,11 @@ test('invalid ranking shape and empty scope never produce evidence',()=>{
   assert.equal(decodeRankingsEnvelope(group,200,b).status,'RANKINGS_SHAPE_INVALID');
   assert.throws(()=>makeRankingsQuery({...group,fightId:0}),/REPORT_QUERY_SCOPE_INVALID/);
 });
+
+test('GraphQL malformed error object cannot masquerade as a successful result',()=>{
+  const b=body({errors:{message:'unexpected partial shape'}});
+  const x=decodeRankingsEnvelope(group,200,b);
+  assert.equal(x.status,'UNCERTAIN_HTTP_OR_GRAPHQL');
+  assert.equal(x.report,null);
+  assert.equal(x.observedPoints,17);
+});
