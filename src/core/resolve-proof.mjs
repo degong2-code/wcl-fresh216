@@ -61,6 +61,6 @@ export function resolveExactBossDps(slot, report) {
   if (!same(matchingBoss[0].class,slot.className) ||
       !same(matchingBoss[0].spec,slot.specName)) return null;
   const bossDps = num(matchingBoss[0].amount);
-  if (bossDps === null || bossDps < 0 || bossDps > total + 0.005) return null;
+  if (bossDps === null || bossDps < 0 || bossDps > total) return null;
   return { bossDps, actorRef:ref, proofType:'EXACT_SAME_FIGHT_ACTOR' };
 }
