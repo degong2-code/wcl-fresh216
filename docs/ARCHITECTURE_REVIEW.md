@@ -93,7 +93,7 @@ The Public Draft PR includes five pure-core components/suites; NONE of these is 
 
 The new core was demonstrated in CI end-to-end using **synthetic** 100-rank input: rank snapshot → fight grouping → evidence-join → EXACT100 KPI. The test deliberately creates inputs without private report IDs or actor identities. Proof values are **only** considered verified when joined to a known report code, known report revision, same fight/encounter/difficulty, unique actor, class/spec and raw DPS amount. A known revision is not itself a license for cross-run cache reuse: freshness and provenance must be revalidated.
 
-Eight offline Node test suites currently total **65 test declarations**, one of which compares **500 deterministic simulated cases** to the extracted legacy matching algorithm. Original G4.13/G4.15/G4.25 75 historical cases are not yet present or executed by this CI. CI passing is **NOT** an end-to-end latency/point improvement claim.
+Nine offline Node test suites currently total **72 test declarations**, one of which compares **500 deterministic simulated cases** to the extracted legacy matching algorithm. Original G4.13/G4.15/G4.25 75 historical cases are not yet present or executed by this CI. CI passing is **NOT** an end-to-end latency/point improvement claim.
 
 ## Single decision-grade future LIVE measurement (not authorized or executed)
 
@@ -163,6 +163,41 @@ Added `src/core/legacy-proof-audit.mjs` and 12 offline tests. The auditor takes 
 
 It returns only calculated aggregates and an explicit `canPromoteToNewActorProof:false` marker. It does **not** access Google Sheets, WCL, files or credentials; it cannot reproduce missing per-rank actor identities. It is not a replacement for an authenticated read of real private historical evidence.
 
-CI: 65 synthetic/offline declarations across eight suites. The previous 75 historical regression tests are still NOT present and **no** actual private RAW/PROOF rows have been compared to the new engine. Live points, timing and 216-job throughput remain **unmeasured**.
+CI: 72 synthetic/offline declarations across nine suites. The previous 75 historical regression tests are still NOT present and **no** actual private RAW/PROOF rows have been compared to the new engine. Live points, timing and 216-job throughput remain **unmeasured**.
 
 To complete empirical migration parity later, point this read-only auditor at a user-authorized **private** source read (G3 snapshot, matching PROOF row and RAW A:Y) without publishing raw reports, player names or Sheet IDs. The audit output may be reduced to aggregate counts and conflicts; never commit the source inputs to a public repository.
+
+
+## Private-only historical data parity procedure (not yet run on actual data)
+
+`src/core/legacy-proof-audit.mjs` now optionally accepts `g3StorageRow`: the original **32-column** G3 rank-snapshot storage row. A row with status `COMMITTED`, correct run/scope/job identity, exact chunks and matching payload SHA produces `auditLevel:'G3_COMMIT_WITNESSED'`. If omitted, the outcome remains **`SELF_CONSISTENT_UNATTESTED`**, even when all SHA/PROOF values agree. This is a supplied storage-row integrity witness, not a cryptographic attestation by Google/WCL and still not per-rank actor identity.
+
+### Local read-only private command
+
+With a PRIVATE JSON file accessible inside an authorized local or private cloud environment:
+
+```bash
+node tools/audit-private-evidence.mjs /absolute/private/path/records.json
+```
+
+Input format (placeholders only; do not put real values into this public repository):
+
+```json
+{
+  "records": [
+    {
+      "snapshot": {},
+      "rawRow": ["25 original RAW A:Y cells"],
+      "proofRow": ["10 original proof ledger cells"],
+      "scopeKey": "the exact original scope",
+      "g3StorageRow": ["32 original G3 cells, including COMMITTED and chunks"]
+    }
+  ]
+}
+```
+
+The actual `snapshot` must be the exact G3 committed snapshot document, not the empty object shown in the illustrative format above. `g3StorageRow` may be omitted, but then the COMMIT witness is **unattested**. The old collector maps RAW row `4+jobIndex` to PROOF row `2+jobIndex`; G3 snapshot storage uses RAW row minus two. Confirm source identities explicitly rather than joining by position without checks.
+
+**Never commit, attach to a public issue/PR, upload as a public Actions artifact, or paste raw JSON.** The CLI reads once, performs zero HTTP/Sheets operations and prints only aggregate counts and conflict codes keyed to 1-based record index. It never prints names, report URLs/codes, DPS values, input filename or snapshot contents. A nonzero exit indicates invalid/unverified records, not an invitation for automatic requery.
+
+No trusted historical data export is currently available in this GitHub checkout, so **the genuine 43-job migration parity remains UNTESTED**. Synthetic CLI output and the 500 old-algorithm synthetic cases cannot establish this parity. No additional LIVE request or standalone G4.x diagnostic tool is required to run this offline audit if the historical data is exported privately.
