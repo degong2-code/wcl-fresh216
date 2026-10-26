@@ -41,6 +41,14 @@ for (const file of ['tests/fetch-plan.test.mjs', 'tests/resolve-proof.test.mjs',
   } else console.log('PASS pure-core offline suite: ' + file);
 }
 
+
+const privateXlsxTest = spawnSync('python3',['-m','unittest','-v',
+  'tests/private_sheet_audit_test.py'],{encoding:'utf8',timeout:30000,maxBuffer:1024*1024});
+if(privateXlsxTest.status!==0){
+  fail('Offline private spreadsheet extraction regression failed');
+  process.stderr.write((privateXlsxTest.stderr||'').slice(-4000));
+}else console.log('PASS private XLSX extraction (stdlib, synthetic workbook only)');
+
 if (manifest.source_imported) {
   for (const file of manifest.expected_tests_when_imported) {
     if (!fs.existsSync(file)) { fail('Missing required imported test: ' + file); continue; }
