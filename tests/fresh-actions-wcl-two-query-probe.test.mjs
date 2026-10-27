@@ -1,6 +1,6 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import {runFreshActionsWclProbe,preflightFreshActionsProbe}
+import {runFreshActionsWclProbe,preflightFreshActionsProbe,selectActionsProbeMode}
   from '../tools/run-actions-wcl-two-query-probe.mjs';
 
 const env=()=>({
@@ -8,6 +8,7 @@ const env=()=>({
   GITHUB_REF:'refs/heads/main',GITHUB_REPOSITORY:'degong2-code/wcl-fresh216',
   GITHUB_SHA:'c'.repeat(40),GITHUB_TOKEN:'SYNTHETIC_GITHUB_ONLY',
   WCL_PROBE_DISPATCH_PURPOSE:'OWNER_APPROVED_20261027_MAX_TWO',
+  WCL_PROBE_MODE:'FRESH_PUBLIC_REPORT_ONLY',
   WCL_CLIENT_ID:'FAKE_ID',WCL_CLIENT_SECRET:'FAKE_SECRET',
   WCL_PROBE_PUBLIC_REPORT_CODE:'PUBLIC_SYNTHETIC',
   WCL_PROBE_PUBLIC_FIGHT_ID:'17',
@@ -114,4 +115,24 @@ test('wrong event, repository or branch cannot run fresh WCL probe',async()=>{
     }),/ACTIONS_DISPATCH_SCOPE_DENIED/);
     assert.equal(calls.length,0);
   }
+});
+
+test('Actions paid experiment mode is explicit: no legacy fallback on missing URL',async()=>{
+  const original=env();
+  assert.equal(selectActionsProbeMode(original),runFreshActionsWclProbe);
+  for(const mode of [undefined,'','INCORRECT']){
+    const e={...original,WCL_PROBE_MODE:mode};
+    assert.throws(()=>selectActionsProbeMode(e),/ACTIONS_PROBE_MODE_DENIED/);
+    const calls=[];
+    await assert.rejects(()=>runFreshActionsWclProbe({
+      env:e,fetchImpl:mockFetch(calls)
+    }),/ACTIONS_PROBE_MODE_DENIED/);
+    assert.equal(calls.length,0);
+  }
+  const noUrl={...original,WCL_PROBE_PUBLIC_REPORT_URL:''};
+  const calls=[];
+  await assert.rejects(()=>runFreshActionsWclProbe({
+    env:noUrl,fetchImpl:mockFetch(calls)
+  }),/REQUIRED_WCL_PROBE_PUBLIC_REPORT_URL_MISSING/);
+  assert.equal(calls.length,0);
 });
