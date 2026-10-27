@@ -271,8 +271,10 @@ test('reject extraneous fights and inconsistent shared actor before second paid 
       fightID:18,encounter:{id:3470},difficulty:4,
       roles:{dps:{characters:[a(1300)]}}
     }),
-    r=>r.body.data.reportData.report.overall.data[0].roles.dps.characters.push(a(1000,10))||
-      r.body.data.reportData.report.boss.data[0].roles.dps.characters.push(a(1100,10)),
+    r=>{
+      r.body.data.reportData.report.overall.data[0].roles.dps.characters.push(a(1000,10));
+      r.body.data.reportData.report.boss.data[0].roles.dps.characters.push(a(1100,10));
+    },
     r=>{
       r.body.data.reportData.report.overall.data[0].roles.dps.characters.push(a(1000,10));
       r.body.data.reportData.report.boss.data[0].roles.dps.characters.push({
