@@ -189,3 +189,23 @@ a theoretical HTTP count alone, and do not reopen the old 44-row G413 audit.
   The next material gate is a bound real same-fight/cost parity experiment
   **only after separate explicit user authorization**, then integrating the
   smallest single-process LIVE host with rate witness and secure persistence.
+
+
+## P1 checkpoint-scale decision — CLOSED after paired CI measurement (2026-10-27)
+
+- [Decision and numbers](CHECKPOINT_BENCHMARK.md): at synthetic
+  21,600 ranked references, two durable transitions for a nearly complete
+  Fight cost approximately **712 ms** in the original JSON store versus
+  **708 ms** with a cached JSON variant and **1,045 ms** with a first
+  append-only journal candidate (small CI-host samples, NOT a WCL benchmark).
+- The cached variant had materially slower cold reads, and the journal
+  candidate was slower throughout. **Neither was promoted.** Experimental
+  source/tests were removed; the existing simple atomic-rename JSON store
+  remains active.
+- Benchmark can be reproduced on demand offline with
+  `node tools/benchmark-checkpoint.mjs --samples=3`.
+  It is intentionally excluded from recurring CI to conserve CI minutes.
+- Do not chase additional checkpoint micro-optimizations absent real
+  evidence that they dominate end-to-end 216-job runtime. Return to
+  WCL query semantics, point/rate savings, durable host integration and
+  secure batched Sheets delivery.
