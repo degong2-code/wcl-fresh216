@@ -18,17 +18,20 @@ test('the paid WCL workflow has precisely a manual dispatch trigger',()=>{
 test('no automatically moving PR ref; only pinned code is allowed to access Secrets',()=>{
   const match=source.match(/ref:\s*([a-f0-9]{40})\s*$/m);
   assert.ok(match,'immutable checkout ref required');
-  assert.equal(match[1],'d0170171026f939c2577fc2e91bb4fdee72149c9');
+  assert.equal(match[1],'66e44e36e6ce7ba55853eef583b80116175c5044');
   assert.match(source,/persist-credentials:\s*false/);
   assert.match(source,/concurrency:\s*\n\s*group: wcl-fresh216-one-time-owner-approved-two-query/);
   assert.match(source,/cancel-in-progress:\s*false/);
 });
-test('dispatch uses repo Secrets without command-line or dispatch inputs',()=>{
-  for(const field of ['WCL_CLIENT_ID','WCL_CLIENT_SECRET','WCL_PROBE_FIXTURE_JSON']){
+test('Secrets stay private, dispatch inputs identify only PUBLIC WCL Fight',()=>{
+  for(const field of ['WCL_CLIENT_ID','WCL_CLIENT_SECRET'])
     assert.ok(source.includes('secrets.'+field));
+  assert.doesNotMatch(source,/secrets.WCL_PROBE_FIXTURE_JSON/);
+  for(const field of ['public_report_url','report_code','fight_id']){
+    assert.ok(source.includes('inputs.'+field));
+    assert.match(source,new RegExp('^\\s{6}'+field+':','m'));
   }
   assert.ok(source.includes('node tools/run-actions-wcl-two-query-probe.mjs'));
-  assert.doesNotMatch(source,/^\s+inputs:/m);
   assert.doesNotMatch(source,/upload-artifact|printenv|set -x|ACTIONS_STEP_DEBUG/);
   assert.match(source,/^\s+contents:\s*write/m);
   assert.doesNotMatch(source,/^\s+id-token:\s*write/m);
