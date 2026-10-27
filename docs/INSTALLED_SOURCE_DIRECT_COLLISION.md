@@ -75,6 +75,29 @@ guard is compatible with current direct-ranking availability, but does NOT
 magically upgrade name-only joins to cryptographically verified identity.
 Further validation is required before any installed GAS edit.
 
+## Supplementary start-time parity audit (private, zero API)
+
+A read-only recheck of the same **44 SHA-verified committed G4.13 snapshots**
+compared the `startTime` field on both sides of all **2,721** legacy
+direct candidates:
+
+| Comparison | Count |
+| --- | ---: |
+| Same report code / fight ID / normalized name | 2,721 |
+| Identical `startTime` (integer field on each side) | **2,721** |
+| Missing or different `startTime` | **0** |
+
+The offline `resolveCollisionGuardedDirect` candidate now fails closed when
+the two ranking entries lack valid equal start times. This preserves all
+2,721 observed shortcuts in the private sample, without WCL requests.
+Neither this nor uniqueness proves canonical character identity:
+**two realm-distinct homonyms in the same fight share its start timestamp**.
+Only actual WCL-sourced actor/Character crosswalk evidence (or a
+user-approved, suitably verified fallback) could resolve that ambiguity.
+
+The 44 snapshots may not represent all 216 jobs. No benchmarked WCL
+point or end-to-end speed saving is claimed.
+
 ## Next safe checks before an approved GAS change
 
 - Privately quantify name-only direct matches and duplicate-name exposure
