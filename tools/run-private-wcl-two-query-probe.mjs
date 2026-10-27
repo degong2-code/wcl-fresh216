@@ -103,6 +103,19 @@ export async function main(argv=process.argv.slice(2),fetchImpl=fetch){
   // Existing *client credentials* only. The .env file remains on this machine.
   const env=dotenvPairs(fs.readFileSync(args['--env-file'],'utf8'));
   const token=await getToken(env,fetchImpl);
+  // This marker is private, persistent and EXCLUSIVE across different
+  // output directories. Do not silently repeat two paid GraphQL queries.
+  // If preparation later fails, inspect this marker and receipts manually;
+  // never auto-delete and retry without reviewing actual attempts.
+  const marker=args['--fixture']+'.wcl-two-query-attempted';
+  const fd=fs.openSync(marker,'wx',0o600);
+  try{
+    fs.writeFileSync(fd,JSON.stringify({
+      schema:1,reason:'SINGLE_APPROVED_EXPERIMENT_ATTEMPT',
+      createdAt:new Date().toISOString()
+    })+'\n');
+    fs.fsyncSync(fd);
+  }finally{fs.closeSync(fd);}
   const summary=await runPrivateTwoQueryProbe({
     group,privateOutputDir:args['--out'],
     send:makeTransport(token,fetchImpl),
