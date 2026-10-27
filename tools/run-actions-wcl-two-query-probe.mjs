@@ -21,6 +21,8 @@ import path from 'node:path';
 import {Buffer} from 'node:buffer';
 import {runPrivateTwoQueryProbe,validatePrivateProbeGroup}
   from '../src/core/private-two-query-probe.mjs';
+import {runFreshTwoQueryProbe,buildFreshQueryPair}
+  from '../src/core/fresh-two-query-probe.mjs';
 
 const REPO='degong2-code/wcl-fresh216';
 const ONCE_REF='refs/heads/wcl-fresh216-one-time-probe-consumed-20261027';
@@ -153,7 +155,9 @@ export async function runActionsWclProbe({
   }
 }
 if(process.argv[1]&&process.argv[1].endsWith('/run-actions-wcl-two-query-probe.mjs')){
-  runActionsWclProbe({
+  const exec=process.env.WCL_PROBE_PUBLIC_REPORT_URL?
+    runFreshActionsWclProbe:runActionsWclProbe;
+  exec({
     log:r=>process.stdout.write('REDACTED_WCL_PROBE '+JSON.stringify(r)+'\n')
   }).then(result=>{
     if(result.status==='ONE_TIME_PROBE_ALREADY_RESERVED'){
@@ -180,4 +184,76 @@ if(process.argv[1]&&process.argv[1].endsWith('/run-actions-wcl-two-query-probe.m
     process.stderr.write('WCL_PROBE_ABORTED '+safe+'\n');
     process.exitCode=1;
   });
+}
+
+
+/**
+ * NEW MODE: currently public WCL report page -> at most two GraphQL calls.
+ * There is deliberately NO pre-existing rank, DPS, SHA, or revision input.
+ * Public report URL + Fight ID must agree, and #1 rankings builds the LIVE
+ * same-actor reference for #2 table. Does not imply global top-100 ranking.
+ */
+export function preflightFreshActionsProbe(env){
+  if(env.GITHUB_ACTIONS!=='true'||env.GITHUB_EVENT_NAME!=='workflow_dispatch'||
+     env.GITHUB_REF!=='refs/heads/main'||
+     env.GITHUB_REPOSITORY!==REPO)
+    throw Error('ACTIONS_DISPATCH_SCOPE_DENIED');
+  if(env.WCL_PROBE_DISPATCH_PURPOSE!=='OWNER_APPROVED_20261027_MAX_TWO')
+    throw Error('ACTIONS_DISPATCH_PURPOSE_DENIED');
+  requiredEnv(env,'WCL_CLIENT_ID');
+  requiredEnv(env,'WCL_CLIENT_SECRET');
+  requiredEnv(env,'GITHUB_TOKEN');
+  if(!/^[a-f0-9]{40}$/i.test(requiredEnv(env,'GITHUB_SHA')))
+    throw Error('GITHUB_SHA_INVALID');
+  const reportCode=requiredEnv(env,'WCL_PROBE_PUBLIC_REPORT_CODE');
+  const fightId=Number(requiredEnv(env,'WCL_PROBE_PUBLIC_FIGHT_ID'));
+  const target={reportCode,fightId};
+  buildFreshQueryPair(target);
+  const rawUrl=requiredEnv(env,'WCL_PROBE_PUBLIC_REPORT_URL');
+  let page;
+  try{page=new URL(rawUrl);}
+  catch{throw Error('PUBLIC_WCL_SOURCE_URL_INVALID');}
+  const supportedHosts=new Set([
+    'www.warcraftlogs.com','ko.warcraftlogs.com','fresh.warcraftlogs.com'
+  ]);
+  const fightInUrl=page.searchParams.get('fight')||
+    new URLSearchParams(page.hash.replace(/^#/,'')).get('fight');
+  if(page.protocol!=='https:'||!supportedHosts.has(page.hostname)||
+     page.username||page.password||
+     page.pathname!=='/reports/'+reportCode||
+     !fightInUrl||Number(fightInUrl)!==fightId)
+    throw Error('PUBLIC_WCL_SOURCE_URL_INVALID');
+  return target;
+}
+
+export async function runFreshActionsWclProbe({
+  env=process.env,fetchImpl=fetch,log=()=>{}
+}={}){
+  const target=preflightFreshActionsProbe(env);
+  const marker=await reserveOneTimeAction({fetchImpl,env});
+  if(marker!=='IRREVERSIBLE_RESERVATION_CREATED')
+    return {status:marker,graphqlRequests:0};
+  const root=fs.mkdtempSync(path.join(os.tmpdir(),'fresh-actions-private-'));
+  try{
+    fs.chmodSync(root,0o700);
+    const token=await tokenFor(env,fetchImpl);
+    const summary=await runFreshTwoQueryProbe({
+      target,privateOutputDir:path.join(root,'once'),
+      send:transport(token,fetchImpl),minAppHeadroom:100
+    });
+    // NEVER emit private ReportCode, raw actors, table source, token, or URL.
+    const publicSafe={
+      status:summary.status,graphqlRequests:summary.graphqlRequests,
+      reason:summary.reason,liveReferenceObserved:summary.liveReferenceObserved,
+      matchedRankingsActors:summary.matchedRankingsActors,
+      sameFightTableResponseRecorded:summary.sameFightTableResponseRecorded,
+      parity:summary.actorBossTargetAndDpsDenominatorParity,
+      tableAdopted:false,
+      observations:summary.observations
+    };
+    log(publicSafe);
+    return publicSafe;
+  }finally{
+    fs.rmSync(root,{recursive:true,force:true});
+  }
 }
