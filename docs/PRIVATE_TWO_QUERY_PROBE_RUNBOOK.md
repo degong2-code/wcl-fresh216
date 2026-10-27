@@ -214,3 +214,23 @@ or an independently authenticated GitHub CLI. No Work/browser/CLI execution
 has been confirmed by this development milestone. Do not click an Actions
 rerun to test capability: a rerun of an expense-bearing experiment risks
 spending WCL points and is prohibited by the one-time guard.
+
+
+## Strict one-Fight and actor consistency gate (offline-verified)
+
+The fresh current-WCL rankings() first response is required to include
+EXACTLY ONE Fight entry for the requested fight in each dps and bossdps
+ranking envelope. If the API returns an extra Fight, an absent Fight or an
+incorrect FightID, the attempt stops before the second table() request.
+
+If the same actor ID appears in both ranked metric rosters, its class and
+specialization must agree, and its BossDPS must not exceed its total DPS.
+An inconsistent shared actor is a hard stop EVEN if a different actor
+appears valid. A partial unmatched actor remains a coverage limitation,
+not evidence of BossDPS parity. No table result is promoted to EXACT-100
+BossDPS proof without actual same-actor/pet/boss-target/denominator review.
+
+This extra fail-closed regression runs only synthetic injected responses:
+no WCL, token, Sheets, production collector or Google Actions probe
+dispatch. The implementation remains limited to the development branch;
+the workflow on main still uses the older fixture-oriented mode.
