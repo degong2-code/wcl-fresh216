@@ -5,7 +5,7 @@ import os from 'node:os';
 import path from 'node:path';
 import {planFightFetches} from '../src/core/fetch-plan.mjs';
 import {JsonCheckpointStore} from '../src/adapters/json-checkpoint-store.mjs';
-import {executeOneReadyFight} from '../src/core/single-fight-runner.mjs';
+import {executeOneReadyFight,runBoundedSweep} from '../src/core/single-fight-runner.mjs';
 import {
   newCheckpoint,registerPlan,readyFetches,checkpointStats,
   recoverCheckpoint,stopCheckpoint,committedProofs
@@ -220,4 +220,83 @@ test('two racing processes cannot issue the same fight twice',async()=>{
   const first=await running;
   assert.equal(first.status,'COMPLETED');
   assert.equal(transportCalls,1);
+});
+
+test('bounded sweep runs two committed fights in order and reports durable progress',async()=>{
+  const store=makeStore(true),progress=[],calls=[];
+  const final=await runBoundedSweep({
+    store,maxAttempts:16,clock:()=>100,
+    newAttemptId:(()=>{let n=0;return()=>`SWEEP-${++n}`})(),
+    transport:async q=>{
+      calls.push(q.variables.fightID);
+      return response(q.variables.fightID,9);
+    },
+    onProgress:async p=>{
+      progress.push(p);
+      assert.equal(
+        checkpointStats(store.read()).counts.COMPLETED,p.completedFightGroups
+      );
+    }
+  });
+  assert.equal(final.status,'NO_READY');
+  assert.equal(final.attempts,2);
+  assert.equal(final.verifiedSlots,3);
+  assert.equal(final.pointsTotalConfirmed,18);
+  assert.deepEqual(calls,[12,13]);
+  assert.deepEqual(progress.map(p=>p.completedFightGroups),[1,2]);
+  assert.equal(progress.at(-1).readyFightGroups,0);
+});
+test('sweep budget does not create another run; next bounded call resumes state',async()=>{
+  const store=makeStore(true);
+  const runner=()=>runBoundedSweep({
+    store,maxAttempts:1,newAttemptId:()=>String(store.read().version),
+    clock:()=>100,transport:async q=>response(q.variables.fightID,7)
+  });
+  const first=await runner();
+  assert.equal(first.status,'BUDGET_REACHED');
+  assert.equal(first.readyFightGroups,1);
+  assert.equal(first.pointsTotalConfirmed,7);
+  const second=await runner();
+  assert.equal(second.status,'NO_READY');
+  assert.equal(second.readyFightGroups,0);
+  assert.equal(second.pointsTotalConfirmed,14);
+});
+test('sweep stops at 504 incident without attempting remaining READY requests',async()=>{
+  const store=makeStore(true),visited=[];
+  const result=await runBoundedSweep({
+    store,newAttemptId:()=> 'FIRST',clock:()=>100,
+    transport:async q=>{visited.push(q.variables.fightID);return {
+      httpStatus:504,body:null};}
+  });
+  assert.equal(result.status,'NEEDS_REVIEW');
+  assert.equal(result.attempts,1);
+  assert.equal(result.readyFightGroups,1);
+  assert.equal(result.reviewFightGroups,1);
+  assert.equal(result.pointsTotalConfirmed,null);
+  assert.deepEqual(visited,[12]);
+});
+test('a cancellation between attempts preserves earlier proof and never starts another',async()=>{
+  const store=makeStore(true);let cancel=false,calls=0;
+  const result=await runBoundedSweep({
+    store,clock:()=>100,newAttemptId:()=> 'FIRST',
+    shouldCancel:()=>cancel,
+    transport:async q=>{calls++;return response(q.variables.fightID)},
+    onProgress:async()=>{cancel=true;}
+  });
+  assert.equal(result.status,'CANCELLED');
+  assert.equal(result.attempts,1);
+  assert.equal(result.readyFightGroups,1);
+  assert.equal(calls,1);
+  assert.equal(checkpointStats(store.read()).verifiedSlotEvidence,2);
+});
+test('a crashing UI progress callback does not roll back already durably committed work',async()=>{
+  const store=makeStore();
+  await assert.rejects(()=>runBoundedSweep({
+    store,maxAttempts:2,clock:()=>100,
+    transport:async()=>response(12),
+    onProgress:async()=>{throw Error('UI callback died')}
+  }),/UI callback died/);
+  assert.equal(checkpointStats(store.read()).verifiedSlotEvidence,2);
+  assert.equal(checkpointStats(store.read()).counts.COMPLETED,1);
+  assert.equal(readyFetches(store.read()).length,0);
 });
