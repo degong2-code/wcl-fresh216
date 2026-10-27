@@ -85,7 +85,9 @@ export class JsonCheckpointStore {
       // future reads against the on-disk inode/mtime/size fingerprint.
       this.cached=structuredClone(next);
       this.cachedStamp=this.stamp();
-      return structuredClone(next);
+      // The caller receives the transition's own next object, while the
+      // persistent cache remains insulated by its separate clone.
+      return next;
     } finally {
       if(temp&&fs.existsSync(temp))fs.unlinkSync(temp);
       fs.rmdirSync(this.lockPath);
