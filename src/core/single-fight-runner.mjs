@@ -51,9 +51,35 @@ export async function executeOneReadyFight({
         pointsTotalConfirmed:decision.pointsTotalConfirmed};
   }
 
-  // The update must be durable before ANY external request. A contending
-  // worker fails beginFetch() and may never reach transport.
-  store.update(s=>beginFetch(s,group.key,attemptId,startedAtMs));
+  // The admission/read above is only an optimization. Re-check budget
+  // and unresolved operations INSIDE the same serialized persistence update
+  // that marks this request IN_FLIGHT. Otherwise a second worker can pass
+  // a stale budget check and dispatch a paid request after the first commits.
+  try{
+    store.update(s=>{
+      if(admissionPolicy!==null){
+        const decision=evaluateRequestAdmission(s,{
+          ...admissionPolicy,nowMs:startedAtMs
+        });
+        if(!decision.allowed){
+          const denied=Error('ATOMIC_ADMISSION_REFUSED');
+          denied.admission=decision;
+          throw denied;
+        }
+      }
+      return beginFetch(s,group.key,attemptId,startedAtMs);
+    });
+  }catch(error){
+    if(error?.admission){
+      const d=error.admission;
+      return {status:d.status,attempted:false,waitMs:d.waitMs,
+        pointsTotalConfirmed:d.pointsTotalConfirmed};
+    }
+    if(error?.message==='SCOPE_HAS_UNRESOLVED_ATTEMPT')
+      return {status:'NEEDS_REVIEW',attempted:false,waitMs:0,
+        pointsTotalConfirmed:checkpointStats(store.read()).pointsTotalConfirmed};
+    throw error;
+  }
 
   let candidate,observedPoints=null;
   try{
