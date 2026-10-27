@@ -131,3 +131,46 @@ test('direct numeric equality alone does not confer report-local namespace equiv
   assert.equal(out.namespaceEquivalent,'UNPROVEN');
   assert.equal(out.dpsParity,'UNPROVEN');
 });
+
+
+test('duplicate total-DPS actor IDs are invalid even when absent from bossdps',()=>{
+  const input=make();
+  const arr=input.rankingsBody.data.reportData.report.overall.data[0]
+    .roles.dps.characters;
+  arr.push(player(999,400,'NoBossA','realm','Druid','Balance'));
+  arr.push(player(999,350,'NoBossB','realm','Druid','Feral'));
+  const out=diagnose(input);
+  assert.equal(out.status,'RANKED_ACTOR_IDS_OR_METRICS_INVALID');
+  assert.equal(out.strongNameServerClassCandidates,0);
+  assert.equal(out.dpsParity,'UNPROVEN');
+});
+
+test('boss DPS exceeding total and class or spec conflict are rejected',()=>{
+  for(const corrupt of [
+    obj=>{obj.boss.amount=1001;},
+    obj=>{obj.boss.class='Mage';},
+    obj=>{obj.boss.spec='Elemental';}
+  ]){
+    const input=make();
+    const all=input.rankingsBody.data.reportData.report.overall.data[0].roles.dps.characters[0];
+    const boss=input.rankingsBody.data.reportData.report.boss.data[0].roles.dps.characters[0];
+    corrupt({all,boss});
+    const out=diagnose(input);
+    assert.equal(out.status,'RANKED_METRICS_CONFLICT');
+    assert.equal(out.strongNameServerClassCandidates,0);
+  }
+});
+
+test('invalid numeric ranking metrics cannot manufacture identity candidates',()=>{
+  for(const invalid of [NaN,Infinity,-1,'1000',null]){
+    for(const which of ['overall','boss']){
+      const input=make();
+      input.rankingsBody.data.reportData.report[which].data[0]
+        .roles.dps.characters[0].amount=invalid;
+      const out=diagnose(input);
+      assert.equal(out.status,'RANKED_ACTOR_IDS_OR_METRICS_INVALID');
+      assert.equal(out.namespaceEquivalent,'UNPROVEN');
+      assert.equal(out.strongNameServerClassCandidates,0);
+    }
+  }
+});
