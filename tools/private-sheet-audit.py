@@ -12,9 +12,9 @@ import zipfile
 import xml.etree.ElementTree as ET
 from pathlib import Path, PurePosixPath
 
-RAW_NAME = "영웅_DPS지표_V5_P12_1_TEST"
-PROOF_NAME = "__WCL35_EVIDENCE_TEST"
-G3_NAME = "__WCL43_G3_RANK_SNAPSHOTS"
+RAW_NAME = "__WCL43_G413_RAW"
+PROOF_NAME = "__WCL43_G413_PROOF"
+G3_NAME = "__WCL43_G413_SNAPSHOTS"
 MAX_FILE = 64 * 1024 * 1024
 MAX_UNPACKED = 128 * 1024 * 1024
 NS = {"m": "http://schemas.openxmlformats.org/spreadsheetml/2006/main",
