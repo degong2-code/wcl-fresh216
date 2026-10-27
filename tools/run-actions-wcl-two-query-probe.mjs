@@ -154,12 +154,19 @@ export async function runActionsWclProbe({
     fs.rmSync(root,{recursive:true,force:true});
   }
 }
+export function selectActionsProbeMode(env){
+  if(env?.WCL_PROBE_MODE==='FRESH_PUBLIC_REPORT_ONLY')
+    return runFreshActionsWclProbe;
+  if(env?.WCL_PROBE_MODE==='LEGACY_SNAPSHOT_ONLY')
+    return runActionsWclProbe;
+  // Never infer the paid experiment from which Secrets/URL happen
+  // to be populated. Missing or mistyped mode must make ZERO requests.
+  throw Error('ACTIONS_PROBE_MODE_DENIED');
+}
 if(process.argv[1]&&process.argv[1].endsWith('/run-actions-wcl-two-query-probe.mjs')){
-  const exec=process.env.WCL_PROBE_PUBLIC_REPORT_URL?
-    runFreshActionsWclProbe:runActionsWclProbe;
-  exec({
+  Promise.resolve().then(()=>selectActionsProbeMode(process.env)({
     log:r=>process.stdout.write('REDACTED_WCL_PROBE '+JSON.stringify(r)+'\n')
-  }).then(result=>{
+  })).then(result=>{
     if(result.status==='ONE_TIME_PROBE_ALREADY_RESERVED'){
       process.stdout.write('WCL_PROBE_REPLAY_REFUSED\n');
       process.exitCode=2;
@@ -173,6 +180,7 @@ if(process.argv[1]&&process.argv[1].endsWith('/run-actions-wcl-two-query-probe.m
     const known=new Set([
       'ACTIONS_DISPATCH_SCOPE_DENIED','ACTIONS_DISPATCH_PURPOSE_DENIED',
       'GITHUB_SHA_INVALID','GITHUB_ATOMIC_SPEND_RESERVATION_FAILED',
+      'ACTIONS_PROBE_MODE_DENIED',
       'OAUTH_TOKEN_EXCHANGE_UNCERTAIN','OAUTH_TOKEN_EXCHANGE_FAILED',
       'OAUTH_TOKEN_MISSING','PRIVATE_PROBE_FIXTURE_INVALID',
       'PRIVATE_PROBE_SLOT_INVALID','REPORT_QUERY_SCOPE_INVALID'
@@ -194,6 +202,8 @@ if(process.argv[1]&&process.argv[1].endsWith('/run-actions-wcl-two-query-probe.m
  * same-actor reference for #2 table. Does not imply global top-100 ranking.
  */
 export function preflightFreshActionsProbe(env){
+  if(env?.WCL_PROBE_MODE!=='FRESH_PUBLIC_REPORT_ONLY')
+    throw Error('ACTIONS_PROBE_MODE_DENIED');
   if(env.GITHUB_ACTIONS!=='true'||env.GITHUB_EVENT_NAME!=='workflow_dispatch'||
      env.GITHUB_REF!=='refs/heads/main'||
      env.GITHUB_REPOSITORY!==REPO)
