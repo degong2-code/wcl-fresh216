@@ -1,10 +1,73 @@
 # WCL v2 (October 2026) points/rankings-vs-table — bounded decision gate
 
-Status: **ORIGINAL TWO/TWO + NEWLY APPROVED ONE/ONE GRAPHQL ATTEMPTS EXECUTED — ALL CONSUMED, NO RETRY**, 2026-10-27.
+Status: **ORIGINAL 2/2 + IDENTITY 1/1 + TYPED ROSTER 1/1 GRAPHQL ALL CONSUMED (4/4) — NO RETRY**, 2026-10-27.
 The once-only marker exists; runtime transport succeeded but table's
 same-actor identity comparison was NOT established. The preserved older
 planning sections below describe the pre-execution state and are NOT
 authorization to spend any more WCL points. No Sheets/deployment approval.
+
+## Fourth separately owner-approved GraphQL witness — 2026-10-27
+
+**Completed without browser or user button:** dedicated isolated development
+request commit `a594cd0d186018f639cb45f3560f3ffcfa077a07` triggered
+push-CI run [40523902098](https://github.com/degong2-code/wcl-fresh216/actions/runs/40523902098).
+Offline tests PASSED first, and the distinct owner-approved
+`approved-one-time-wcl-typed-roster` job completed SUCCESS.
+Earlier WCL paid relays were SKIPPED. Exactly ONE new GraphQL POST
+returned HTTP 200 (2,527 ms); redacted, non-identifying evidence:
+
+| Witness | Observed |
+|---|---:|
+| WCL report revision | 17 |
+| Fight 11 total-vs-BossDPS ranked players | 14 |
+| Whole-report typed `rankedCharacters` | 23 |
+| `masterData` report-local Player rows | 34 |
+| Fight 11 DamageDone Source IDs | 20 |
+| Unique four-way candidates (fight rank + typed character + report-local player + Fight source ID) | **14/14** |
+| Unique typed/local realm matching candidate rows | 14 |
+| Typed-character missing/invalid evidence | 0 |
+| Typed duplicate canonical IDs | 0 |
+| Rank/local/typed ambiguous names | 0 |
+| Realm mismatches among reported candidates | 0 |
+| Ranking `server` field strings / OBJECTS | **0 / 14** |
+| `masterData` Actor rows | 235 |
+| master Actor ID null / invalid / repeated positive | **0 / 1 / 0** |
+| Fight table IDs mapping to unique master Actor IDs | **20/20** |
+| reported total points | 6.74 |
+| application / database / user point fields | 4 / 15 / 2.74 |
+| application / database remaining witnesses | 3599 / 250 |
+| userHasRemainingPoints | null |
+
+**Important clarification:** The earlier "0/14 rankings server strings"
+was NOT evidence that ranking actors had no realm metadata. They instead
+have object-shaped `server` values (14/14 in this run), while the
+prior diagnostic only counted strings. This fourth experiment also
+isolated the prior generic `MASTER_ACTOR_IDS_AMBIGUOUS` root cause
+to **one invalid report actor ID**, with neither null IDs nor duplicate
+positive IDs reported. Because raw actor rows were deliberately not
+retained, its exact value and actor type remain UNKNOWN.
+
+This is substantial **positive candidate evidence** and addresses the
+technical cross-namespace matching obstacle for this specific Fight.
+It is NOT proof that the unfrozen JSON ranking actor ID is a
+`Character.canonicalID`; it is NOT proof of same-character provenance
+at scale, pet ownership attribution, target-scope BossDPS semantics,
+DPS numerator/denominator parity, EXACT-100 reproducibility or 216-job
+performance. `rankedCharacters` is report-wide, while the rank/table
+queries were Fight-scoped. Names, actor IDs and raw damage were not
+logged or retained. Point category fields are NOT additive nor proof
+of final User-point billing.
+
+The fourth immutable consumed marker now exists at
+`refs/heads/wcl-fresh216-typed-roster-one-query-consumed-20261027`.
+Prior original two-query and identity single-query consumed markers
+remain intact. This was the ENTIRE newly approved live allowance:
+**historical WCL GraphQL budget 4/4 spent, no retry or new HTTP
+permitted without separate explicit owner consent**.
+No `main` change, Draft PR merge, Sheets write, or collector
+promotion occurred.
+
+---
 
 ## Typed report-wide canonical roster crosswalk — offline only
 
