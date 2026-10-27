@@ -19,7 +19,7 @@ const validCode=v=>typeof v==='string'&&v.length>0&&v.length<=128&&
   /^[\x21-\x7e]+$/.test(v);
 const positiveInt=v=>Number.isSafeInteger(v)&&v>0;
 const nonNegative=v=>typeof v==='number'&&Number.isFinite(v)&&v>=0;
-const fieldRate='rateLimitData{currentRequest limitPerHour pointsSpentThisHour pointsResetIn}';
+const fieldRate='rateLimitData{currentRequest limitPerHour pointsSpentThisHour pointsResetIn databaseLimitPerHour databasePointsSpentThisHour userHasRemainingPoints userPointsResetIn}';
 const makeQuery=(root)=>'query FreshLiveComparison($code:String!,$fightID:Int!){ '+
   fieldRate+' reportData{report(code:$code){code revision '+root+'}}}';
 
@@ -92,16 +92,37 @@ export function summarizeFreshRankings(target,body) {
     verifiedActors,totalActors:totals.size,bossActors:bosses.size};
 }
 const rateOf=body=>body?.data?.rateLimitData??null;
-const costOf=body=>{
-  const n=rateOf(body)?.currentRequest?.total;
-  return nonNegative(n)?n:null;
-};
-const headroomOf=body=>{
+/**
+ * Direct WCL v2 RateLimitData JSON witnesses only. Database is a subset
+ * of application points, not an independent addend. 'total' includes the
+ * minimum request cost and MUST NOT be reconstructed from these classes.
+ * A missing class stays null; do not silently claim that it cost zero.
+ * Application cap, database cap and User eligibility are separate
+ * dimensions; the client-credentials flow does not prove User billing.
+ */
+export function observeFreshRateLimit(body) {
   const rate=rateOf(body);
-  return nonNegative(rate?.limitPerHour)&&
+  const details=rate?.currentRequest;
+  const pointClasses={application:null,database:null,user:null};
+  if(details!==null&&typeof details==='object'&&!Array.isArray(details)){
+    for(const k of Object.keys(pointClasses))
+      if(nonNegative(details[k]))pointClasses[k]=details[k];
+  }
+  const total=nonNegative(details?.total)?details.total:null;
+  const appRemaining=nonNegative(rate?.limitPerHour)&&
     nonNegative(rate?.pointsSpentThisHour)?
     Math.max(0,rate.limitPerHour-rate.pointsSpentThisHour):null;
-};
+  const databaseRemaining=nonNegative(rate?.databaseLimitPerHour)&&
+    nonNegative(rate?.databasePointsSpentThisHour)?
+    Math.max(0,rate.databaseLimitPerHour-rate.databasePointsSpentThisHour):null;
+  const userHasRemainingPoints=typeof rate?.userHasRemainingPoints==='boolean'?
+    rate.userHasRemainingPoints:null;
+  return {
+    total,pointClasses,appRemaining,databaseRemaining,
+    userHasRemainingPoints,
+    classWitnesses:Object.values(pointClasses).filter(v=>v!==null).length
+  };
+}
 function writePrivate(dir,name,data) {
   const temp=path.join(dir,'.'+name+'.'+randomUUID()+'.tmp');
   let fd;
@@ -166,12 +187,17 @@ export async function runFreshTwoQueryProbe({
     // no uploading or printing actors or report codes.
     writePrivate(privateOutputDir,'raw-'+(i+1)+'.json',reply);
     const report=reply.body?.data?.reportData?.report;
+    const rate=observeFreshRateLimit(reply.body);
     const observation={
       method:q.kind,httpStatus:reply.httpStatus,
       startedAtMs:journal.startedAtMs,finishedAtMs,
       elapsedMs:Math.max(0,finishedAtMs-journal.startedAtMs),
-      reportedTotalPoints:costOf(reply.body),
-      pointClasses:{application:null,database:null,user:null},
+      reportedTotalPoints:rate.total,
+      pointClasses:rate.pointClasses,
+      appHeadroomObserved:rate.appRemaining,
+      databaseHeadroomObserved:rate.databaseRemaining,
+      userHasRemainingPoints:rate.userHasRemainingPoints,
+      pointClassWitnessCount:rate.classWitnesses,
       graphqlErrors:reply.body?.errors==null?false:
         Array.isArray(reply.body.errors)?reply.body.errors.length>0:true,
       reportRevision:Number.isSafeInteger(report?.revision)?
@@ -197,8 +223,8 @@ export async function runFreshTwoQueryProbe({
       }
       if(!reason&&observation.reportedTotalPoints===null)
         reason='FRESH_POINT_COST_UNKNOWN';
-      if(!reason&&(headroomOf(reply.body)===null||
-          headroomOf(reply.body)<minAppHeadroom))
+      if(!reason&&(rate.appRemaining===null||
+          rate.appRemaining<minAppHeadroom))
         reason='FRESH_APP_HEADROOM_UNKNOWN_OR_LOW';
     }else if(!reference||report?.revision!==reference.revision||
       report?.damage==null)reason='FRESH_TABLE_REVISION_OR_SHAPE_UNPROVEN';
@@ -227,6 +253,10 @@ export async function runFreshTwoQueryProbe({
       elapsedMs:o.elapsedMs,reportedTotalPoints:o.reportedTotalPoints,
       appPoints:o.pointClasses.application,
       databasePoints:o.pointClasses.database,userPoints:o.pointClasses.user,
+      appHeadroomObserved:o.appHeadroomObserved,
+      databaseHeadroomObserved:o.databaseHeadroomObserved,
+      userHasRemainingPoints:o.userHasRemainingPoints,
+      pointClassWitnessCount:o.pointClassWitnessCount,
       reportRevisionMatched:reference!==null&&
         o.reportRevision===reference.revision
     }))
