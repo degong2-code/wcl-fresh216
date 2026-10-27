@@ -111,7 +111,7 @@ full-216 production collector.
 
 ## Verification
 
-The repository's offline CI runs seven synthetic private-probe tests,
-including real on-disk no-replay markers and fail-stop after the first
-request. These tests perform ZERO WCL/OAuth network requests. See the
+The repository's offline CI runs seven synthetic core-probe tests and
+three CLI tests, including on-disk no-replay barriers, explicit consent
+flags and fail-stop after the first request. These tests perform ZERO WCL/OAuth network requests. See the
 current HEAD's CI run; never infer actual point savings from synthetic data.
