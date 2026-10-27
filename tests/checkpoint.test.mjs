@@ -145,7 +145,8 @@ test('persistent JSON store survives new object / restarts and refuses overwrite
     assert.equal(afterRestart.read().entries[key].status,'NEEDS_REVIEW');
     assert.equal(readyFetches(afterRestart.read()).length,0);
     assert.throws(()=>store.init(state),/EEXIST/);
-    assert.throws(()=>store.update(s=>s),/CHECKPOINT_VERSION_OR_SCOPE_DRIFT/);
+    assert.throws(()=>afterRestart.update(s=>s),/CHECKPOINT_VERSION_OR_SCOPE_DRIFT/);
+    assert.throws(()=>store.update(s=>s),/CHECKPOINT_EXTERNAL_CHANGE_REOPEN_REQUIRED/);
     fs.mkdirSync(file+'.lock');
     assert.throws(()=>store.update(s=>stopCheckpoint(s)),/EEXIST/);
     fs.rmdirSync(file+'.lock');
