@@ -151,3 +151,50 @@ The private user target and credentials are unavailable in ChatGPT/GitHub;
 **live GraphQL calls actually executed so far: ZERO**. Actual user-point
 benefits are not tested under client_credentials. No automatic retry, PR
 merge, trigger action, or Sheet write is authorized.
+
+## Fresh current-WCL observations and 2026 point-class receipts
+
+**Development mode now prefers CURRENT public WCL Report/Fight evidence rather
+than an old EXACT-100 ranking snapshot.** The archived snapshot-based local
+path above remains available for historical auditing, but it is NOT a
+prerequisite for the bounded 2-query *method comparison*. The new public mode
+is implemented in 'src/core/fresh-two-query-probe.mjs' and staged in the
+development-branch Actions workflow. Its first real rankings() response must
+independently establish current report revision, exact FightID, encounter,
+difficulty and at least one same-actor total/boss DPS witness. The second
+table() query is conditional on this validation and is scoped to the same
+report/fight, with a revision equality check. A current public report URL,
+report code and FightID are the only target inputs; NO prior rank/SHA,
+previously observed DPS or legacy GAS cache is required.
+
+Official schema https://www.warcraftlogs.com/v2-api-docs/warcraft/ratelimitdata.doc.html
+documents:
+- 'currentRequest' as JSON with 'total', 'application', 'database' and 'user'
+  breakdowns when exposed. The 'total' includes a minimum request cost.
+  The 'database' value is a SUBSET of Application, not an independent charge;
+  never sum these three fields to reconstruct 'total'.
+- 'databaseLimitPerHour' and 'databasePointsSpentThisHour' as separate
+  database-quota witnesses (not an extra charge to add).
+- 'userHasRemainingPoints' as null when no authenticated user. Under the
+  currently retained client_credentials flow, do NOT claim user billing
+  eligibility or User-point savings.
+
+The fresh query now requests these documented fields with the rate witness;
+'currentRequest' remains a JSON scalar in the GraphQL document. The
+offline-only 'observeFreshRateLimit()' reads category values DIRECTLY if
+finite/nonnegative. Unknown, malformed or absent values stay null. It keeps
+application and database remaining quotas separate, reports a request total
+as actually returned, and does not infer zero charge from a missing category.
+Five new synthetic regressions cover documented direct witnesses,
+database-subset accounting, absent/malformed inputs, 2-response receipts
+and query shape.
+
+This improves the **observability** of actual WCL point cost; it is not a
+measurement, a point saving, or proof that DamageDone totals can reproduce
+EXACT-100 BossDPS. NO WCL API calls, Secrets access, Google Sheets edits or
+main-branch deployment occurred as part of this offline update. The latest
+verified push CI must be matched to the corresponding exact HEAD.
+
+Existing development CI is automatic on isolated-branch push, with the
+duplicate PR test job skipped. The separate one-time LIVE workflow remains
+workflow_dispatch-only and the old main dispatcher is NOT updated here.
