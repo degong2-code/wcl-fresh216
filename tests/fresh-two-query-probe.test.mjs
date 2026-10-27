@@ -4,7 +4,7 @@ import fs from 'node:fs';
 import os from 'node:os';
 import path from 'node:path';
 import {buildFreshQueryPair,summarizeFreshRankings,runFreshTwoQueryProbe,
-  observeFreshRateLimit}
+  observeFreshRateLimit,summarizeFreshTableSourceRows}
   from '../src/core/fresh-two-query-probe.mjs';
 
 const target=()=>({reportCode:'PUBLIC_SYNTHETIC',fightId:17});
@@ -299,4 +299,80 @@ test('reject extraneous fights and inconsistent shared actor before second paid 
       assert.match(summary.reason,/FRESH_(FIGHT_SCOPE_UNVERIFIED|ACTOR_METRIC_CONFLICT)/);
     });
   }
+});
+
+test('fresh table source rows independently overlap rankings by numeric report actor ID',()=>{
+  const data={
+    entries:[
+      {id:9,name:'PrivateActorName',total:1250},
+      {id:85,name:'PrivatePetName',total:550}
+    ],totalTime:10000
+  };
+  const result=summarizeFreshTableSourceRows(target(),resp().body,data);
+  assert.deepEqual(result,{
+    ok:true,reason:null,sourceRows:2,sharedRankedSourceRows:1
+  });
+  assert.ok(!JSON.stringify(result).includes('PrivateActorName'));
+  assert.ok(!JSON.stringify(result).includes('PrivatePetName'));
+  assert.ok(!JSON.stringify(result).includes('1250'));
+  assert.ok(!JSON.stringify(result).includes('PUBLIC_SYNTHETIC'));
+});
+
+test('unfrozen WCL table JSON cannot masquerade as comparable source rows',async()=>{
+  const malformed=[
+    [{},{reason:'FRESH_TABLE_ENTRIES_UNOBSERVED'}],
+    [{entries:[]},{reason:'FRESH_TABLE_ENTRIES_UNOBSERVED'}],
+    [{entries:[{id:88,total:1000}]},
+      {reason:'FRESH_TABLE_NO_SHARED_RANKED_SOURCE'}],
+    [{entries:[{id:9,total:'500'}]},
+      {reason:'FRESH_TABLE_ROWS_AMBIGUOUS'}],
+    [{entries:[{id:9,total:100},{id:9,total:200}]},
+      {reason:'FRESH_TABLE_ROWS_AMBIGUOUS'}]
+  ];
+  for(const [damage,expected] of malformed){
+    await withDir(async dir=>{
+      let attempts=0;
+      const result=await runFreshTwoQueryProbe({
+        target:target(),privateOutputDir:dir,send:async()=>{
+          attempts++;
+          const r=resp(attempts===1?'rankings':'table');
+          if(attempts===2)r.body.data.reportData.report.damage=damage;
+          return r;
+        }
+      });
+      assert.equal(attempts,2);
+      assert.equal(result.graphqlRequests,2);
+      assert.equal(result.status,'NEEDS_REVIEW');
+      assert.equal(result.reason,expected.reason);
+      assert.equal(result.sameFightTableResponseRecorded,false);
+      assert.equal(result.tableAdopted,false);
+      assert.equal(result.tableShapeStatus,expected.reason);
+      assert.equal(result.observations.length,2);
+      assert.ok(fs.existsSync(path.join(dir,'raw-2.json')));
+      assert.equal(JSON.parse(fs.readFileSync(path.join(dir,'journal.json'))).attemptedGraphql,2);
+    });
+  }
+});
+
+test('two matching WCL table rows yield only structural—not semantic—evidence',async()=>{
+  await withDir(async dir=>{
+    let attempts=0;
+    const result=await runFreshTwoQueryProbe({
+      target:target(),privateOutputDir:dir,send:async()=>{
+        attempts++;
+        const r=resp(attempts===1?'rankings':'table');
+        if(attempts===2)r.body.data.reportData.report.damage={
+          entries:[{id:9,total:123456},{id:88,total:3000}]
+        };
+        return r;
+      }
+    });
+    assert.equal(result.status,'RECORDED');
+    assert.equal(result.tableSourceRowsObserved,2);
+    assert.equal(result.tableSharedRankedSourceRowsObserved,1);
+    assert.equal(result.tableShapeStatus,'SHARED_SOURCE_ROWS_OBSERVED');
+    assert.equal(result.actorBossTargetAndDpsDenominatorParity,'UNPROVEN');
+    assert.equal(result.tableAdopted,false);
+    assert.equal(attempts,2);
+  });
 });
