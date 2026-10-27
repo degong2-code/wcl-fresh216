@@ -69,7 +69,7 @@ test('skip verified rank only when exact same-fight source witness is supplied',
   s.status='VERIFIED';
   assert.throws(()=>planFull216(slots),/SCOPE_UNATTESTED_VERIFIED_SLOT/);
   s.proof={proofType:'EXACT_SAME_FIGHT_ACTOR',actorRef:'id:123',
-    bossDps:s.totalDps*0.7,snapshotSha:s.snapshotSha,
+    bossDps:s.totalDps*0.7,snapshotSha:s.snapshotSha,reportRevision:5,
     reportCode:s.reportCode,fightId:s.fightId,
     encounterId:s.encounterId,difficulty:s.difficulty};
   const graph=planFull216(slots);
@@ -131,4 +131,28 @@ test('planner is deterministic under reordered rank input',()=>{
   const x=planFull216(a),y=planFull216(b);
   assert.deepEqual(x,y);
   assert.deepEqual(planReportWaves(x).waves,planReportWaves(y).waves);
+});
+
+test('all eight encounters must use the same 27-class/spec roster',()=>{
+  const slots=fullSlots();
+  for(let i=0;i<100;i++){
+    slots[i].jobKey='Boss0|ClassNEW|SpecNEW';
+    slots[i].className='ClassNEW';
+    slots[i].specName='SpecNEW';
+  }
+  assert.throws(()=>planFull216(slots),/SCOPE_SPECIALIZATION_SET_DRIFT/);
+});
+test('one encounter must map to one boss label, and a boss name cannot change encounter',()=>{
+  const slots=fullSlots();
+  for(let i=0;i<100;i++)slots[i].jobKey='Imposter|Class0|Spec0';
+  assert.throws(()=>planFull216(slots),/SCOPE_BOSS_ENCOUNTER_DRIFT/);
+});
+test('a verified actor witness cannot skip a new rank when the report revision differs',()=>{
+  const slots=fullSlots(),row=slots[0];
+  row.status='VERIFIED';
+  row.proof={proofType:'EXACT_SAME_FIGHT_ACTOR',actorRef:'id:7',
+    bossDps:row.totalDps*0.7,snapshotSha:row.snapshotSha,
+    reportRevision:7,reportCode:row.reportCode,fightId:row.fightId,
+    encounterId:row.encounterId,difficulty:row.difficulty};
+  assert.throws(()=>planFull216(slots),/SCOPE_UNATTESTED_VERIFIED_SLOT/);
 });
