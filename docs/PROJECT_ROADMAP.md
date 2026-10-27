@@ -209,3 +209,27 @@ a theoretical HTTP count alone, and do not reopen the old 44-row G413 audit.
   evidence that they dominate end-to-end 216-job runtime. Return to
   WCL query semantics, point/rate savings, durable host integration and
   secure batched Sheets delivery.
+
+## 2026-10-27 WCL schema / point-system gate — new P0 factual dependency
+
+- Official `RateLimitData.currentRequest` is `JSON!` (scalar): request it as
+  `rateLimitData{currentRequest}`, not `currentRequest{total}`. Both
+  single-Fight and inactive multi-wave query builders corrected; synthetic
+  query-shape assertions passed CI. This is a schema fix, **not a live
+  integration validation**.
+- The WCL/Archon point-category beta announced 20 October 2026 distinguishes
+  App, DB and User-Eligible charges. Rankings are marked **Database Points**;
+  table is **User-Eligible** under a matching user OAuth grant. An old single
+  `currentRequest.total` is NOT sufficient evidence of the three separate
+  quotas, and existing offline admission is NOT authorized as a live quota
+  controller until category counters are verified.
+- [Bounded real-test decision protocol](WCL_2026_POINT_PARITY_GATE.md) and
+  `src/core/wcl-query-comparison.mjs` prepare exactly two distinct same-Fight
+  query documents **without executing HTTP**. Table DamageDone is NOT assumed
+  equivalent to ranking BossDPS; semantics and actual category cost must be
+  measured, not inferred from HTTP/aliases.
+- Next external decision from owner: consent or refusal for a single known
+  Fight, maximum two official GraphQL calls through user-owned credential
+  path (no Sheets writes/restarts), accepting potentially charged points.
+  User-login OAuth/PKCE to spend User points is a *separate* optional decision.
+  No live requests without explicit approval.
