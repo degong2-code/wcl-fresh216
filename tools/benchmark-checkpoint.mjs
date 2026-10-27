@@ -13,6 +13,7 @@ import fs from 'node:fs';
 import os from 'node:os';
 import path from 'node:path';
 import {performance} from 'node:perf_hooks';
+import {randomUUID} from 'node:crypto';
 import {planFull216} from '../src/core/full-scope-plan.mjs';
 import {JsonCheckpointStore} from '../src/adapters/json-checkpoint-store.mjs';
 import {JournalCheckpointStore} from '../src/adapters/journal-checkpoint-store.mjs';
@@ -25,6 +26,37 @@ if(arg.some(x=>!/^--samples=[1-9][0-9]?$/.test(x))||arg.length>1)
   throw Error('ONLY_OPTION_IS_--samples=1..99');
 const samples=arg.length?Number(arg[0].split('=')[1]):3;
 if(samples>8)throw Error('MAX_8_SAMPLES_TO_BOUND_CI_COST');
+/**
+ * Comparison reference: pre-optimization single-file JSON implementation,
+ * reproduced ONLY in this synthetic bench. Not used by the collector.
+ */
+class BaselineUncachedJsonStore extends JsonCheckpointStore {
+  read(){return JSON.parse(fs.readFileSync(this.filePath,'utf8'));}
+  update(transition){
+    fs.mkdirSync(this.lockPath,{mode:0o700});
+    let temp;
+    try{
+      const previous=this.read();
+      const next=transition(structuredClone(previous));
+      if(next.runId!==previous.runId||next.scopeKey!==previous.scopeKey||
+         next.version!==previous.version+1)
+        throw Error('REFERENCE_VERSION_OR_SCOPE_DRIFT');
+      temp=path.join(path.dirname(this.filePath),
+        '.'+path.basename(this.filePath)+'.'+randomUUID()+'.tmp');
+      const fd=fs.openSync(temp,'wx',0o600);
+      try{fs.writeFileSync(fd,JSON.stringify(next)+'\\n');fs.fsyncSync(fd);}
+      finally{fs.closeSync(fd);}
+      fs.renameSync(temp,this.filePath);temp=null;
+      const dirfd=fs.openSync(path.dirname(this.filePath),'r');
+      try{fs.fsyncSync(dirfd);}finally{fs.closeSync(dirfd);}
+      return this.read();
+    }finally{
+      if(temp&&fs.existsSync(temp))fs.unlinkSync(temp);
+      fs.rmdirSync(this.lockPath);
+    }
+  }
+}
+
 const sha=i=>(i.toString(16).padStart(64,'0'));
 const scope='SYNTHETIC_HEROIC_216_CHECKPOINT_BENCHMARK';
 const ranks=[];
@@ -67,14 +99,14 @@ const root=fs.mkdtempSync(path.join(os.tmpdir(),'fresh216-io-synthetic-'));
 try{
   const phases=[];
   const footprints=(type,location)=>{
-    if(type==='FULL_JSON')return fs.statSync(location).size;
+    if(type!=='APPEND_ONLY_JOURNAL')return fs.statSync(location).size;
     const eventsPath=path.join(location,'events');
     return fs.statSync(path.join(location,'base.json')).size+
       fs.readdirSync(eventsPath).reduce(
         (sum,name)=>sum+fs.statSync(path.join(eventsPath,name)).size,0);
   };
   for(const completed of [0,400,800-samples]){
-    for(const type of ['FULL_JSON','APPEND_ONLY_JOURNAL']){
+    for(const type of ['BASELINE_UNCACHED_JSON','FULL_JSON','APPEND_ONLY_JOURNAL']){
       const seed=structuredClone(initial);
       for(let i=0;i<completed;i++){
         const e=seed.entries[entryKeys[i]];
@@ -85,10 +117,11 @@ try{
         e.wallMs=1;
       }
       const stage=['EMPTY','HALF_EVIDENCE','NEAR_FULL_EVIDENCE'][
-        Math.floor(phases.length/2)];
+        Math.floor(phases.length/3)];
       const location=path.join(root,stage+'_'+type+
-        (type==='FULL_JSON'?'.json':''));
-      const Store=type==='FULL_JSON'?JsonCheckpointStore:JournalCheckpointStore;
+        (type==='APPEND_ONLY_JOURNAL'?'':'.json'));
+      const Store=type==='BASELINE_UNCACHED_JSON'?BaselineUncachedJsonStore:
+        type==='FULL_JSON'?JsonCheckpointStore:JournalCheckpointStore;
       const store=new Store(location);
       const init=measure(()=>store.init(seed)).ms;
       const startBytes=footprints(type,location);
