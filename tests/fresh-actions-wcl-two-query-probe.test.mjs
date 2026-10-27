@@ -50,6 +50,9 @@ test('fresh Actions uses CURRENT public report URL, with no previous snapshot or
   assert.equal(r.matchedRankingsActors,1);
   assert.equal(r.tableAdopted,false);
   assert.equal(r.parity,'UNPROVEN');
+  assert.equal(r.tableSourceRowsObserved,1);
+  assert.equal(r.tableSharedRankedSourceRowsObserved,1);
+  assert.equal(r.tableShapeStatus,'SHARED_SOURCE_ROWS_OBSERVED');
   assert.equal(logs.length,1);
   assert.deepEqual(calls.map(x=>x.url),[
     'https://api.github.com/repos/degong2-code/wcl-fresh216/git/refs',
