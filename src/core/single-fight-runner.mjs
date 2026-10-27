@@ -2,6 +2,7 @@ import {randomUUID} from 'node:crypto';
 import {makeRankingsQuery,decodeRankingsEnvelope}
   from '../adapters/wcl-rankings-envelope.mjs';
 import {joinFightEvidence} from './evidence-join.mjs';
+import {evaluateRequestAdmission} from './request-admission.mjs';
 import {readyFetches,beginFetch,completeFetch,uncertainFailure,checkpointStats}
   from './checkpoint.mjs';
 
@@ -23,7 +24,7 @@ import {readyFetches,beginFetch,completeFetch,uncertainFailure,checkpointStats}
  */
 export async function executeOneReadyFight({
   store,transport,clock=Date.now,attemptId=randomUUID(),
-  shouldCancel=()=>false
+  shouldCancel=()=>false,admissionPolicy=null
 }={}){
   if(!store || typeof store.read!=='function' ||
     typeof store.update!=='function' ||
@@ -41,6 +42,14 @@ export async function executeOneReadyFight({
   const startedAtMs=clock();
   if(!Number.isSafeInteger(startedAtMs)||startedAtMs<0)
     throw Error('RUNNER_CLOCK_INVALID');
+  if(admissionPolicy!==null){
+    const decision=evaluateRequestAdmission(store.read(),{
+      ...admissionPolicy,nowMs:startedAtMs
+    });
+    if(!decision.allowed)
+      return {status:decision.status,waitMs:decision.waitMs,
+        pointsTotalConfirmed:decision.pointsTotalConfirmed};
+  }
 
   // The update must be durable before ANY external request. A contending
   // worker fails beginFetch() and may never reach transport.
@@ -99,7 +108,8 @@ export async function executeOneReadyFight({
  */
 export async function runBoundedSweep({
   store,transport,maxAttempts=16,clock=Date.now,
-  newAttemptId=randomUUID,shouldCancel=()=>false,onProgress=()=>{}
+  newAttemptId=randomUUID,shouldCancel=()=>false,onProgress=()=>{},
+  admissionPolicy=null
 }={}){
   if(!store||typeof store.read!=='function'||typeof store.update!=='function'||
      typeof transport!=='function'||typeof newAttemptId!=='function'||
@@ -107,16 +117,31 @@ export async function runBoundedSweep({
      !Number.isSafeInteger(maxAttempts)||maxAttempts<1||maxAttempts>128)
     throw Error('SWEEP_CONFIG_INVALID');
   let attempts=0,verifiedSlots=0,unresolvedSlots=0,reason='BUDGET_REACHED';
+  let waitMs=0;
+  // An earlier uncertain attempt requires operator reconciliation before
+  // any new paid work, including untouched READY fights in the same scope.
+  const starting=checkpointStats(store.read());
+  if(starting.counts.NEEDS_REVIEW>0||starting.counts.IN_FLIGHT>0||
+     starting.pointsUnobserved>0){
+    return {status:'NEEDS_REVIEW',attempts:0,verifiedSlots:0,
+      unresolvedSlots:0,readyFightGroups:starting.counts.READY,
+      reviewFightGroups:starting.counts.NEEDS_REVIEW,
+      pointsTotalConfirmed:starting.pointsTotalConfirmed,waitMs:0};
+  }
   for(let i=0;i<maxAttempts;i++){
     if(shouldCancel()){reason='CANCELLED';break;}
     const result=await executeOneReadyFight({
-      store,transport,clock,attemptId:newAttemptId(),shouldCancel
+      store,transport,clock,attemptId:newAttemptId(),shouldCancel,
+      admissionPolicy
     });
     if(result.status==='NOT_ACTIVE'||result.status==='NO_READY'){
       reason=result.status;break;
     }
     if(result.status==='CANCELLED_BEFORE_REQUEST'){
       reason='CANCELLED';break;
+    }
+    if(['RATE_WAIT','BUDGET_PAUSED','NEEDS_REVIEW'].includes(result.status)){
+      reason=result.status;waitMs=result.waitMs??0;break;
     }
     attempts++;
     verifiedSlots+=result.verifiedSlots;
@@ -145,6 +170,6 @@ export async function runBoundedSweep({
     status:reason,attempts,verifiedSlots,unresolvedSlots,
     readyFightGroups:final.counts.READY,
     reviewFightGroups:final.counts.NEEDS_REVIEW,
-    pointsTotalConfirmed:final.pointsTotalConfirmed
+    pointsTotalConfirmed:final.pointsTotalConfirmed,waitMs
   };
 }
