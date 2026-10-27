@@ -58,6 +58,11 @@ export function planReportWaves(fetchPlan,{maxFightsPerWave=4}={}){
     separateFightHttpBaseline:fightGroups,
     // Only an HTTP count under the same single-fight query model.
     theoreticalHttpCallsCoalesced:fightGroups-waves.length,
+    // Existing checkpoint.mjs protects one fight per HTTP attempt. Bundled
+    // waves need their OWN atomic operation-level journal before activation.
+    currentCheckpointCompatible:waves.every(w=>w.fightGroups.length===1),
+    waveJournalRequired:waves.some(w=>w.fightGroups.length>1),
+    readyForLiveExecution:false,
     pendingRankReferences:references,observedWclPoints:null,
     expectedWclPointSavings:null
   };
