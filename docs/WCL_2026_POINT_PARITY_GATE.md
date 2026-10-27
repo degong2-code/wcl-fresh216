@@ -1,8 +1,75 @@
 # WCL v2 (October 2026) points/rankings-vs-table — bounded decision gate
 
-Status: **OWNER APPROVED UP TO TWO GRAPHQL CALLS / STILL UNEXECUTED**, 2026-10-27.
-This document is not itself execution authorization and no live credentials
-or private target have been provided to this chat/repository. No Sheets or deployment approval.
+Status: **TWO/TWO APPROVED LIVE GRAPHQL ATTEMPTS EXECUTED — NO RETRY ALLOWED**, 2026-10-27.
+The once-only marker exists; runtime transport succeeded but table's
+same-actor identity comparison was NOT established. The preserved older
+planning sections below describe the pre-execution state and are NOT
+authorization to spend any more WCL points. No Sheets/deployment approval.
+
+## Verified one-time live result — 2026-10-27 (supersedes pre-run statements below)
+
+**Execution path verified without user's GitHub Actions UI, Work browser
+or local CLI.** The ChatGPT-authored ADD-only request commit
+'e6387bebc3d9a2c7b317c0e66c1f159c8df78c1e' on the
+'work/collector-architecture' branch automatically triggered existing
+offline push CI run 40486404087 (PASS); its isolated Actions:write relay
+job dispatched the manual-only default-main WCL workflow run 40486449886.
+The relay reported the EXACT resulting workflow run ID. All unrelated
+development pushes skipped the relay job. The main WCL workflow was NOT
+switched to automatic push triggering.
+
+Links:
+- https://github.com/degong2-code/wcl-fresh216/actions/runs/40486404087
+- https://github.com/degong2-code/wcl-fresh216/actions/runs/40486449886
+
+Source: one CURRENT public report 'dQbNzMkG94LqYTh1', FightID 11,
+independently linked by a public 2026-10-16 video, but NOT independently
+validated by a separately billed WCL report fetch. Both bounded GraphQL
+requests themselves returned HTTP 200, with matching report revision in
+the safe receipt. OAuth authentication and the EXACTLY-ONCE persistent
+GitHub ref guard succeeded. The marker
+'refs/heads/wcl-fresh216-one-time-probe-consumed-20261027' exists.
+
+Observed redacted request metadata (NOT an authorization to infer actual
+settled category billing):
+
+| Metric | rankings(dps,bossdps) | DamageDone table(Source) |
+|---|---:|---:|
+| HTTP | 200 | 200 |
+| elapsed ms | 3624 | 988 |
+| currentRequest.total | 4 | 1.62 |
+| currentRequest.application | 4 | 0 |
+| currentRequest.database | 35 | NULL |
+| currentRequest.user | NULL | 1.62 |
+| userHasRemainingPoints | NULL | NULL |
+| same report revision | yes | yes |
+
+CAVEATS: 'currentRequest.user' is a potential User-eligible allocation,
+NOT proof of actual User-point settlement with a client-credentials
+OAuth token. No user was authenticated. Database is a separately metered
+sub-quota and cannot be arithmetically added to total/application cost.
+The observed 3624 vs 988 ms is **ONE sample** per method, not an
+end-to-end 216-job completion benchmark. No confirmed app/DB savings
+or exact same-actor boss-only DPS equivalence may be concluded.
+
+The first rankings request identified **14** cross-metric DPS actors.
+The table response contained **20** source rows but **0** rows shared
+numeric IDs directly with those ranking actors. This is a failure of
+the attempted **direct-ID equivalence method**, not proof that the
+underlying players differ or their DPS numbers disagree. A canonical
+character ID versus report-local actor ID mapping is a plausible,
+**UNVERIFIED** cause. Raw JSON was deliberately held privately and
+deleted at workflow exit; public GitHub retains only aggregate metadata.
+
+Result: run 40486449886 completed **failure** with application-level
+'FRESH_TABLE_NO_SHARED_RANKED_SOURCE'/'NEEDS_REVIEW' (exit 3), even
+though both HTTP requests returned 200. The configured one-time ref
+was consumed. **Further WCL requests, a new nonce or marker deletion,
+retry, other credential grants, and automatic scheduled experiments
+require new explicit owner authorization.** Keep rankings and EXACT-100
+semantics unchanged.
+
+---
 
 ## What changed and why it matters
 
