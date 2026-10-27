@@ -94,7 +94,9 @@ export function auditTypedRosterCrosswalk({
     if(!isPos(a?.id))continue;
     const arr=byId.get(a.id)??[];
     arr.push(a);byId.set(a.id,arr);
-    if(a.type==='Player'&&!isPos(a.petOwner)&&sourceIds.has(a.id)){
+    // Duplicates anywhere in the report-wide Player roster invalidate
+    // name-only disambiguation, even if only one was active in this Fight.
+    if(a.type==='Player'&&!isPos(a.petOwner)){
       const k=normal(a.name);if(!k)continue;
       const matches=localNames.get(k)??[];
       matches.push(a);localNames.set(k,matches);
@@ -106,8 +108,16 @@ export function auditTypedRosterCrosswalk({
 
   for(const ch of chars){
     const name=normal(ch?.name);
-    const server=normal(ch?.server?.normalizedName);
-    if(!name||!server||!isPos(ch?.canonicalID)||!isPos(ch?.classID)||
+    if(!name){
+      c.typedRosterMissingOrInvalid=(c.typedRosterMissingOrInvalid??0)+1;
+      continue;
+    }
+    // Keep malformed rows in the name index. Skipping them would falsely
+    // turn a duplicated report-wide name into a unique candidate.
+    const arr=typedNames.get(name)??[];
+    arr.push(ch);typedNames.set(name,arr);
+    if(!normal(ch?.server?.normalizedName)||
+       !isPos(ch?.canonicalID)||!isPos(ch?.classID)||
        !isPos(ch?.server?.id)){
       c.typedRosterMissingOrInvalid=(c.typedRosterMissingOrInvalid??0)+1;
       continue;
@@ -115,8 +125,6 @@ export function auditTypedRosterCrosswalk({
     if(canonicalIds.has(ch.canonicalID))
       c.typedRosterDuplicateCanonicalIds=(c.typedRosterDuplicateCanonicalIds??0)+1;
     canonicalIds.add(ch.canonicalID);
-    const arr=typedNames.get(name)??[];
-    arr.push(ch);typedNames.set(name,arr);
   }
   for(const a of ranked){
     const k=normal(a?.name);if(!k)continue;
@@ -139,7 +147,9 @@ export function auditTypedRosterCrosswalk({
     if(localCandidates.length!==1)continue;
     const ch=typedCandidates[0],local=localCandidates[0];
     if(byId.get(local.id)?.length!==1||!sourceIds.has(local.id))continue;
-    const server=normal(local.server),typedServer=normal(ch.server.normalizedName);
+    const server=normal(local.server),typedServer=normal(ch?.server?.normalizedName);
+    if(!isPos(ch?.canonicalID)||!isPos(ch?.classID)||
+       !isPos(ch?.server?.id)||!typedServer)continue;
     if(!server||server!==typedServer){
       c.serverMismatchCandidates=(c.serverMismatchCandidates??0)+1;continue;
     }
