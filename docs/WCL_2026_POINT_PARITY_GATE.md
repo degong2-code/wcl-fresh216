@@ -6,6 +6,57 @@ same-actor identity comparison was NOT established. The preserved older
 planning sections below describe the pre-execution state and are NOT
 authorization to spend any more WCL points. No Sheets/deployment approval.
 
+## Typed report-wide canonical roster crosswalk — offline only
+
+After the owner-approved 3/3 GraphQL calls were consumed, development
+added the OFFLINE-ONLY
+`src/core/fresh-typed-roster-crosswalk.mjs`, tested by
+`tests/fresh-typed-roster-crosswalk.test.mjs`.
+The reviewed official WCL schema distinguishes:
+- `Report.rankedCharacters: [Character]`: EVERY character that ranked on
+  kills in this REPORT; there is NO `fightIDs` argument for this field.
+- `Character.canonicalID: Int!` and `Character.server: Server!`:
+  typed global character identity and typed realm metadata.
+- `Server.normalizedName: String!` and `ReportActor.server: String`:
+  normalized server name witnesses; their actual locale compatibility
+  remains untested on this specific report.
+- `rankings(fightIDs:[$fightID])` and
+  `table(fightIDs:[$fightID], viewBy:Source)`:
+  explicitly Fight-scoped, but their JSON actor `id` keys are NOT
+  documented as interchangeable with `Character.canonicalID`.
+
+The offline prototype builds a possible FUTURE, owner-authorized
+single-GraphQL document containing the existing Fight-ranked metrics,
+Fight-specific DamageDone table, report masterData and
+`rankedCharacters{canonicalID id name classID server{id normalizedName}}`.
+It neither sends the query nor changes the paid one-time workflows.
+
+Its diagnostic counts ONLY candidate names unique in the Fight's
+total/BossDPS roster, the whole-report canonical-character roster,
+and ReportActor Player entries that have a unique positive table source ID.
+An exact local-vs-typed normalized server and ranking-vs-ReportActor class
+match is also required. Duplicates, absent source evidence and conflicting
+servers never become automatically verified characters. All output is
+aggregated; raw names, IDs and damage amounts are excluded. Because
+`rankedCharacters` is report-wide and the unfrozen ranking JSON ID
+namespace is unverified, even a positive four-way candidate result
+remains `canonicalCharacterIdentity: UNPROVEN`,
+`bossDpsParity: UNPROVEN`, and `exact100Parity: UNPROVEN`.
+
+This is 100% SYNTHETIC/OFFLINE evidence, not a retest of the real
+14-rank/20-table/235-master-actor response. The third run's original raw
+response was not retained, so actual four-way overlap is UNKNOWN.
+A future real WCL GraphQL call requires NEW explicit user approval
+and its own one-time reservation; both older markers must be preserved.
+
+Official sources:
+https://www.warcraftlogs.com/v2-api-docs/warcraft/report.doc.html
+https://www.warcraftlogs.com/v2-api-docs/warcraft/character.doc.html
+https://www.warcraftlogs.com/v2-api-docs/warcraft/server.doc.html
+https://www.warcraftlogs.com/v2-api-docs/warcraft/reportactor.doc.html
+
+---
+
 ## Follow-up single-query identity witness — 2026-10-27
 
 **Owner separately approved at most ONE more GraphQL request** for
