@@ -153,3 +153,36 @@ test('global character IDs duplicated in typed response cannot certify any candi
   assert.equal(x.sameFightFourWayCandidates,0);
   assert.equal(x.canonicalCharacterIdentity,'UNPROVEN');
 });
+
+
+test('inactive same-name local Player elsewhere in report blocks Fight identity claim',()=>{
+  const input=data();
+  input.masterBody.data.reportData.report.masterData.actors.push(
+    local(7777,'UniqueSynthetic','different-realm'));
+  const x=audit(input);
+  assert.equal(x.ambiguousLocalNameKeys,1);
+  assert.equal(x.sameFightFourWayCandidates,1);
+  assert.equal(x.canonicalCharacterIdentity,'UNPROVEN');
+});
+
+test('malformed duplicate typed character cannot create false unique name mapping',()=>{
+  const input=data();
+  input.typedBody.data.reportData.report.rankedCharacters.push({
+    canonicalID:null,name:'UniqueSynthetic',classID:null,server:null
+  });
+  const x=audit(input);
+  assert.equal(x.typedRosterMissingOrInvalid,1);
+  assert.equal(x.ambiguousTypedNameKeys,1);
+  assert.equal(x.sameFightFourWayCandidates,1);
+  assert.equal(x.canonicalCharacterIdentity,'UNPROVEN');
+});
+
+test('single malformed typed roster entry never crashes the diagnostic',()=>{
+  const input=data();
+  input.typedBody.data.reportData.report.rankedCharacters[0].server=null;
+  const x=audit(input);
+  assert.equal(x.typedRosterMissingOrInvalid,1);
+  assert.equal(x.sameFightFourWayCandidates,1);
+  assert.equal(x.namespaceEquivalent===undefined,true);
+  assert.equal(x.exact100Parity,'UNPROVEN');
+});
