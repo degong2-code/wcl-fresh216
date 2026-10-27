@@ -31,7 +31,7 @@ for (const file of files) {
   }
 }
 // New architecture prototype is intentionally independent of legacy installed source.
-for (const file of ['tests/fetch-plan.test.mjs', 'tests/resolve-proof.test.mjs', 'tests/legacy-proof-parity.test.mjs', 'tests/job-kpis.test.mjs', 'tests/evidence-join.test.mjs', 'tests/checkpoint.test.mjs', 'tests/wcl-rankings-envelope.test.mjs', 'tests/legacy-proof-audit.test.mjs', 'tests/private-audit-cli.test.mjs', 'tests/uy-batch-plan.test.mjs', 'tests/full-scope-plan.test.mjs']) {
+for (const file of ['tests/fetch-plan.test.mjs', 'tests/resolve-proof.test.mjs', 'tests/legacy-proof-parity.test.mjs', 'tests/job-kpis.test.mjs', 'tests/evidence-join.test.mjs', 'tests/checkpoint.test.mjs', 'tests/wcl-rankings-envelope.test.mjs', 'tests/legacy-proof-audit.test.mjs', 'tests/private-audit-cli.test.mjs', 'tests/uy-batch-plan.test.mjs', 'tests/full-scope-plan.test.mjs', 'tests/single-fight-runner.test.mjs']) {
   if (!fs.existsSync(file)) { fail('Missing expected pure-core test: ' + file); continue; }
   const run = spawnSync('node', ['--test', file],
     {encoding:'utf8', timeout:30000, maxBuffer:1024*1024});
