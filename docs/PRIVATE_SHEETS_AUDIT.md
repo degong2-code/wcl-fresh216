@@ -7,11 +7,11 @@ Do **not** paste or upload real workbook rows/Report IDs into a Public PR or cha
 ## What to export once
 
 From the existing **[TEST][FRESH216] WCL 신규 전체 수집** spreadsheet
-containing these three original tabs (the two proof tabs are hidden):
+containing these three original G4.13 tabs (some may be hidden):
 
-- `영웅_DPS지표_V5_P12_1_TEST` — RAW A:Y
-- `__WCL35_EVIDENCE_TEST` — historical 10-column PROOF ledger
-- `__WCL43_G3_RANK_SNAPSHOTS` — original 32-column G3 committed rank snapshots
+- `__WCL43_G413_RAW` — G4.13 RAW A:Y (row 4 onward)
+- `__WCL43_G413_PROOF` — G4.13 10-column proof ledger (row 2 onward)
+- `__WCL43_G413_SNAPSHOTS` — G4.13 32-column G3-format committed rank snapshots
 
 Use Google Sheets **File → Download → Microsoft Excel (.xlsx)** to export the
 **same single workbook**. The source project may contain many other sheets;
@@ -54,8 +54,7 @@ JSON** (counts and safe error codes). If Python reports a
 
 ## Meaning of results
 
-- `sourceCounts.proofRowsPresent`: PROOF entries found, not necessarily 43
-  newly completed G4.13 jobs; older proof records may be present.
+- `sourceCounts.proofRowsPresent`: G4.13 PROOF entries found. The source workbook may include the **in-progress #44** record in addition to 43 `DONE` records, so do not equate this number with completed jobs.
 - `sourceCounts.committedRowsWithProof`: stored G3 COMMITTED rows paired with
   a PROOF entry; these are candidate records, not automatically good proofs.
 - `sourceCounts.missingCommitForProof`: PROOF row exists but no matching
@@ -83,3 +82,9 @@ appropriate. The original Google Sheets workbook stays unchanged.
 **Remaining separate decisions:** WCL report.table versus rankings actual
 same-actor/DPS and paid point comparison, choosing a genuinely durable live
 host, attaching Google Sheets output, end-to-end timing. No assumed speedup.
+
+### Observed shape of the user-supplied original workbook (2026-10-27)
+
+A read-only inspection of the original conversation attachment (without opening its `정보` credentials tab) found **44 G4.13 RAW/PROOF/COMMITTED snapshot positions**, of which 43 proof rows are `DONE` and 1 is `PARTIAL` (the in-progress job). A limited offline cross-check of those rows found 16 numeric EXACT-100 slots and 28 partial rows, with source SHA/RAW KPI/U:Y/count checks consistent. **This is not a WCL live actor-level re-verification**, and it is not proof that a separately sanitized Codespaces upload has identical bytes. Use the private command above if byte-independent verification of that sanitized workbook is required.
+
+Do not substitute similarly named G34 or older `__WCL35_EVIDENCE_TEST` proof sheets for the G413 data; they describe different runs and cannot be joined without a separate migration contract.
