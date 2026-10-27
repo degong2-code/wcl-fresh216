@@ -30,7 +30,7 @@ test('query requests exact same fight DPS and boss DPS plus report code and revi
   assert.match(x.query,/report\(code:\$code\)\{code revision/);
   assert.match(x.query,/overall:rankings\(fightIDs:\[\$fightID\],playerMetric:dps\)/);
   assert.match(x.query,/boss:rankings\(fightIDs:\[\$fightID\],playerMetric:bossdps\)/);
-  assert.match(x.query,/rateLimitData\{currentRequest\}/);
+  assert.match(x.query,/rateLimitData\{currentRequest limitPerHour pointsSpentThisHour pointsResetIn\}/);
   assert.doesNotMatch(x.query,/currentRequest\{/);
   assert.equal(x.query.includes('table('),false);
 });
