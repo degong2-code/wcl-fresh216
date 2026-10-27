@@ -18,7 +18,7 @@ test('the paid WCL workflow has precisely a manual dispatch trigger',()=>{
 test('no automatically moving PR ref; only pinned code is allowed to access Secrets',()=>{
   const match=source.match(/ref:\s*([a-f0-9]{40})\s*$/m);
   assert.ok(match,'immutable checkout ref required');
-  assert.equal(match[1],'66e44e36e6ce7ba55853eef583b80116175c5044');
+  assert.equal(match[1],'77e60b6ae7e4dcb90f334bc1cda9f7d0d256e2f3');
   assert.match(source,/persist-credentials:\s*false/);
   assert.match(source,/concurrency:\s*\n\s*group: wcl-fresh216-one-time-owner-approved-two-query/);
   assert.match(source,/cancel-in-progress:\s*false/);
@@ -32,6 +32,7 @@ test('Secrets stay private, dispatch inputs identify only PUBLIC WCL Fight',()=>
     assert.match(source,new RegExp('^\\s{6}'+field+':','m'));
   }
   assert.ok(source.includes('node tools/run-actions-wcl-two-query-probe.mjs'));
+  assert.match(source,/WCL_PROBE_MODE: FRESH_PUBLIC_REPORT_ONLY/);
   assert.doesNotMatch(source,/upload-artifact|printenv|set -x|ACTIONS_STEP_DEBUG/);
   assert.match(source,/^\s+contents:\s*write/m);
   assert.doesNotMatch(source,/^\s+id-token:\s*write/m);
