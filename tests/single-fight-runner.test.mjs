@@ -318,3 +318,90 @@ test('no READY work with existing uncertain incident must not look like complete
   assert.equal(second.reviewFightGroups,1);
   assert.equal(second.pointsTotalConfirmed,null);
 });
+
+test('budget reservation pauses before the second operation, with no added attempt',async()=>{
+ const store=makeStore(true),called=[],progress=[];
+ const options={
+   store,maxAttempts:8,clock:()=>1000,
+   newAttemptId:(()=>{let n=0;return()=>`CAP-${++n}`})(),
+   admissionPolicy:{notBeforeMs:0,maxObservedPoints:20,reservePoints:10},
+   transport:async q=>{called.push(q.variables.fightID);
+     return response(q.variables.fightID,14);},
+   onProgress:p=>{progress.push(p)}
+ };
+ const first=await runBoundedSweep(options);
+ assert.equal(first.status,'BUDGET_PAUSED');
+ assert.equal(first.attempts,1);
+ assert.equal(first.pointsTotalConfirmed,14);
+ assert.equal(first.readyFightGroups,1);
+ assert.deepEqual(called,[12]);
+ assert.equal(progress.length,1);
+ const next=await runBoundedSweep(options);
+ assert.equal(next.status,'BUDGET_PAUSED');
+ assert.equal(next.attempts,0);
+ assert.deepEqual(called,[12]);
+ assert.equal(progress.length,1);
+});
+test('rate not-before keeps checkpoint READY and returns remaining wait without sleeping',async()=>{
+ const store=makeStore(),called=[];
+ const result=await runBoundedSweep({
+   store,clock:()=>1000,admissionPolicy:{
+     notBeforeMs:1300,maxObservedPoints:100,reservePoints:10
+   },
+   transport:async x=>{called.push(x);return response(12)}
+ });
+ assert.equal(result.status,'RATE_WAIT');
+ assert.equal(result.waitMs,300);
+ assert.equal(result.attempts,0);
+ assert.equal(result.readyFightGroups,1);
+ assert.equal(store.updates,0);
+ assert.equal(called.length,0);
+});
+test('overshoot is reported honestly; explicit reserve is NOT a hard WCL point cap',async()=>{
+ const store=makeStore();
+ const result=await runBoundedSweep({
+   store,clock:()=>1000,maxAttempts:1,
+   admissionPolicy:{notBeforeMs:0,maxObservedPoints:20,reservePoints:10},
+   transport:async()=>response(12,23)
+ });
+ assert.equal(result.status,'NO_READY');
+ assert.equal(result.attempts,1);
+ assert.equal(result.pointsTotalConfirmed,23);
+});
+test('previous uncertain 504 with other READY fights stops ALL subsequent sweeps',async()=>{
+ const store=makeStore(true),called=[];
+ const first=await runBoundedSweep({
+   store,clock:()=>1000,newAttemptId:()=> 'A1',
+   transport:async q=>{called.push(q.variables.fightID);
+     return {httpStatus:504,body:null};}
+ });
+ assert.equal(first.status,'NEEDS_REVIEW');
+ assert.equal(first.readyFightGroups,1);
+ const next=await runBoundedSweep({
+   store,clock:()=>2000,newAttemptId:()=> 'A2',
+   transport:async q=>{called.push(q.variables.fightID);
+     return response(q.variables.fightID);}
+ });
+ assert.equal(next.status,'NEEDS_REVIEW');
+ assert.equal(next.attempts,0);
+ assert.equal(next.readyFightGroups,1);
+ assert.deepEqual(called,[12]);
+});
+test('unknown points on a completed proof force a global operator check before next request',async()=>{
+ const store=makeStore(true);
+ const first=await runBoundedSweep({
+   store,maxAttempts:1,clock:()=>1000,newAttemptId:()=> 'A1',
+   transport:async q=>{const result=response(q.variables.fightID);
+     delete result.body.data.rateLimitData;return result;}
+ });
+ assert.equal(first.attempts,1);
+ assert.equal(first.status,'BUDGET_REACHED');
+ assert.equal(first.pointsTotalConfirmed,null);
+ const next=await runBoundedSweep({
+   store,maxAttempts:2,clock:()=>2000,newAttemptId:()=> 'A2',
+   transport:async()=>{throw Error('SHOULD NOT RUN');}
+ });
+ assert.equal(next.status,'NEEDS_REVIEW');
+ assert.equal(next.attempts,0);
+ assert.equal(next.pointsTotalConfirmed,null);
+});
