@@ -1,5 +1,16 @@
 # Fresh216 — owner-controlled, ONE-TIME WCL rankings vs table probe
 
+> **CLOSED — 2026-10-27.** The explicitly approved once-only live WCL
+> experiment has **already executed** its two GraphQL requests. The
+> GitHub one-time consumed ref exists. The actual run
+> [40486449886](https://github.com/degong2-code/wcl-fresh216/actions/runs/40486449886)
+> returned two HTTP 200 responses but ended NEEDS_REVIEW because direct
+> character/table actor ID overlap was 0. The archived pre-run procedures
+> below are **historical** and MUST NOT be used to rerun the experiment.
+> See [2026 point parity gate](WCL_2026_POINT_PARITY_GATE.md)
+> for measured, redacted timing/point results and limitations. Repeating
+> WCL calls or resetting one-time state requires fresh owner consent.
+
 **Scope:** user separately approved at most two GraphQL calls for ONE public,
 previously ranked Report/Fight. This is an execution runbook, NOT permission
 for continuous collection, a third call, new OAuth grants, deployment,
