@@ -3,7 +3,7 @@ import assert from 'node:assert/strict';
 import {resolveConservativeDirect,resolveCollisionGuardedDirect} from '../src/core/legacy-direct-match.mjs';
 
 const slot=(name,amount,id,code='REPORT',fight=11)=>({
-  name,amount,report:{code,fightID:fight},
+  name,amount,startTime:1700000000000,report:{code,fightID:fight},
   ...(id===null?{}:{characterID:id})
 });
 
@@ -78,4 +78,28 @@ test('collision guard requires same report and fight',()=>{
   assert.deepEqual(resolveCollisionGuardedDirect(
     [slot('Twin',100,null)],
     [slot('Twin',60,null,'REPORT',12)]).matched,[null]);
+});
+
+test('collision guard requires same source startTime, even within same report/fight',()=>{
+  const a=slot('Twin',100,null);
+  const b={...slot('Twin',60,null),startTime:1700000001000};
+  assert.deepEqual(resolveCollisionGuardedDirect([a],[b]).matched,[null]);
+});
+test('collision guard rejects a missing ranking startTime',()=>{
+  const a=slot('Twin',100,null);
+  delete a.startTime;
+  assert.deepEqual(resolveCollisionGuardedDirect(
+    [a],[slot('Twin',60,null)]).matched,[null]);
+});
+test('collision guard accepts identical numeric string startTimes',()=>{
+  const a={...slot('Twin',100,null),startTime:'1700000000000'};
+  assert.deepEqual(resolveCollisionGuardedDirect(
+    [a],[slot('Twin',60,null)]).matched,[60]);
+});
+test('matching startTime cannot prove two same-name actors share canonical identity',()=>{
+  // All stored source fields are identical in these two hypothetical worlds:
+  // (1) same actor in both metric rankings, or (2) different realm homonyms.
+  // Since realm/canonicalID is absent, this algorithm cannot differentiate.
+  assert.deepEqual(resolveCollisionGuardedDirect(
+    [slot('Twin',100,null)],[slot('Twin',60,null)]).matched,[60]);
 });
