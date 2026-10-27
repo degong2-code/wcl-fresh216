@@ -186,3 +186,16 @@ test('single malformed typed roster entry never crashes the diagnostic',()=>{
   assert.equal(x.namespaceEquivalent===undefined,true);
   assert.equal(x.exact100Parity,'UNPROVEN');
 });
+
+
+test('report-wide homonym with invalid local ID prevents false Fight identity',()=>{
+  const input=data();
+  input.masterBody.data.reportData.report.masterData.actors.push({
+    id:0,name:'UniqueSynthetic',server:'other-realm',
+    type:'Player',subType:'Shaman',petOwner:null
+  });
+  const out=audit(input);
+  assert.equal(out.ambiguousLocalNameKeys,1);
+  assert.equal(out.sameFightFourWayCandidates,1);
+  assert.equal(out.canonicalCharacterIdentity,'UNPROVEN');
+});
