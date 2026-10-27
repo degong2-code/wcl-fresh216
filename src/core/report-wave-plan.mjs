@@ -20,7 +20,7 @@ const clone=o=>structuredClone(o);
 export function planReportWaves(fetchPlan,{maxFightsPerWave=4}={}){
   ok(fetchPlan&&Array.isArray(fetchPlan.groups)&&int(maxFightsPerWave)&&
     maxFightsPerWave<=8,'WAVE_INPUT_INVALID');
-  const buckets=new Map(),seen=new Set();
+  const buckets=new Map(),seen=new Set(),fightsPerBucket=new Map();
   for(const g of fetchPlan.groups){
     ok(g&&typeof g.scopeKey==='string'&&g.scopeKey&&validCode(g.reportCode)&&
       int(g.fightId)&&int(g.encounterId)&&int(g.difficulty)&&
@@ -31,7 +31,12 @@ export function planReportWaves(fetchPlan,{maxFightsPerWave=4}={}){
     ok(!seen.has(id),'WAVE_DUPLICATE_GROUP');
     seen.add(id);
     const bucket=key(g);
-    if(!buckets.has(bucket))buckets.set(bucket,[]);
+    if(!buckets.has(bucket)){
+      buckets.set(bucket,[]);
+      fightsPerBucket.set(bucket,new Set());
+    }
+    ok(!fightsPerBucket.get(bucket).has(g.fightId),'WAVE_FIGHT_ENCOUNTER_CONFLICT');
+    fightsPerBucket.get(bucket).add(g.fightId);
     buckets.get(bucket).push(g);
   }
   const waves=[];
@@ -50,7 +55,7 @@ export function planReportWaves(fetchPlan,{maxFightsPerWave=4}={}){
     }
   }
   const fightGroups=fetchPlan.groups.length;
-  const references=fetchPlan.pendingSlotCount??null;
+  const references=fetchPlan.pendingSlotCount??fetchPlan.pendingRankSlots??null;
   return {
     waves,distinctFightGroups:fightGroups,graphQLWaveCount:waves.length,
     queryRankingsAliases:fightGroups*2,
