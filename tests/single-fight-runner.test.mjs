@@ -4,11 +4,13 @@ import fs from 'node:fs';
 import os from 'node:os';
 import path from 'node:path';
 import {planFightFetches} from '../src/core/fetch-plan.mjs';
+import {joinFightEvidence} from '../src/core/evidence-join.mjs';
 import {JsonCheckpointStore} from '../src/adapters/json-checkpoint-store.mjs';
 import {executeOneReadyFight,runBoundedSweep} from '../src/core/single-fight-runner.mjs';
 import {
   newCheckpoint,registerPlan,readyFetches,checkpointStats,
-  recoverCheckpoint,stopCheckpoint,committedProofs
+  recoverCheckpoint,stopCheckpoint,committedProofs,
+  beginFetch,completeFetch
 } from '../src/core/checkpoint.mjs';
 
 const slot=(change={})=>({
@@ -404,4 +406,56 @@ test('unknown points on a completed proof force a global operator check before n
  assert.equal(next.status,'NEEDS_REVIEW');
  assert.equal(next.attempts,0);
  assert.equal(next.pointsTotalConfirmed,null);
+});
+
+test('atomic checkpoint rejects a second in-flight request across different fights',()=>{
+  const store=makeStore(true),two=readyFetches(store.read());
+  const first=beginFetch(store.read(),two[0].key,'PROCESS-ONE',100);
+  assert.throws(()=>beginFetch(first,two[1].key,'PROCESS-TWO',101),
+    /SCOPE_HAS_UNRESOLVED_ATTEMPT/);
+  assert.equal(readyFetches(first).length,1);
+});
+test('atomic recheck rejects stale budget when another fight completed after preflight',async()=>{
+  const store=makeStore(true),baseUpdate=store.update.bind(store);
+  const groupsInRun=readyFetches(store.read());
+  const other=groupsInRun.find(x=>x.fightId===13);
+  let raced=false,transportCalls=0;
+  store.update=transition=>{
+    if(!raced){
+      raced=true;
+      baseUpdate(s=>beginFetch(s,other.key,'OTHER-PAID-REQUEST',100));
+      const group=groups(true).find(g=>g.fightId===13);
+      const joined=joinFightEvidence(group,response(13).body.data.reportData.report);
+      baseUpdate(s=>completeFetch(s,other.key,'OTHER-PAID-REQUEST',
+        joined,{points:14,wallMs:50}));
+    }
+    return baseUpdate(transition);
+  };
+  const result=await executeOneReadyFight({
+    store,clock:()=>200,attemptId:'STALE-PREFLIGHT',
+    admissionPolicy:{notBeforeMs:0,maxObservedPoints:20,reservePoints:10},
+    transport:async()=>{
+      transportCalls++;
+      return response(12);
+    }
+  });
+  assert.equal(raced,true);
+  assert.equal(result.status,'BUDGET_PAUSED');
+  assert.equal(result.attempted,false);
+  assert.equal(result.pointsTotalConfirmed,14);
+  assert.equal(transportCalls,0);
+  assert.equal(checkpointStats(store.read()).counts.READY,1);
+  assert.equal(checkpointStats(store.read()).counts.COMPLETED,1);
+});
+test('direct runner without optional policy still refuses concurrent request',async()=>{
+  const store=makeStore(true),all=readyFetches(store.read());
+  store.update(s=>beginFetch(s,all[1].key,'FOREIGN_INFLIGHT',100));
+  let calls=0;
+  const outcome=await executeOneReadyFight({
+    store,clock:()=>200,attemptId:'SECOND',
+    transport:async()=>{calls++;return response(12);}
+  });
+  assert.equal(outcome.status,'NEEDS_REVIEW');
+  assert.equal(outcome.attempted,false);
+  assert.equal(calls,0);
 });
