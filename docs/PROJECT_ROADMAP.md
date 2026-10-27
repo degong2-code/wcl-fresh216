@@ -58,3 +58,41 @@ Implement the **minimal batched U:Y write plan** as a pure offline boundary,
 not another Google Sheets script. This is a secondary I/O optimization and
 must not distract from the larger WCL point bottleneck. Next establish a
 bounded query/cost parity experiment and choose the smallest durable host.
+
+## P0 implementation proof — full-scope global graph (offline, 2026-10-27)
+
+- `src/core/full-scope-plan.mjs` enforces exactly 216 distinct jobs,
+  8 encounters, one fixed set of 27 class/specs across every encounter,
+  100 unique ranks for every job, one snapshot per job, and one difficulty.
+  Previously VERIFIED ranks can be skipped only when a complete
+  source-fight/actor/revision witness is supplied, never because the old
+  numeric PROOF row happens to be DONE.
+- `src/core/report-wave-plan.mjs` groups identical pending Report/Fight
+  evidence references and describes bounded report.rankings GraphQL waves.
+  It validates one encounter/difficulty per report/revision/fight and retains
+  the snapshot/actor candidate of every individual rank. Both modules are
+  pure, without Google/WCL credentials or I/O.
+- The synthetic fixture with **216 jobs × 100 ranks** deliberately makes 27
+  specializations share each of 100 fights per boss. Under that artificial
+  overlap it produces **800 unique Fight queries** from 21,600 rank references;
+  waves of four fights would make **200 HTTP query documents**. These are
+  *hypothetical plan cardinalities*, NOT observed WCL requests, API point
+  savings, live WCL reuse ratios or completion-time predictions. Real rank
+  overlap has not been measured by this test.
+- The existing durable state machine checkpoints **one Fight per external
+  request**. A multi-Fight wave requires a separate **atomic wave-level
+  attempt journal** before any implementation may issue that HTTP request.
+  Accordingly `readyForLiveExecution:false` is hardcoded in the wave
+  plan. `waveJournalRequired` explicitly distinguishes nontrivial waves,
+  and any observed points would be attributed to a whole wave, not divided
+  across 4 fights by guesswork.
+- Before any approved LIVE pilot, select either (a) one fight per request
+  using the existing checkpoint, or (b) implement a single wave-level
+  checkpoint and use bundles **only when same-fight semantics and measured
+  WCL points justify the complexity**. Never batch solely to improve an
+  HTTP-call-count headline.
+
+This closes the **input-structure and deterministic global-graph preflight**
+portion of P0. It does **not** close real cost/performance selection, paid
+query parity, executor integration, progress/cancel, Google Sheets delivery,
+or 216-job end-to-end correctness.
