@@ -234,3 +234,30 @@ This extra fail-closed regression runs only synthetic injected responses:
 no WCL, token, Sheets, production collector or Google Actions probe
 dispatch. The implementation remains limited to the development branch;
 the workflow on main still uses the older fixture-oriented mode.
+
+## Source-view table JSON overlap audit (offline-only)
+
+The official WCL Report.table() is an UNFROZEN JSON scalar, not a guaranteed
+stable field schema. The fresh second GraphQL response can be counted as
+structurally comparable ONLY when it exposes a nonempty 'damage.entries'
+array whose rows have unique numeric report actor IDs and nonnegative numeric
+raw 'total' damage. The executor compares the row IDs privately to actors
+present in BOTH dps and bossdps rankings from the FIRST request, and emits
+ONLY aggregated row counts and a conservative shape status.
+
+- Missing/empty entries, duplicate IDs, nonnumeric totals or no shared ranked
+  actor are marked NEEDS_REVIEW, even when the second HTTP result was 200.
+- A match means ONLY that the SAME report actor identifier was observed in
+  both JSON response types. It does NOT prove pet ownership, boss-only damage,
+  numerator equality, ranking DPS, time denominators or EXACT-100 parity.
+- The result contains no report code, player name/ID, raw damage amount,
+  secret or access token. Raw responses are NEVER uploaded to public Actions
+  logs or artifacts, and no extra API request is introduced.
+- WCL may revise table JSON at any time. If the expected shape changes, the
+  experiment must fail conservatively and be reviewed from lawful private
+  evidence before replacing the protected EXACT rankings path.
+
+This diagnostic is staged exclusively on the development branch. The main
+manual workflow is unchanged and remains pinned to its older code. All
+regression fixtures in CI are synthetic; zero real WCL responses or costs
+were observed during implementation.
