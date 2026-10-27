@@ -40,10 +40,11 @@ export function buildFreshQueryPair(target) {
 }
 const digest=q=>createHash('sha256').update(JSON.stringify(q)).digest('hex');
 const fightOf=(ranking, fightId)=>{
-  if(!Array.isArray(ranking?.data))return null;
-  const matches=ranking.data.filter(f=>f?.fightID===fightId);
-  if(matches.length!==1)return null;
-  const fight=matches[0];
+  // The query is scoped to exactly ONE Fight. An extra/unexpected Fight
+  // is an API contract deviation, not a second candidate to ignore.
+  if(!Array.isArray(ranking?.data)||ranking.data.length!==1)return null;
+  const fight=ranking.data[0];
+  if(fight?.fightID!==fightId)return null;
   if(!positiveInt(fight.encounter?.id)||!positiveInt(fight.difficulty)||
     !Array.isArray(fight.roles?.dps?.characters))return null;
   return fight;
@@ -81,8 +82,12 @@ export function summarizeFreshRankings(target,body) {
   let verifiedActors=0;
   for(const [id,a] of totals) {
     const b=bosses.get(id);
-    if(!b||a.class!==b.class||a.spec!==b.spec||b.amount>a.amount)
-      continue;
+    if(!b)continue;
+    // An ID shared across rankings must have the SAME class/spec and
+    // physically consistent DPS. One valid actor does not excuse an
+    // inconsistent second actor; stop before the paid table request.
+    if(a.class!==b.class||a.spec!==b.spec||b.amount>a.amount)
+      return {ok:false,reason:'FRESH_ACTOR_METRIC_CONFLICT'};
     verifiedActors++;
   }
   if(verifiedActors===0)
