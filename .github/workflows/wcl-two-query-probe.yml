@@ -1,0 +1,50 @@
+# ONE-TIME owner-approved 2026-10-27 comparison ONLY.
+# Default-branch workflow_dispatch is the sole trigger. No CI, PR, push,
+# schedule, production collector, Sheets or automatic retries.
+#
+# The app code below is IMMUTABLY pinned to the offline-verified commit,
+# not a movable PR head. A GitHub atomic ref marker blocks cross-run replay.
+# WCL_PROBE_FIXTURE_JSON must be a private Actions Secret containing one
+# original verified ranking slot. Never paste report IDs into dispatch inputs.
+name: WCL one-time rankings vs table probe
+
+on:
+  workflow_dispatch:
+
+concurrency:
+  group: wcl-fresh216-one-time-owner-approved-two-query
+  cancel-in-progress: false
+
+permissions: {}
+
+jobs:
+  exactly-once-wcl-probe:
+    if: >-
+      github.event_name == 'workflow_dispatch' &&
+      github.ref == 'refs/heads/main' &&
+      github.repository == 'degong2-code/wcl-fresh216'
+    runs-on: ubuntu-latest
+    timeout-minutes: 8
+    permissions:
+      contents: write  # only for atomic one-time consumed ref creation
+    steps:
+      - name: Checkout offline-verified immutable probe code
+        uses: actions/checkout@v4
+        with:
+          ref: d0170171026f939c2577fc2e91bb4fdee72149c9
+          persist-credentials: false
+      - name: Use Node.js 22
+        uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+      - name: Run the at-most-two-query approved experiment
+        env:
+          GITHUB_TOKEN: ${{ github.token }}
+          WCL_CLIENT_ID: ${{ secrets.WCL_CLIENT_ID }}
+          WCL_CLIENT_SECRET: ${{ secrets.WCL_CLIENT_SECRET }}
+          WCL_PROBE_FIXTURE_JSON: ${{ secrets.WCL_PROBE_FIXTURE_JSON }}
+          WCL_PROBE_DISPATCH_PURPOSE: OWNER_APPROVED_20261027_MAX_TWO
+        shell: bash
+        run: |
+          set -euo pipefail
+          node tools/run-actions-wcl-two-query-probe.mjs
