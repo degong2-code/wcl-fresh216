@@ -134,3 +134,138 @@ export function diagnoseFreshActorNamespaces({
     return result('NO_SUPPORTED_IDENTITY_BRIDGE');
   return result('NAME_SERVER_CLASS_CANDIDATES_ONLY');
 }
+
+/**
+ * Separate offline evidence-quality audit for serverless rankings.
+ * Does NOT resolve actor identity or certify DPS. Unlike the older strict
+ * candidate diagnostic, one malformed/duplicate master actor does not
+ * erase the counts needed to distinguish the failure cause.
+ *
+ * Raw names and IDs are used only inside this function and NEVER emitted.
+ * Matching name+class without realm is only a POSSIBLE collision candidate.
+ */
+export function auditFreshServerlessIdentity({
+  target,rankingsBody,tableBody,masterBody
+}={}) {
+  const zero=(status)=>({
+    status,rankingActors:0,rankingServerStrings:0,rankingServerObjects:0,
+    masterRows:0,masterNullIds:0,masterInvalidIds:0,
+    masterDuplicatePositiveIds:0,tableRows:0,
+    tableSourceUniqueMasterIds:0,tableSourceAmbiguousMasterIds:0,
+    tableSourceAbsentMasterIds:0,
+    serverlessNameClassCandidates:0,ambiguousNameClassKeys:0,
+    identityVerified:false,namespaceEquivalent:'UNPROVEN',
+    bossDpsParity:'UNPROVEN',exact100Parity:'UNPROVEN'
+  });
+  const ranked=envelope(rankingsBody);
+  const table=envelope(tableBody);
+  const master=envelope(masterBody);
+  if(!target||ranked?.code!==target.reportCode||
+     table?.code!==target.reportCode||master?.code!==target.reportCode||
+     !same(ranked,table)||!same(ranked,master))
+    return zero('REPORT_OR_REVISION_NOT_COMPARABLE');
+  const all=ranked.overall?.data;
+  const boss=ranked.boss?.data;
+  const tableRows=table.damage?.data?.entries;
+  const actorRows=master.masterData?.actors;
+  if(!Array.isArray(all)||all.length!==1||
+     !Array.isArray(boss)||boss.length!==1||
+     all[0]?.fightID!==target.fightId||
+     boss[0]?.fightID!==target.fightId||
+     !Array.isArray(tableRows)||!Array.isArray(actorRows))
+    return zero('REQUIRED_FIGHT_OR_SOURCE_NOT_OBSERVED');
+  const rankedRows=all[0]?.roles?.dps?.characters;
+  const bossRows=boss[0]?.roles?.dps?.characters;
+  if(!Array.isArray(rankedRows)||!Array.isArray(bossRows))
+    return zero('REQUIRED_RANKING_ROSTER_NOT_OBSERVED');
+  // Validate both ranking rosters BEFORE counting weak name/class hints.
+  const index=(rows)=>{
+    const m=new Map();
+    for(const a of rows) {
+      if(!positive(a?.id)||m.has(a.id)||
+         typeof a.amount!=='number'||!Number.isFinite(a.amount)||
+         a.amount<0)return null;
+      m.set(a.id,a);
+    }
+    return m;
+  };
+  const allIDs=index(rankedRows),bossIDs=index(bossRows);
+  if(!allIDs||!bossIDs)return zero('RANKED_IDS_OR_METRICS_INVALID');
+  const joined=[];
+  for(const [id,a] of allIDs) {
+    const b=bossIDs.get(id);
+    if(!b)continue;
+    if(b.amount>a.amount||a.class!==b.class||a.spec!==b.spec)
+      return zero('RANKED_METRICS_CONFLICT');
+    joined.push(a);
+  }
+  const sources=new Set();
+  for(const entry of tableRows) {
+    if(!positive(entry?.id)||sources.has(entry.id))
+      return zero('TABLE_SOURCE_IDS_AMBIGUOUS');
+    sources.add(entry.id);
+  }
+  const res=zero('SERVERLESS_CANDIDATES_ONLY');
+  res.rankingActors=joined.length;
+  res.tableRows=sources.size;
+  res.rankingServerStrings=joined.filter(a=>!!normalize(a.server)).length;
+  res.rankingServerObjects=joined.filter(a=>
+    a?.server!==null&&typeof a?.server==='object'&&!Array.isArray(a.server)).length;
+  res.masterRows=actorRows.length;
+
+  const byId=new Map();
+  const byNameClass=new Map();
+  for(const a of actorRows) {
+    if(a?.id==null)res.masterNullIds++;
+    else if(!positive(a.id))res.masterInvalidIds++;
+    else {
+      const bucket=byId.get(a.id)??[];
+      bucket.push(a);
+      byId.set(a.id,bucket);
+      if(bucket.length>1)res.masterDuplicatePositiveIds++;
+    }
+    if(a?.type!=='Player'||positive(a.petOwner))continue;
+    const k=JSON.stringify([normalize(a.name),normalize(a.subType)]);
+    if(k.includes('null'))continue;
+    const bucket=byNameClass.get(k)??[];
+    bucket.push(a);
+    byNameClass.set(k,bucket);
+  }
+  for(const id of sources) {
+    const arr=byId.get(id)??[];
+    if(arr.length===1)res.tableSourceUniqueMasterIds++;
+    else if(arr.length>1)res.tableSourceAmbiguousMasterIds++;
+    else res.tableSourceAbsentMasterIds++;
+  }
+  const rankByNameClass=new Map();
+  for(const a of joined) {
+    const name=normalize(a.name),cls=normalize(a.class);
+    if(!name||!cls)continue;
+    const k=JSON.stringify([name,cls]);
+    const bucket=rankByNameClass.get(k)??[];
+    bucket.push(a);
+    rankByNameClass.set(k,bucket);
+  }
+  for(const [key,ranks] of rankByNameClass) {
+    const players=byNameClass.get(key)??[];
+    if(!players.length)continue;
+    if(ranks.length!==1||players.length!==1){
+      res.ambiguousNameClassKeys++;
+      continue;
+    }
+    const player=players[0];
+    // A unique local Actor ID can be used to check table presence,
+    // never to establish global Character identity without realm.
+    if(positive(player.id)&&byId.get(player.id)?.length===1&&
+       sources.has(player.id))
+      res.serverlessNameClassCandidates++;
+  }
+  if(res.masterInvalidIds||res.masterDuplicatePositiveIds||
+     res.tableSourceAmbiguousMasterIds||res.tableSourceAbsentMasterIds)
+    res.status='MASTER_ID_QUALITY_ISSUES_AND_UNPROVEN_CANDIDATES';
+  else if(res.ambiguousNameClassKeys)
+    res.status='AMBIGUOUS_SERVERLESS_NAME_CLASS_CANDIDATES';
+  else if(res.serverlessNameClassCandidates===0)
+    res.status='NO_SERVERLESS_NAME_CLASS_CANDIDATES';
+  return res;
+}
