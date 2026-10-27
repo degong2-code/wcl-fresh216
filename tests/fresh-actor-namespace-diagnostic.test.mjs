@@ -1,6 +1,7 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import {diagnoseFreshActorNamespaces as diagnose}
+import {diagnoseFreshActorNamespaces as diagnose,
+  auditFreshServerlessIdentity as audit}
   from '../src/core/fresh-actor-namespace-diagnostic.mjs';
 
 const target={reportCode:'PRIVATE_SYNTHETIC_REPORT',fightId:11};
@@ -195,4 +196,90 @@ test('duplicate positive master ReportActor IDs still abort unambiguous attribut
   const result=diagnose(input);
   assert.equal(result.status,'MASTER_ACTOR_IDS_AMBIGUOUS');
   assert.equal(result.strongNameServerClassCandidates,0);
+});
+
+
+test('serverless ranking actors produce weak unique name/class candidates only',()=>{
+  const input=make();
+  for(const kind of ['overall','boss'])
+    for(const a of input.rankingsBody.data.reportData.report[kind]
+      .data[0].roles.dps.characters)delete a.server;
+  const out=audit(input);
+  assert.equal(out.status,'SERVERLESS_CANDIDATES_ONLY');
+  assert.equal(out.rankingActors,2);
+  assert.equal(out.rankingServerStrings,0);
+  assert.equal(out.serverlessNameClassCandidates,2);
+  assert.equal(out.masterNullIds,0);
+  assert.equal(out.masterDuplicatePositiveIds,0);
+  assert.equal(out.tableSourceUniqueMasterIds,3);
+  assert.equal(out.tableSourceAbsentMasterIds,0);
+  assert.equal(out.identityVerified,false);
+  assert.equal(out.namespaceEquivalent,'UNPROVEN');
+  assert.equal(out.bossDpsParity,'UNPROVEN');
+  for(const sensitive of ['SyntheticHero','example-realm','PRIVATE_SYNTHETIC_REPORT',
+    '250000','1234567'])
+    assert.ok(!JSON.stringify(out).includes(sensitive));
+});
+
+test('null master IDs and repeated positive IDs are distinguishable while preserving unrelated candidate counts',()=>{
+  const input=make();
+  for(const kind of ['overall','boss'])
+    for(const a of input.rankingsBody.data.reportData.report[kind]
+      .data[0].roles.dps.characters)delete a.server;
+  input.masterBody.data.reportData.report.masterData.actors.push(
+    {id:null,type:'NPC',name:'Anonymous',subType:'NPC',server:null},
+    {id:2,type:'NPC',name:'OtherName',subType:'NPC',server:null},
+    {id:0,type:'NPC',name:'BadNumeric',subType:'NPC',server:null}
+  );
+  const out=audit(input);
+  assert.equal(out.status,'MASTER_ID_QUALITY_ISSUES_AND_UNPROVEN_CANDIDATES');
+  assert.equal(out.masterNullIds,1);
+  assert.equal(out.masterInvalidIds,1);
+  assert.equal(out.masterDuplicatePositiveIds,1);
+  assert.equal(out.tableSourceUniqueMasterIds,2);
+  assert.equal(out.tableSourceAmbiguousMasterIds,1);
+  assert.equal(out.tableSourceAbsentMasterIds,0);
+  assert.equal(out.serverlessNameClassCandidates,1);
+  assert.equal(out.identityVerified,false);
+});
+
+test('same name/class on two report-local players cannot become safe serverless match',()=>{
+  const input=make();
+  for(const kind of ['overall','boss'])
+    for(const a of input.rankingsBody.data.reportData.report[kind]
+      .data[0].roles.dps.characters)delete a.server;
+  input.masterBody.data.reportData.report.masterData.actors.push(
+    actor(123,'SyntheticHero','other-server','Shaman'));
+  const out=audit(input);
+  assert.equal(out.status,'AMBIGUOUS_SERVERLESS_NAME_CLASS_CANDIDATES');
+  assert.equal(out.ambiguousNameClassKeys,1);
+  assert.equal(out.serverlessNameClassCandidates,1);
+  assert.equal(out.identityVerified,false);
+});
+
+test('object-shaped ranking server is counted without inferring its schema or joining realms',()=>{
+  const input=make();
+  input.rankingsBody.data.reportData.report.overall.data[0].roles.dps
+    .characters[0].server={slug:'untrusted-realm-object'};
+  const out=audit(input);
+  assert.equal(out.rankingServerObjects,1);
+  assert.equal(out.rankingServerStrings,1);
+  assert.equal(out.namespaceEquivalent,'UNPROVEN');
+  assert.equal(out.identityVerified,false);
+});
+
+test('serverless audit refuses cross-report revision, Fight, and invalid source IDs',()=>{
+  const mutations=[
+    inp=>{inp.masterBody.data.reportData.report.revision=99;},
+    inp=>{inp.tableBody.data.reportData.report.code='WRONG';},
+    inp=>{inp.rankingsBody.data.reportData.report.boss.data[0].fightID=12;},
+    inp=>{inp.tableBody.data.reportData.report.damage.data.entries.push({id:2,total:1});}
+  ];
+  for(const mutate of mutations){
+    const input=make();mutate(input);
+    const out=audit(input);
+    assert.equal(out.identityVerified,false);
+    assert.equal(out.serverlessNameClassCandidates,0);
+    assert.equal(out.exact100Parity,'UNPROVEN');
+  }
 });
