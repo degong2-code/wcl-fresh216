@@ -261,3 +261,41 @@ This diagnostic is staged exclusively on the development branch. The main
 manual workflow is unchanged and remains pinned to its older code. All
 regression fixtures in CI are synthetic; zero real WCL responses or costs
 were observed during implementation.
+
+
+## Real WCL table.data.entries compatibility fix (2026-10-27)
+
+An independent WCL integration's real-world bugfix confirms that a
+DamageDone table result uses the JSON nesting:
+'reportData.report.damage.data.entries' (the GraphQL field here is
+aliased 'damage'). The previous synthetic fixture omitted the middle
+'data' object and therefore would have failed to recognize real table
+rows, even though offline CI passed. This was a real compatibility
+defect, not an efficiency optimization.
+
+The current development-branch parser now REQUIRES 'damage.data.entries';
+synthetic fixtures and CI regressions use that shape. A flat
+'damage.entries' payload is not silently accepted as valid real WCL
+evidence. The JSON remains explicitly unfrozen, so any changed structure
+must be reviewed based on a real response before changing the
+EXACT-100 collector.
+
+Source supporting current nested structure:
+https://github.com/aurokin/warcraft_cli/blob/main/CHANGELOG.md
+(2026 change note: prior live WCL queries 'report.table.data.entries'
+rather than the invalid flat 'report.table.entries').
+
+Additional safety fix: the development-branch Actions runner uses
+WCL_PROBE_MODE='FRESH_PUBLIC_REPORT_ONLY' as an explicit mode flag.
+A missing/mistyped flag or absent current public WCL URL now fails
+before GitHub one-time reservation, OAuth or WCL GraphQL attempts.
+The legacy snapshot runner remains callable only by explicit
+'LEGACY_SNAPSHOT_ONLY' mode. This removes unintended fallback when a
+public report URL was not injected into the Action.
+
+The staged workflow is pinned to immutable offline-PASS commit
+77e60b6ae7e4dcb90f334bc1cda9f7d0d256e2f3, which includes the real
+JSON nesting fix and explicit mode selector. It is NOT deployed on main:
+main still has the earlier fixture-based workflow. Updating main
+requires the owner's separate default-branch permission. No live WCL
+GraphQL queries or OAuth transactions have occurred due to this fix.
