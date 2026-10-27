@@ -38,6 +38,43 @@ Do not replace `wcl35Identity_`: it is also necessary for selecting
 report/fight groups. Do not deploy this module to Apps Script as-is. It is a
 pure-core testable candidate, not a WCL response decoder or installed patch.
 
+
+## Read-only impact audit of existing stored snapshots
+
+The user's historical private WCL Fresh216 workbook was read offline using
+aggregate-only processing; no workbook bytes or per-person names/IDs were
+uploaded to GitHub. There were **44 committed G4.13 snapshot envelopes** with
+matching stored SHA-256, each containing 100 overall and 100 boss ranks
+(4,400 slots in each metric). Observed overall-rank identity coverage:
+
+| Metric | Count |
+| --- | ---: |
+| Overall ranking slots | 4,400 |
+| Name-only (no actor ID) | 4,330 |
+| Identityless / anonymous | 70 |
+| Legacy direct candidates with matching boss ranking | 2,721 |
+| Name-only among legacy direct candidates | 2,721 |
+| Positive-ID direct candidates | 0 |
+| Same-report/fight duplicate normalized name or ID keys | **0** |
+
+Neither `server` nor `realm` is present on any of the 8,800 stored ranking
+rows examined. This dataset cannot establish canonical actor identity on
+name matching alone. The 44 archived snapshots are not a live recheck of
+the full 216-job dataset.
+
+**Do not deploy strict ID-only `resolveConservativeDirect` directly.** It
+would remove all **2,721** observed direct shortcuts in this sample,
+potentially increasing report HTTP/alias costs substantially and violating
+the runtime-efficiency objective. It is an exactness-only reference model.
+
+The alternative `resolveCollisionGuardedDirect` adds a **uniqueness check
+on the overall side**, retaining every existing direct match in this
+44-snapshot sample because the problematic duplicate-key condition was not
+observed; it rejects the synthetic false double attribution. This minimal
+guard is compatible with current direct-ranking availability, but does NOT
+magically upgrade name-only joins to cryptographically verified identity.
+Further validation is required before any installed GAS edit.
+
 ## Next safe checks before an approved GAS change
 
 - Privately quantify name-only direct matches and duplicate-name exposure
