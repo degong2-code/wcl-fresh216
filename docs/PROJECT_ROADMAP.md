@@ -167,3 +167,25 @@ CI improves real WCL points or wall time.
 Operational next decision remains **host plus source-of-truth rate witness**,
 then user-authorized bounded WCL query/point equivalence test. Do not optimize
 a theoretical HTTP count alone, and do not reopen the old 44-row G413 audit.
+
+## P1 host + atomic budget ownership decision (offline, 2026-10-27)
+
+- [Runtime host decision](RUNTIME_HOST_DECISION.md): one single-owner Node.js
+  executor with a **private persistent volume**; local desktop or persistent
+  VM is a deployment placement choice, not separate codebases. Codespaces is
+  a dev environment, not an unattended runtime. No deployment authorized.
+- The runner now re-evaluates **request admission inside the durable atomic
+  state transition**, not only from a prior read. The checkpoint also refuses
+  a second paid operation while an earlier one is IN_FLIGHT or has uncertain
+  points, regardless of which Fight is selected or whether the caller uses
+  the optional offline policy. Synthetic races explicitly simulate another
+  worker consuming point budget after preflight but before the candidate
+  request: the second request is blocked with **zero transport calls**.
+- The existing JsonCheckpointStore still rewrites the entire state for each
+  committed attempt. Do not promise linear-scale I/O: measure realistic
+  21600-slot disk rewrite amplification offline before choosing another store.
+  Retain simple files until a measured performance problem justifies a journal.
+- Query accuracy and WCL points are not measured by these synthetic tests.
+  The next material gate is a bound real same-fight/cost parity experiment
+  **only after separate explicit user authorization**, then integrating the
+  smallest single-process LIVE host with rate witness and secure persistence.
