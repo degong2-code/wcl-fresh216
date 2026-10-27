@@ -99,6 +99,13 @@ export function beginFetch(state,key,attemptId,atMs){
   const entry=state.entries?.[key];
   ok(entry,'FETCH_NOT_PLANNED');
   ok(entry.status==='READY','FETCH_NOT_READY');
+  // A single scope must not admit a second billed request while the first
+  // is IN_FLIGHT, or after any uncertain/unreconciled result. This protects
+  // the budget even for direct callers bypassing the bounded sweep.
+  const hasUnsafeAttempt=Object.values(state.entries).some(e=>
+    e.status==='IN_FLIGHT'||e.status==='NEEDS_REVIEW'||
+    (e.attempt && e.observedPoints===null));
+  ok(!hasUnsafeAttempt,'SCOPE_HAS_UNRESOLVED_ATTEMPT');
   ok(typeof attemptId==='string'&&attemptId.length>0&&Number.isSafeInteger(atMs)&&atMs>=0,
     'INVALID_ATTEMPT');
   // Unique within this run, including completed/failed attempts.
