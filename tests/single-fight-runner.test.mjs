@@ -300,3 +300,21 @@ test('a crashing UI progress callback does not roll back already durably committ
   assert.equal(checkpointStats(store.read()).counts.COMPLETED,1);
   assert.equal(readyFetches(store.read()).length,0);
 });
+
+test('no READY work with existing uncertain incident must not look like completed',async()=>{
+  const store=makeStore();
+  const first=await runBoundedSweep({
+    store,clock:()=>100,newAttemptId:()=> 'A1',
+    transport:async()=>({httpStatus:429,body:null})
+  });
+  assert.equal(first.status,'NEEDS_REVIEW');
+  assert.equal(first.readyFightGroups,0);
+  const second=await runBoundedSweep({
+    store,clock:()=>100,newAttemptId:()=> 'A2',
+    transport:async()=>{throw Error('MUST NOT FETCH')}
+  });
+  assert.equal(second.status,'NEEDS_REVIEW');
+  assert.equal(second.attempts,0);
+  assert.equal(second.reviewFightGroups,1);
+  assert.equal(second.pointsTotalConfirmed,null);
+});
