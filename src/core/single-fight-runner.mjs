@@ -138,8 +138,9 @@ export async function runBoundedSweep({
     }
   }
   const final=checkpointStats(store.read());
-  if(reason==='BUDGET_REACHED' && final.counts.READY===0)
-    reason='NO_READY';
+  if((reason==='BUDGET_REACHED'||reason==='NO_READY') &&
+    final.counts.READY===0)
+    reason=final.counts.NEEDS_REVIEW>0?'NEEDS_REVIEW':'NO_READY';
   return {
     status:reason,attempts,verifiedSlots,unresolvedSlots,
     readyFightGroups:final.counts.READY,
