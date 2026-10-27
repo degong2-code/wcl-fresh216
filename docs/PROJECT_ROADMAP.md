@@ -96,3 +96,40 @@ This closes the **input-structure and deterministic global-graph preflight**
 portion of P0. It does **not** close real cost/performance selection, paid
 query parity, executor integration, progress/cancel, Google Sheets delivery,
 or 216-job end-to-end correctness.
+
+## P1 integration checkpoint — one-Fight durable run loop (offline, 2026-10-27)
+
+The pure whole-216 snapshot preflight and global Fight groups are now
+connected to a **minimal, bounded, single-Fight runtime boundary**:
+
+- `src/core/single-fight-runner.mjs:executeOneReadyFight` accepts an injected
+  transport callback, validates/builds an official-shaped WCL GraphQL query,
+  **durably commits IN_FLIGHT before invoking transport**, decodes one response,
+  validates same-fight/actor evidence, and atomically commits the result.
+  An HTTP/GraphQL uncertainty, unexpected transport failure, or changed
+  Report revision becomes `NEEDS_REVIEW`, never an automatic re-request.
+  An interrupted post-response commit leaves IN_FLIGHT; subsequent manual
+  recovery marks it NEEDS_REVIEW rather than resetting it to READY.
+- `runBoundedSweep` processes at most 128 groups per invocation (default 16)
+  using the **same checkpoint** across invocations; it returns cumulative
+  confirmed/unknown points and reportable counts, supports cancellation
+  **between** requests, and emits progress only after an operation commits.
+  An uncertain response ends the current sweep without issuing another
+  request. NEEDS_REVIEW entries prevent a misleading "all complete" label.
+- Regression uses only synthetic transport responses and private temporary
+  JSON checkpoint files. Includes persisted-state visibility inside the
+  transport callback, process interruption, 429/504, response identity drift,
+  partial actor coverage, already completed / resumed work, duplicate
+  concurrent attempts, stop/cancel, and progress callback failure.
+- This is **not yet a live collector**. No real WCL transport, OAuth/token,
+  rate-limit scheduler or retry policy, production Google Sheets adapter,
+  GUI, entire 216-job end-to-end benchmark, or automatic multi-Fight
+  GraphQL operation journal is connected.
+- This achieves a practical P1 *single-Fight* safety boundary without adding
+  a second wave journal before a measured benefit exists. A future host may
+  perform repeated bounded ticks behind one start button. The host must
+  control actual API permissions, rate gate, persistent storage and user UI.
+
+Continue prioritizing bounded semantic+cost evidence for the WCL query path
+and selecting one simple end-to-end persistent host. Do **not** claim synthetic
+CI improves real WCL points or wall time.
