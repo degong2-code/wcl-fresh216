@@ -15,7 +15,7 @@ test('query plan is exactly TWO separately billed same-fight documents',()=>{
   for(const x of p.requests){
     assert.deepEqual(x.query.variables,{code:'NOT_A_REAL_REPORT',fightID:12});
     assert.match(x.query.query,/report\(code:\$code\)\{code revision/);
-    assert.match(x.query.query,/rateLimitData\{currentRequest\}/);
+    assert.match(x.query.query,/rateLimitData\{currentRequest limitPerHour pointsSpentThisHour pointsResetIn\}/);
     assert.doesNotMatch(x.query.query,/currentRequest\{/);
   }
 });
