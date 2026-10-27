@@ -1,10 +1,68 @@
 # WCL v2 (October 2026) points/rankings-vs-table — bounded decision gate
 
-Status: **TWO/TWO APPROVED LIVE GRAPHQL ATTEMPTS EXECUTED — NO RETRY ALLOWED**, 2026-10-27.
+Status: **ORIGINAL TWO/TWO + NEWLY APPROVED ONE/ONE GRAPHQL ATTEMPTS EXECUTED — ALL CONSUMED, NO RETRY**, 2026-10-27.
 The once-only marker exists; runtime transport succeeded but table's
 same-actor identity comparison was NOT established. The preserved older
 planning sections below describe the pre-execution state and are NOT
 authorization to spend any more WCL points. No Sheets/deployment approval.
+
+## Follow-up single-query identity witness — 2026-10-27
+
+**Owner separately approved at most ONE more GraphQL request** for
+public WCL report dQbNzMkG94LqYTh1, FightID 11. It was executed
+exactly ONCE via exclusive add-only commit
+62751d5283c760dc970785e200d5660d4aa9cf8d after offline CI PASS.
+CI run:
+https://github.com/degong2-code/wcl-fresh216/actions/runs/40513601801
+
+Unlike the previous twice-approved report experiment, this query COMBINED:
+- overall rankings(dps) and boss rankings(bossdps) for Fight 11;
+- table(DamageDone, Source, translate:false) for Fight 11;
+- masterData(translate:false){actors{id name server type subType petOwner}};
+- rateLimitData direct category witness.
+
+GraphQL HTTP 200, report revision 17, elapsed 3394 ms, point fields
+currentRequest.total=6.68, application=4, database=25, user=2.68;
+application remaining 3599, database remaining 250,
+userHasRemainingPoints NULL. Category fields are NOT additive or proof
+of final billing from the client-credentials OAuth flow.
+
+Redacted on-run diagnostics:
+- 14 total/boss rankings actors matched across metrics.
+- 20 DamageDone source table rows; zero direct numeric ID overlap
+  between ranked actors and table sources.
+- 235 Report master actors: 34 Player, 153 Pet, 48 NPC.
+- ALL 20 table source IDs were found among masterData actor IDs.
+- All 14 ranking actors had names and class, but ZERO ranking rows
+  presented a nonempty server STRING.
+- Offline identity bridge returned MASTER_ACTOR_IDS_AMBIGUOUS and
+  NO_VERIFIED_NAMESPACE_BRIDGE (NEEDS_REVIEW, exit 3). The original
+  bridge requires positive unique IDs across masterData actors and
+  name+server+class consistency. Actual reason for ambiguous master
+  actor IDs (nullable/missing/repeated) remains unverified because
+  raw responses were intentionally not written to public logs or
+  preserved. ReportActor.id is nullable in the official schema.
+
+Observed result establishes table-to-masterData structural ID
+membership on 20/20 sources, NOT unique player attribution.
+With no ranking server strings, strong name+server+class bridging
+cannot be validated. Neither EXACT-100 BossDPS numerator nor DPS
+denominator, pet ownership or per-player identity equivalence is
+proven. Never fill missing evidence with name-only assumptions.
+
+Dedicated one-shot marker exists:
+refs/heads/wcl-fresh216-identity-one-query-consumed-20261027,
+pointing at request commit. The previous two-query marker remains
+untouched. No other WCL requests, retries, marker resets, additional
+OAuth grants, Sheets writes, main merges or production collector
+changes are authorized.
+
+This run comprises (1) an automatic push CI offline job SUCCESS,
+(2) the new identity job COMPLETED FAILURE purely due to conservative
+semantic NEEDS_REVIEW after HTTP 200, and (3) the old WCL paid relay
+SKIPPED. No raw response or artifacts were uploaded.
+
+---
 
 ## Verified one-time live result — 2026-10-27 (supersedes pre-run statements below)
 
