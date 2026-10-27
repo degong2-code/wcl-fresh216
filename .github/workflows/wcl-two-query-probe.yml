@@ -10,6 +10,19 @@ name: WCL one-time rankings vs table probe
 
 on:
   workflow_dispatch:
+    inputs:
+      public_report_url:
+        description: 'Current PUBLIC WCL report URL containing #fight=N'
+        required: true
+        type: string
+      report_code:
+        description: 'Current public WCL report code (from the URL)'
+        required: true
+        type: string
+      fight_id:
+        description: 'Fight ID from the current public WCL report'
+        required: true
+        type: string
 
 concurrency:
   group: wcl-fresh216-one-time-owner-approved-two-query
@@ -31,7 +44,7 @@ jobs:
       - name: Checkout offline-verified immutable probe code
         uses: actions/checkout@v4
         with:
-          ref: d0170171026f939c2577fc2e91bb4fdee72149c9
+          ref: 66e44e36e6ce7ba55853eef583b80116175c5044
           persist-credentials: false
       - name: Use Node.js 22
         uses: actions/setup-node@v4
@@ -42,7 +55,9 @@ jobs:
           GITHUB_TOKEN: ${{ github.token }}
           WCL_CLIENT_ID: ${{ secrets.WCL_CLIENT_ID }}
           WCL_CLIENT_SECRET: ${{ secrets.WCL_CLIENT_SECRET }}
-          WCL_PROBE_FIXTURE_JSON: ${{ secrets.WCL_PROBE_FIXTURE_JSON }}
+          WCL_PROBE_PUBLIC_REPORT_URL: ${{ inputs.public_report_url }}
+          WCL_PROBE_PUBLIC_REPORT_CODE: ${{ inputs.report_code }}
+          WCL_PROBE_PUBLIC_FIGHT_ID: ${{ inputs.fight_id }}
           WCL_PROBE_DISPATCH_PURPOSE: OWNER_APPROVED_20261027_MAX_TWO
         shell: bash
         run: |
