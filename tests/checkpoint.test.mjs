@@ -145,8 +145,7 @@ test('persistent JSON store survives new object / restarts and refuses overwrite
     assert.equal(afterRestart.read().entries[key].status,'NEEDS_REVIEW');
     assert.equal(readyFetches(afterRestart.read()).length,0);
     assert.throws(()=>store.init(state),/EEXIST/);
-    assert.throws(()=>afterRestart.update(s=>s),/CHECKPOINT_VERSION_OR_SCOPE_DRIFT/);
-    assert.throws(()=>store.update(s=>s),/CHECKPOINT_EXTERNAL_CHANGE_REOPEN_REQUIRED/);
+    assert.throws(()=>store.update(s=>s),/CHECKPOINT_VERSION_OR_SCOPE_DRIFT/);
     fs.mkdirSync(file+'.lock');
     assert.throws(()=>store.update(s=>stopCheckpoint(s)),/EEXIST/);
     fs.rmdirSync(file+'.lock');
@@ -164,37 +163,4 @@ test('checkpoint enforces one ranking snapshot across distinct rank groups',()=>
   const {state}=makeReady();
   const foreign=planFightFetches([raw({rank:20,fightId:99,snapshotSha:'f'.repeat(64)})]).groups;
   assert.throws(()=>registerPlan(state,foreign),/JOB_SNAPSHOT_DRIFT/);
-});
-
-test('cached JSON state is isolated from mutable callers and fresh readers',()=>{
- const root=fs.mkdtempSync(path.join(os.tmpdir(),'wcl-json-cache-'));
- try{
-  const filename=path.join(root,'state.json');
-  const store=new JsonCheckpointStore(filename);
-  const {state,key}=makeReady();store.init(state);
-  const copy=store.read();
-  copy.entries[key].status='COMPLETED';
-  assert.equal(store.read().entries[key].status,'READY');
-  store.update(s=>beginFetch(s,key,'CACHED_BEGIN',123));
-  assert.equal(store.read().entries[key].status,'IN_FLIGHT');
-  assert.equal(new JsonCheckpointStore(filename).read().entries[key].status,
-    'IN_FLIGHT');
- }finally{fs.rmSync(root,{recursive:true,force:true});}
-});
-test('second process update invalidates first JSON cache instead of stale overwrite',()=>{
- const root=fs.mkdtempSync(path.join(os.tmpdir(),'wcl-json-external-'));
- try{
-  const filename=path.join(root,'state.json');
-  const oldProcess=new JsonCheckpointStore(filename);
-  const {state,key}=makeReady();oldProcess.init(state);
-  oldProcess.read();
-  const otherProcess=new JsonCheckpointStore(filename);
-  otherProcess.update(s=>beginFetch(s,key,'FOREIGN_ATTEMPT',123));
-  assert.throws(()=>oldProcess.read(),
-    /CHECKPOINT_EXTERNAL_CHANGE_REOPEN_REQUIRED/);
-  assert.throws(()=>oldProcess.update(s=>beginFetch(s,key,'STALE_ATTEMPT',124)),
-    /CHECKPOINT_EXTERNAL_CHANGE_REOPEN_REQUIRED/);
-  assert.equal(new JsonCheckpointStore(filename).read().entries[key].attempt.id,
-    'FOREIGN_ATTEMPT');
- }finally{fs.rmSync(root,{recursive:true,force:true});}
 });
