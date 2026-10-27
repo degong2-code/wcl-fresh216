@@ -91,16 +91,18 @@ export function auditTypedRosterCrosswalk({
   const byId=new Map(),localNames=new Map(),typedNames=new Map(),
     rankNames=new Map(),canonicalIds=new Set();
   for(const a of actors){
+    // A report-wide Player with missing/invalid report-local ID is still
+    // a homonym. Count it for ambiguity BEFORE testing table joinability.
+    if(a?.type==='Player'&&!isPos(a.petOwner)){
+      const k=normal(a.name);
+      if(k){
+        const matches=localNames.get(k)??[];
+        matches.push(a);localNames.set(k,matches);
+      }
+    }
     if(!isPos(a?.id))continue;
     const arr=byId.get(a.id)??[];
     arr.push(a);byId.set(a.id,arr);
-    // Duplicates anywhere in the report-wide Player roster invalidate
-    // name-only disambiguation, even if only one was active in this Fight.
-    if(a.type==='Player'&&!isPos(a.petOwner)){
-      const k=normal(a.name);if(!k)continue;
-      const matches=localNames.get(k)??[];
-      matches.push(a);localNames.set(k,matches);
-    }
   }
   for(const [id,rows] of byId)
     if(sourceIds.has(id)&&rows.length!==1)c.ambiguousLocalSourceIds=
