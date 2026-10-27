@@ -1,7 +1,7 @@
 name: Offline checks (no WCL access)
 on:
   push:
-    branches: [main]
+    branches: [main, 'work/collector-architecture']
   pull_request:
     branches: [main, 'work/bootstrap']
   workflow_dispatch:
@@ -11,6 +11,10 @@ permissions:
 
 jobs:
   offline:
+    # One test per development SHA: push tests the isolated development branch.
+    # PR synchronize events for that branch retain a skipped record, not another
+    # paid runner/test job. Other PRs targeting main/bootstrap remain checked.
+    if: ${{ github.event_name != 'pull_request' || github.event.pull_request.head.ref != 'work/collector-architecture' }}
     runs-on: ubuntu-latest
     timeout-minutes: 5
     steps:
