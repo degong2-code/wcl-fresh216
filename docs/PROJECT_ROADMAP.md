@@ -133,3 +133,37 @@ connected to a **minimal, bounded, single-Fight runtime boundary**:
 Continue prioritizing bounded semantic+cost evidence for the WCL query path
 and selecting one simple end-to-end persistent host. Do **not** claim synthetic
 CI improves real WCL points or wall time.
+
+
+## P1 request-admission safety (offline, 2026-10-27)
+
+- `src/core/request-admission.mjs` supplies a pure pre-HTTP decision from
+  **actual witnessed points**, a caller-supplied nonzero per-request reserve,
+  an explicit per-run point budget, and an externally determined `notBeforeMs`
+  rate gate. It does **not** encode a WCL tariff, discover live rate limits,
+  sleep, or send network requests.
+- `src/core/single-fight-runner.mjs` now checks this admission before the
+  IN_FLIGHT marker when a policy is supplied. `RATE_WAIT` and
+  `BUDGET_PAUSED` are **zero-request / zero-checkpoint-mutation** outcomes.
+  An already uncertain WCL request, unknown prior observed points, or
+  IN_FLIGHT state prevents a new bounded sweep from dispatching untouched
+  READY fights until reconciliation. A failed paid attempt and a blocked
+  **pre-request** admission are explicitly distinguished in attempt counts.
+- The caller's reserved points are a **planning parameter, not a guaranteed
+  maximum WCL cost**. If the next real WCL operation costs more than reserved,
+  its actual observed points must be recorded even when that exceeds the
+  configured budget. No hard billing cap, future timing prediction or
+  LIVE end-to-end speedup is established here.
+- The gate is **optional for existing offline fixtures** and therefore does
+  NOT authorize attaching an uncontrolled LIVE transport. Any future LIVE host
+  must require a validated admission policy, retrieve official rate data,
+  implement deliberate waiting and owner-controlled cancellation, and retain
+  one durable checkpoint across invocations. Until then, branch is offline only.
+- CI: 13 Node suites (124 test declarations) + 4 Python synthetic XLSX tests
+  = **128 synthetic offline tests** (and the 500-case simulated legacy
+  comparison nested in existing tests). Original 75 historic tests remain
+  unimported.
+
+Operational next decision remains **host plus source-of-truth rate witness**,
+then user-authorized bounded WCL query/point equivalence test. Do not optimize
+a theoretical HTTP count alone, and do not reopen the old 44-row G413 audit.
