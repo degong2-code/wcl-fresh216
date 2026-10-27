@@ -20,7 +20,7 @@ export function makeTwoRequestComparisonPlan(group) {
   const table={
     query:[
       'query Fresh216TableComparison($code:String!,$fightID:Int!){',
-      'rateLimitData{currentRequest}',
+      'rateLimitData{currentRequest limitPerHour pointsSpentThisHour pointsResetIn}',
       'reportData{report(code:$code){code revision',
       'damage:table(fightIDs:[$fightID],dataType:DamageDone,',
       'viewBy:Source,translate:false)',
