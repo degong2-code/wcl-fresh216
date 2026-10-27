@@ -1,6 +1,6 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import {resolveConservativeDirect} from '../src/core/legacy-direct-match.mjs';
+import {resolveConservativeDirect,resolveCollisionGuardedDirect} from '../src/core/legacy-direct-match.mjs';
 
 const slot=(name,amount,id,code='REPORT',fight=11)=>({
   name,amount,report:{code,fightID:fight},
@@ -57,4 +57,25 @@ test('anonymous actor with stable ID can match',()=>{
 test('pure matcher does not depend on WCL or Sheets runtime',()=>{
   assert.equal(typeof globalThis.UrlFetchApp,'undefined');
   assert.equal(typeof globalThis.SpreadsheetApp,'undefined');
+});
+
+test('collision guard blocks name-only double attribution',()=>{
+  assert.deepEqual(resolveCollisionGuardedDirect(
+    [slot('Twin',100,null),slot('Twin',91,null)],
+    [slot('Twin',60,null)]).matched,[null,null]);
+});
+test('collision guard retains unique legacy name-only direct matches',()=>{
+  assert.deepEqual(resolveCollisionGuardedDirect(
+    [slot('Twin',100,null),slot('Other',91,null)],
+    [slot('Twin',60,null),slot('Other',40,null)]).matched,[60,40]);
+});
+test('collision guard blocks duplicate boss-side names',()=>{
+  assert.deepEqual(resolveCollisionGuardedDirect(
+    [slot('Twin',100,null)],
+    [slot('Twin',60,null),slot('Twin',40,null)]).matched,[null]);
+});
+test('collision guard requires same report and fight',()=>{
+  assert.deepEqual(resolveCollisionGuardedDirect(
+    [slot('Twin',100,null)],
+    [slot('Twin',60,null,'REPORT',12)]).matched,[null]);
 });
