@@ -94,7 +94,11 @@ export function diagnoseFreshActorNamespaces({
   const actors=master.masterData.actors;
   const actorIdSet=new Set(),playersByIdentity=new Map();
   for(const a of actors){
-    if(!positive(a?.id)||actorIdSet.has(a.id))
+    // Official ReportActor.id has nullable type Int (not Int!).
+    // An actor with no ID cannot be joined to a table source ID, but
+    // must NOT invalidate unrelated, uniquely identified players.
+    if(a?.id==null)continue;
+    if(!positive(a.id)||actorIdSet.has(a.id))
       return result('MASTER_ACTOR_IDS_AMBIGUOUS');
     actorIdSet.add(a.id);
     if(a.type!=='Player'||positive(a.petOwner))continue;
