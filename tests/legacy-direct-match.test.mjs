@@ -1,6 +1,6 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import {resolveConservativeDirect,resolveCollisionGuardedDirect} from '../src/core/legacy-direct-match.mjs';
+import {resolveConservativeDirect,resolveCollisionGuardedDirect,auditDirectProofConcordance} from '../src/core/legacy-direct-match.mjs';
 
 const slot=(name,amount,id,code='REPORT',fight=11)=>({
   name,amount,startTime:1700000000000,report:{code,fightID:fight},
@@ -102,4 +102,69 @@ test('matching startTime cannot prove two same-name actors share canonical ident
   // Since realm/canonicalID is absent, this algorithm cannot differentiate.
   assert.deepEqual(resolveCollisionGuardedDirect(
     [slot('Twin',100,null)],[slot('Twin',60,null)]).matched,[60]);
+});
+
+const makeConcordance=(n=100)=>{
+  const all=Array.from({length:n},(_,i)=>slot('Fake'+i,1000-i, null,'FAKE',11));
+  const boss=all.map((r,i)=>({...r,amount:500-i}));
+  return {all,boss,proof:boss.map(x=>x.amount)};
+};
+test('numeric concordance 100/100 does not assert canonical identity',()=>{
+  const {all,boss,proof}=makeConcordance();
+  const input=JSON.stringify([all,boss,proof]);
+  const out=auditDirectProofConcordance(all,boss,proof);
+  assert.equal(out.directCandidates,100);
+  assert.equal(out.directStoredEqual,100);
+  assert.equal(out.numericConcordance,true);
+  assert.equal(out.canonicalActorIdentityVerified,false);
+  assert.equal(out.sourceCommitIndependentlyChecked,false);
+  assert.equal(JSON.stringify([all,boss,proof]),input);
+});
+test('a private PROOF amount conflict is reported without silently correcting it',()=>{
+  const {all,boss,proof}=makeConcordance();
+  proof[29]-=7;
+  const out=auditDirectProofConcordance(all,boss,proof);
+  assert.equal(out.directStoredEqual,99);
+  assert.equal(out.directStoredMismatch,1);
+  assert.equal(out.numericConcordance,false);
+  assert.equal(out.rank30Missing,false);
+});
+test('missing PROOF value is not treated as zero or success',()=>{
+  const {all,boss,proof}=makeConcordance();
+  proof[0]=null;proof[29]=null;proof[99]=null;
+  const out=auditDirectProofConcordance(all,boss,proof);
+  assert.equal(out.directStoredMissing,3);
+  assert.equal(out.storedTotal,97);
+  assert.equal(out.top30Missing,2);
+  assert.equal(out.rank1Missing,true);
+  assert.equal(out.rank30Missing,true);
+  assert.equal(out.rank100Missing,true);
+  assert.equal(out.numericConcordance,false);
+});
+test('ambiguous name-key matches stay outside numeric-direct evidence',()=>{
+  const {all,boss,proof}=makeConcordance();
+  all[1].name=all[0].name;
+  // Different values can remain stored but are not evidence of two direct joins.
+  const out=auditDirectProofConcordance(all,boss,proof);
+  assert.equal(out.directCandidates,98);
+  assert.equal(out.nonDirectStored,2);
+  assert.equal(out.directStoredEqual,98);
+  assert.equal(out.canonicalActorIdentityVerified,false);
+});
+test('mismatched source timestamp fails the direct shortcut but not original proof value',()=>{
+  const {all,boss,proof}=makeConcordance();
+  boss[1].startTime+=1000;
+  const out=auditDirectProofConcordance(all,boss,proof);
+  assert.equal(out.directCandidates,99);
+  assert.equal(out.nonDirectStored,1);
+});
+test('invalid source or proof vectors fail closed without IO',()=>{
+  const {all,boss,proof}=makeConcordance();
+  assert.throws(()=>auditDirectProofConcordance([],boss,proof),/DIRECT_PROOF_SHAPE/);
+  const bad=proof.slice();bad[0]=NaN;
+  assert.throws(()=>auditDirectProofConcordance(all,boss,bad),/DIRECT_PROOF_VALUE_INVALID/);
+  bad[0]=10000;
+  assert.throws(()=>auditDirectProofConcordance(all,boss,bad),/DIRECT_PROOF_VALUE_INVALID/);
+  const corrupt=structuredClone(all);corrupt[0].amount=0;
+  assert.throws(()=>auditDirectProofConcordance(corrupt,boss,proof),/DIRECT_TOTAL_INVALID/);
 });
