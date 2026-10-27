@@ -16,7 +16,7 @@ export function makeRankingsQuery(group){
     throw Error('REPORT_QUERY_SCOPE_INVALID');
   const query=[
     'query Fresh216Report($code:String!,$fightID:Int!){',
-    'rateLimitData{currentRequest}',
+    'rateLimitData{currentRequest limitPerHour pointsSpentThisHour pointsResetIn}',
     'reportData{report(code:$code){code revision',
     'overall:rankings(fightIDs:[$fightID],playerMetric:dps)',
     'boss:rankings(fightIDs:[$fightID],playerMetric:bossdps)',
