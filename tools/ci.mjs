@@ -42,6 +42,24 @@ for (const file of ['tests/fetch-plan.test.mjs', 'tests/resolve-proof.test.mjs',
 }
 
 
+// Bounded synthetic checkpoint I/O probe at 21600 rank references.
+// This prints real CI-host filesystem latency but asserts NO fixed performance
+// threshold. It is not a WCL benchmark or evidence of a collector speedup.
+const ioBench=spawnSync('node',['tools/benchmark-checkpoint.mjs','--samples=3'],{
+  encoding:'utf8',timeout:120000,maxBuffer:1024*1024
+});
+if(ioBench.status!==0){
+  fail('Synthetic full216 checkpoint I/O benchmark failed');
+  process.stderr.write((ioBench.stderr||'')+(ioBench.stdout||'').slice(-2000));
+}else{
+  const line=(ioBench.stdout||'').split('\\n')
+    .find(x=>x.startsWith('FRESH216_OFFLINE_CHECKPOINT_BENCHMARK='));
+  if(!line){fail('Checkpoint benchmark output missing');}
+  else console.log(line);
+}
+
+
+
 const privateXlsxTest = spawnSync('python3',['-m','unittest','-v',
   'tests/private_sheet_audit_test.py'],{encoding:'utf8',timeout:30000,maxBuffer:1024*1024});
 if(privateXlsxTest.status!==0){
