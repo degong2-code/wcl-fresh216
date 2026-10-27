@@ -113,3 +113,50 @@ export function resolveCollisionGuardedDirect(overall,boss){
   }
   return {matched,calibrators};
 }
+
+
+/**
+ * Read-only aggregate comparison of original private G3 rankings and G4.13
+ * PROOF. It is a numeric conservation check, NOT verified canonical identity.
+ * Caller must independently authenticate snapshot and PROOF SHA/storage commit.
+ * Never returns names, identifiers, per-rank rows, or reconstructed values.
+ */
+export function auditDirectProofConcordance(overall,boss,proofValues){
+  if(!Array.isArray(overall)||overall.length!==100||
+     !Array.isArray(boss)||boss.length!==100||
+     !Array.isArray(proofValues)||proofValues.length!==100)
+    throw Error('DIRECT_PROOF_SHAPE');
+  const {matched}=resolveCollisionGuardedDirect(overall,boss);
+  const counts={totalSlots:100,directCandidates:0,directStoredEqual:0,
+    directStoredMismatch:0,directStoredMissing:0,
+    nonDirectStored:0,nonDirectMissing:0,storedTotal:0,
+    rank1Missing:false,rank30Missing:false,rank100Missing:false,
+    top30Missing:0};
+  for(let i=0;i<100;i++){
+    const value=proofValues[i],src=Number(overall[i]?.amount);
+    if(!Number.isFinite(src)||src<=0)throw Error('DIRECT_TOTAL_INVALID');
+    if(value!==null&&(typeof value!=='number'||
+        !Number.isFinite(value)||value<0||value>src+0.005))
+      throw Error('DIRECT_PROOF_VALUE_INVALID');
+    if(value!==null)counts.storedTotal++;
+    else{
+      if(i<30)counts.top30Missing++;
+      if(i===0)counts.rank1Missing=true;
+      if(i===29)counts.rank30Missing=true;
+      if(i===99)counts.rank100Missing=true;
+    }
+    if(matched[i]!==null){
+      counts.directCandidates++;
+      if(value===null)counts.directStoredMissing++;
+      else if(Math.abs(value-matched[i])<=0.005)counts.directStoredEqual++;
+      else counts.directStoredMismatch++;
+    }else if(value===null)counts.nonDirectMissing++;
+    else counts.nonDirectStored++;
+  }
+  return {...counts,
+    numericConcordance:counts.directStoredMismatch===0&&counts.directStoredMissing===0,
+    canonicalActorIdentityVerified:false,
+    evidenceType:'STORED_SNAPSHOT_PROOF_NUMERIC_CONCORDANCE_ONLY',
+    sourceCommitIndependentlyChecked:false,
+    liveRequests:0,sheetsWrites:0};
+}
