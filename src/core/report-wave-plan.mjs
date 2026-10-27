@@ -92,7 +92,7 @@ export function makeRankingsWaveQuery(wave){
   }
   return {
     query:'query Fresh216Wave('+declarations.join(',')+') { '+
-      'rateLimitData{currentRequest{total}} reportData{report(code:$code){'+
+      'rateLimitData{currentRequest} reportData{report(code:$code){'+
       fields.join(' ')+'}}}',
     variables:vars
   };
