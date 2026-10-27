@@ -14,6 +14,7 @@ jobs:
     outputs:
       wcl_request_addition: ${{ steps.wcl_request_gate.outputs.enabled }}
       identity_request_addition: ${{ steps.identity_request_gate.outputs.enabled }}
+      typed_roster_request_addition: ${{ steps.typed_roster_request_gate.outputs.enabled }}
     # One test per development SHA: push tests the isolated development branch.
     # PR synchronize events for that branch retain a skipped record, not another
     # paid runner/test job. Other PRs targeting main/bootstrap remain checked.
@@ -58,6 +59,17 @@ jobs:
           set -euo pipefail
           diff="$(git diff-tree --no-commit-id --name-status -r "$GITHUB_SHA")"
           if [[ "$diff" == $'A\texperiments/wcl-one-query-identity-20261027.json' ]]; then
+            echo "enabled=true" >> "$GITHUB_OUTPUT"
+          fi
+
+      - name: Detect owner-approved typed-roster exclusive request addition
+        id: typed_roster_request_gate
+        if: github.event_name == 'push'
+        shell: bash
+        run: |
+          set -euo pipefail
+          diff="$(git diff-tree --no-commit-id --name-status -r "$GITHUB_SHA")"
+          if [[ "$diff" == $'A\texperiments/wcl-one-query-typed-roster-20261027.json' ]]; then
             echo "enabled=true" >> "$GITHUB_OUTPUT"
           fi
 
@@ -116,3 +128,31 @@ jobs:
           WCL_CLIENT_ID: ${{ secrets.WCL_CLIENT_ID }}
           WCL_CLIENT_SECRET: ${{ secrets.WCL_CLIENT_SECRET }}
         run: node tools/run-actions-wcl-one-query-identity.mjs
+
+  approved-one-time-wcl-typed-roster:
+    needs: offline
+    if: >-
+      github.event_name == 'push' &&
+      github.ref == 'refs/heads/work/collector-architecture' &&
+      github.repository == 'degong2-code/wcl-fresh216' &&
+      needs.offline.result == 'success' &&
+      needs.offline.outputs.typed_roster_request_addition == 'true'
+    runs-on: ubuntu-latest
+    timeout-minutes: 4
+    # Dedicated owner-authorized 1-query job; ordinary push code never starts it.
+    permissions:
+      contents: write
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+          fetch-depth: 2
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+      - name: Run irreversible one-request typed Fight/report identity probe
+        env:
+          GITHUB_TOKEN: ${{ github.token }}
+          WCL_CLIENT_ID: ${{ secrets.WCL_CLIENT_ID }}
+          WCL_CLIENT_SECRET: ${{ secrets.WCL_CLIENT_SECRET }}
+        run: node tools/run-actions-wcl-typed-roster-once.mjs
