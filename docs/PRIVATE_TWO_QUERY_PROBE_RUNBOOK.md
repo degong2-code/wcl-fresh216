@@ -170,3 +170,47 @@ The original Windows local-only CLI remains separately available and
 continues refusing GitHub Actions; it must not be confused with
 'tools/run-actions-wcl-two-query-probe.mjs'. Neither executor implements a
 real full-216 collector, Sheets writes, retry loops or User OAuth.
+
+
+## Fresh WCL current-source mode — staged on DEVELOPMENT BRANCH only
+
+The owner correctly rejected making a historical EXACT-100 snapshot a
+prerequisite for this *method* experiment. The fresh mode is now in
+'src/core/fresh-two-query-probe.mjs' and
+'tools/run-actions-wcl-two-query-probe.mjs'. It needs ONLY a currently
+PUBLIC Warcraft Logs report URL, its Report code and FightID, not any
+legacy rank number, snapshot SHA, previously stored total DPS or revision.
+
+The proposed development-branch workflow_dispatch has THREE **PUBLIC**
+noncredential inputs ('public_report_url', 'report_code', 'fight_id'). The
+report URL must refer to the EXACT same code and fight, on an official
+warcraftlogs.com host. Inputs are visible in workflow metadata, so this
+mode must be used for PUBLIC reports only. 'WCL_CLIENT_ID' and
+'WCL_CLIENT_SECRET' remain repository Actions Secrets and are never
+dispatch inputs. The old 'WCL_PROBE_FIXTURE_JSON' Secret is **NOT needed**
+in this fresh mode.
+
+Under the SAME existing owner approval, the first GraphQL call reads
+Report.rankings(dps) and Report.rankings(bossdps), with report revision,
+fight/encounter/difficulty and actor/amount evidence inferred from that
+CURRENT response. The second call may only request that SAME Report/Fight
+table if the first response passes strict actor/rate checks. Do NOT claim
+world Top-100 rank or exact boss-only target parity from the two results.
+No report discovery GraphQL calls, Sheets writes, retries or OAuth grant
+changes are introduced.
+
+This fresh mode is implemented and tested offline on the development
+branch. **The default 'main' workflow remains the earlier legacy-fixture
+dispatch**, pinned to the earlier tested code. Updating that default-
+branch workflow requires owner approval for this concrete default-branch
+change. Never claim that staged development branch inputs are presently
+available in the main branch's Actions UI.
+
+Current GitHub connector supports reading run/job/step/log/artifacts and
+rerunning failed jobs / individual jobs if the token has Actions write
+permission. It does NOT provide creation of a new workflow_dispatch run.
+The Work-mode browser may be used if it is connected and authenticated,
+or an independently authenticated GitHub CLI. No Work/browser/CLI execution
+has been confirmed by this development milestone. Do not click an Actions
+rerun to test capability: a rerun of an expense-bearing experiment risks
+spending WCL points and is prohibited by the one-time guard.
