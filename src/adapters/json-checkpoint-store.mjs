@@ -24,30 +24,8 @@ export class JsonCheckpointStore {
       throw new Error('ABSOLUTE_PRIVATE_PATH_REQUIRED');
     this.filePath=filePath;
     this.lockPath=filePath+'.lock';
-    this.cached=null;
-    this.cachedStamp=null;
   }
-  // Atomic rename changes the file identity. Detect another worker changing
-  // the checkpoint instead of silently serving an old in-process cache.
-  stamp(){
-    const info=fs.statSync(this.filePath,{bigint:true});
-    return [info.dev,info.ino,info.size,info.mtimeNs,info.ctimeNs]
-      .map(v=>String(v)).join(':');
-  }
-  read(){
-    const before=this.stamp();
-    if(this.cached){
-      if(before!==this.cachedStamp)
-        throw new Error('CHECKPOINT_EXTERNAL_CHANGE_REOPEN_REQUIRED');
-      return structuredClone(this.cached);
-    }
-    const state=check(JSON.parse(fs.readFileSync(this.filePath,'utf8')));
-    const after=this.stamp();
-    if(before!==after)throw Error('CHECKPOINT_READ_RACED_WITH_WRITER');
-    this.cached=structuredClone(state);
-    this.cachedStamp=after;
-    return structuredClone(state);
-  }
+  read(){return check(JSON.parse(fs.readFileSync(this.filePath,'utf8')));}
   /** Initialize exactly once. Refuse overwrite; use mode 0600. */
   init(state){
     check(state);
@@ -67,8 +45,8 @@ export class JsonCheckpointStore {
     fs.mkdirSync(this.lockPath,{mode:0o700}); // fail-closed on contention
     let temp;
     try{
-      const old=this.read(); // Already an isolated copy of cached state.
-      const next=check(transition(old));
+      const old=this.read();
+      const next=check(transition(structuredClone(old)));
       if(next.runId!==old.runId||next.scopeKey!==old.scopeKey||
          next.version!==old.version+1)throw new Error('CHECKPOINT_VERSION_OR_SCOPE_DRIFT');
       temp=path.join(path.dirname(this.filePath),
@@ -80,14 +58,7 @@ export class JsonCheckpointStore {
       // Flush rename's directory entry on Linux persistent storage.
       const dirfd=fs.openSync(path.dirname(this.filePath),'r');
       try{fs.fsyncSync(dirfd);}finally{fs.closeSync(dirfd);}
-      // This exact state was just atomically committed; parsing all 21,600
-      // ranked slots again is redundant. Keep it in memory while verifying
-      // future reads against the on-disk inode/mtime/size fingerprint.
-      this.cached=structuredClone(next);
-      this.cachedStamp=this.stamp();
-      // The caller receives the transition's own next object, while the
-      // persistent cache remains insulated by its separate clone.
-      return next;
+      return this.read();
     } finally {
       if(temp&&fs.existsSync(temp))fs.unlinkSync(temp);
       fs.rmdirSync(this.lockPath);
