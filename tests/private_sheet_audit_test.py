@@ -46,9 +46,9 @@ def make_xml(rows, formula=False):
 
 def sample_xlsx(file, status="COMMITTED", formula=False, missing_sheet=False):
     names = [
-        "영웅_DPS지표_V5_P12_1_TEST",
-        "__WCL35_EVIDENCE_TEST",
-        "__WCL43_G3_RANK_SNAPSHOTS"
+        "__WCL43_G413_RAW",
+        "__WCL43_G413_PROOF",
+        "__WCL43_G413_SNAPSHOTS"
     ]
     scope = "12.1|1|2026-10-08|2026-10-12|4"
     snap = {"version":1, "scope":scope,"runId":"RUN_TEST_1234",
