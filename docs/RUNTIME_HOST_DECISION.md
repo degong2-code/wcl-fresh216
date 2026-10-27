@@ -75,3 +75,21 @@ fights / 200 hypothetical documents as actual performance.
 
 Deployment, Google Sheets writeback, WCL live traffic, new infrastructure
 billing, trigger changes, and merge remain outside authorization.
+
+
+## Checkpoint storage experiment outcome (2026-10-27)
+
+The realistic-shape synthetic benchmark is complete:
+[full measured findings](CHECKPOINT_BENCHMARK.md).
+
+**Retain the original `JsonCheckpointStore`.** At a near-full 21,600-rank
+synthetic checkpoint, the candidate in-memory cache saved almost nothing
+versus uncached JSON, and the append-only journal was slower. Both
+candidates were rejected and removed from active source. The original
+atomic rename/lock/0600 recovery guarantees remain.
+
+This is **not** evidence that JSON write overhead is insignificant for a
+real 216-job run. Live Fight overlap, point waits and actual host timing
+remain unmeasured. Do not build a database or a second persistence stack
+without a demonstrated end-to-end reason. Run the synthetic benchmark
+on demand, not on every CI push.
