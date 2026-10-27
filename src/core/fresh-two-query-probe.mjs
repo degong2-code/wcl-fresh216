@@ -99,7 +99,7 @@ export function summarizeFreshRankings(target,body) {
 /**
  * JSON table evidence is deliberately a SHAPE observation, not equivalence.
  * Report.table() is an unfrozen JSON scalar. We recognize ONLY a source-view
- * "entries" array with unique positive report actor IDs and numeric raw
+ * "data.entries" array with unique positive report actor IDs and numeric raw
  * damage totals. Never convert totals to ranking DPS, assign pet ownership
  * or claim any boss-target numerator parity without separate evidence.
  *
@@ -111,7 +111,11 @@ export function summarizeFreshTableSourceRows(target,rankingsBody,damage) {
     ok:false,reason:'FRESH_TABLE_RANKINGS_REFERENCE_INVALID',
     sourceRows:0,sharedRankedSourceRows:0
   };
-  if(!damage||!Array.isArray(damage.entries)||damage.entries.length===0)
+  // WCL table JSON is wrapped in "data" (report.table.data.entries).
+  // Flat report.table.entries was a synthetic-only assumption and caused
+  // real-world parsers to report zero rows. Reject flat and unknown shapes.
+  const rows=damage?.data?.entries;
+  if(!Array.isArray(rows)||rows.length===0)
     return {
       ok:false,reason:'FRESH_TABLE_ENTRIES_UNOBSERVED',
       sourceRows:0,sharedRankedSourceRows:0
@@ -123,22 +127,22 @@ export function summarizeFreshTableSourceRows(target,rankingsBody,damage) {
   const bossIds=new Set(bosses.map(actorId));
   const witnessed=new Set();
   let matched=0;
-  for(const row of damage.entries){
+  for(const row of rows){
     const id=actorId(row);
     if(!id||!nonNegative(row?.total)||witnessed.has(id))
       return {
         ok:false,reason:'FRESH_TABLE_ROWS_AMBIGUOUS',
-        sourceRows:damage.entries.length,sharedRankedSourceRows:matched
+        sourceRows:rows.length,sharedRankedSourceRows:matched
       };
     witnessed.add(id);
     if(ranked.has(id)&&bossIds.has(id))matched++;
   }
   if(matched===0)return {
     ok:false,reason:'FRESH_TABLE_NO_SHARED_RANKED_SOURCE',
-    sourceRows:damage.entries.length,sharedRankedSourceRows:0
+    sourceRows:rows.length,sharedRankedSourceRows:0
   };
   return {
-    ok:true,reason:null,sourceRows:damage.entries.length,
+    ok:true,reason:null,sourceRows:rows.length,
     sharedRankedSourceRows:matched
   };
 }
