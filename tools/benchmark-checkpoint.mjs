@@ -44,7 +44,7 @@ class BaselineUncachedJsonStore extends JsonCheckpointStore {
       temp=path.join(path.dirname(this.filePath),
         '.'+path.basename(this.filePath)+'.'+randomUUID()+'.tmp');
       const fd=fs.openSync(temp,'wx',0o600);
-      try{fs.writeFileSync(fd,JSON.stringify(next)+'\\n');fs.fsyncSync(fd);}
+      try{fs.writeFileSync(fd,JSON.stringify(next)+'\n');fs.fsyncSync(fd);}
       finally{fs.closeSync(fd);}
       fs.renameSync(temp,this.filePath);temp=null;
       const dirfd=fs.openSync(path.dirname(this.filePath),'r');
