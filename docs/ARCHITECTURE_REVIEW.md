@@ -201,3 +201,32 @@ The actual `snapshot` must be the exact G3 committed snapshot document, not the 
 **Never commit, attach to a public issue/PR, upload as a public Actions artifact, or paste raw JSON.** The CLI reads once, performs zero HTTP/Sheets operations and prints only aggregate counts and conflict codes keyed to 1-based record index. It never prints names, report URLs/codes, DPS values, input filename or snapshot contents. A nonzero exit indicates invalid/unverified records, not an invitation for automatic requery.
 
 No trusted historical data export is currently available in this GitHub checkout, so **the genuine 43-job migration parity remains UNTESTED**. Synthetic CLI output and the 500 old-algorithm synthetic cases cannot establish this parity. No additional LIVE request or standalone G4.x diagnostic tool is required to run this offline audit if the historical data is exported privately.
+
+
+## 2026-10-27 architecture reprioritization — whole-project outcomes
+
+The historical G4.13 43 DONE / 1 in-progress records were audited against the
+user-provided private Excel. This was a **bounded migration gate and is CLOSED**;
+reopen only for a new contradictory source or a correctness defect. Continuing
+to optimize this single run's cursor, 44 source rows, or proof rates has less
+expected value than building/validating the whole 216-job collector.
+
+See [PROJECT_ROADMAP.md](PROJECT_ROADMAP.md) for durable priorities. The dominant
+constraint remains **WCL point spend plus rate waits**, especially exact
+rankings/Report DPS semantics. A time/point microbenchmark requires separate
+approval; no WCL calls are authorized in this Draft PR.
+
+**Secondary Sheets I/O boundary:** `src/core/uy-batch-plan.mjs` plans changes
+for the existing final `영웅_DPS지표_V5` or `신화_DPS지표_V5` tab. With
+216 verified output rows, it can form a single 216×5 `U4:Y219` batch range.
+With sparse edits, it forms non-contiguous ranges for **one future**
+`spreadsheets.values.batchUpdate` request. It checks all original row identities,
+formulas, conflicts, verified rank snapshot SHA inputs and output provenance,
+preserving any null and existing value without inventing one.
+
+The planner is **pure and has never written a Sheet**. Its caller must establish
+exclusive run ownership, immediately read/recheck the target grid and its
+formulas, perform the batch write, and read back for verification. A pure plan
+is not a transaction or atomic compare-and-swap. Adding a Sheets adapter must
+not outgrow the cost/complexity benefit. The primary optimization focus remains
+global WCL work deduplication and measured query-path points.
