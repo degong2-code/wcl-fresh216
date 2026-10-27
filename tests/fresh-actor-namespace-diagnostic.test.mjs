@@ -174,3 +174,25 @@ test('invalid numeric ranking metrics cannot manufacture identity candidates',()
     }
   }
 });
+
+
+test('nullable master ReportActor IDs do not erase unrelated valid player candidates',()=>{
+  const input=make();
+  input.masterBody.data.reportData.report.masterData.actors.push({
+    id:null,name:'UnnamedNpc',server:null,type:'NPC',subType:'Boss',petOwner:null
+  });
+  const result=diagnose(input);
+  assert.equal(result.status,'NAME_SERVER_CLASS_CANDIDATES_ONLY');
+  assert.equal(result.strongNameServerClassCandidates,2);
+  assert.equal(result.dpsParity,'UNPROVEN');
+});
+
+test('duplicate positive master ReportActor IDs still abort unambiguous attribution',()=>{
+  const input=make();
+  input.masterBody.data.reportData.report.masterData.actors.push({
+    id:2,name:'OtherActor',server:null,type:'NPC',subType:'Boss',petOwner:null
+  });
+  const result=diagnose(input);
+  assert.equal(result.status,'MASTER_ACTOR_IDS_AMBIGUOUS');
+  assert.equal(result.strongNameServerClassCandidates,0);
+});
