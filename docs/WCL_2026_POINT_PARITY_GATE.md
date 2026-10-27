@@ -1,7 +1,8 @@
 # WCL v2 (October 2026) points/rankings-vs-table — bounded decision gate
 
-Status: **OFFLINE PREPARATION ONLY**, 2026-10-27. This is NOT authorization
-for WCL requests, token/credential use, Google Sheets writes, or deployment.
+Status: **OWNER APPROVED UP TO TWO GRAPHQL CALLS / STILL UNEXECUTED**, 2026-10-27.
+This document is not itself execution authorization and no live credentials
+or private target have been provided to this chat/repository. No Sheets or deployment approval.
 
 ## What changed and why it matters
 
@@ -44,7 +45,7 @@ Sources (public, recheck before LIVE):
   Both one-Fight and wave query builders now request the scalar correctly.
   Numeric point accounting remains UNKNOWN if a trustworthy witness is absent.
 
-## One-time proposed LIVE decision experiment — pending explicit approval
+## One-time LIVE decision experiment — approved scope, not yet executed
 
 1. Select **one legitimately accessible report + one Fight** already
    represented by a ranking snapshot. Keep report code, fight ID, actor IDs,
@@ -86,12 +87,13 @@ real quota categories and end-to-end time. Otherwise retain rankings.
 Separate semantic feasibility from point cost; lower DB cost does not
 compensate for wrong attribution.
 
-## User choice required before LIVE
+## Owner approval and still-required private execution inputs
 
-- **Recommended first**: whether user permits up to **2 WCL GraphQL requests**
-  for exactly one known report/Fight using their already authorized credentials,
-  accepting the risk of a small but not fully predictable amount of API points.
-  No credentials may be pasted into chat or public repository.
+- **Approved 2026-10-27**: up to **2 WCL GraphQL requests** for one
+  legitimately accessible Report/Fight, existing owned client credentials,
+  acknowledging unpredictable point cost. Approval does not supply the
+  original private snapshot, source Report/Fight/revision, or credentials.
+  No credentials may be pasted into chat or a repository.
 - **Separate optional**: whether to implement a user-login OAuth Code/PKCE
   grant to use User points. Do not silently change the current
   client-credentials security model. Only decide this after seeing real
@@ -100,7 +102,7 @@ compensate for wrong attribution.
 **Do not schedule, run, or repeat an actual experiment from this document alone.**
 
 
-## Offline receipt assessment (new, still NO LIVE authorization)
+## Offline receipt assessment (not itself execution authorization)
 
 The existing two-query plan now exposes
 'fingerprintComparisonRequest(request)' and
@@ -128,5 +130,24 @@ private experiment. They neither create authorization nor execute requests.
 
 Offline regression adds six fail-closed Node test declarations, all using
 synthetic non-real reports. Existing historical installed-source tests remain
-outside this synthetic CI. The one-time real probe remains PENDING EXPLICIT
-USER APPROVAL; zero live WCL requests are introduced by this change.
+outside this synthetic CI. The owner subsequently authorized the two-query scope. These offline
+receipt helpers still introduce zero WCL requests; real execution is not
+verified until a private local run and its receipts are independently reviewed.
+
+
+## Private local one-time executor (post-approval)
+
+See [PRIVATE_TWO_QUERY_PROBE_RUNBOOK.md](PRIVATE_TWO_QUERY_PROBE_RUNBOOK.md)
+and 'tools/run-private-wcl-two-query-probe.mjs'. It requires a user-owned
+local .env, one exact private rank-snapshot fixture, a new private output
+directory, and an explicit CLI execution flag. It uses existing client
+credentials, never triggers user OAuth, requires an observed app headroom
+floor and only performs the two specified GraphQL queries if the first
+rankings proof verifies. One OAuth client-credentials **token exchange**
+is an additional non-GraphQL HTTP operation needed for authentication.
+
+Its source and synthetic CI do not constitute a real WCL experiment.
+The private user target and credentials are unavailable in ChatGPT/GitHub;
+**live GraphQL calls actually executed so far: ZERO**. Actual user-point
+benefits are not tested under client_credentials. No automatic retry, PR
+merge, trigger action, or Sheet write is authorized.
