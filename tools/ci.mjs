@@ -49,6 +49,13 @@ if(privateXlsxTest.status!==0){
   process.stderr.write((privateXlsxTest.stderr||'').slice(-4000));
 }else console.log('PASS private XLSX extraction (stdlib, synthetic workbook only)');
 
+const sourceExportAudit = spawnSync('python3',['-m','unittest','-v',
+  'tests/test_source_export_audit.py'],{encoding:'utf8',timeout:30000,maxBuffer:1024*1024});
+if(sourceExportAudit.status!==0){
+  fail('Offline read-only installed source export fingerprint tests failed');
+  process.stderr.write((sourceExportAudit.stderr||sourceExportAudit.stdout||'').slice(-4000));
+}else console.log('PASS source export fingerprint verifier (stdlib, synthetic sources only)');
+
 if (manifest.source_imported) {
   for (const file of manifest.expected_tests_when_imported) {
     if (!fs.existsSync(file)) { fail('Missing required imported test: ' + file); continue; }
