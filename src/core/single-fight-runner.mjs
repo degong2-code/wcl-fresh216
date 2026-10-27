@@ -47,7 +47,7 @@ export async function executeOneReadyFight({
       ...admissionPolicy,nowMs:startedAtMs
     });
     if(!decision.allowed)
-      return {status:decision.status,waitMs:decision.waitMs,
+      return {status:decision.status,attempted:false,waitMs:decision.waitMs,
         pointsTotalConfirmed:decision.pointsTotalConfirmed};
   }
 
@@ -90,7 +90,7 @@ export async function executeOneReadyFight({
   // Only aggregate metadata; never return or log Report IDs, actor identities,
   // token values or ranking rows.
   return {
-    status:entry.status,
+    status:entry.status,attempted:true,
     verifiedSlots:entry.result?.verified.length??0,
     unresolvedSlots:entry.result?.unresolved.length??0,
     observedPoints:entry.observedPoints,
@@ -140,7 +140,8 @@ export async function runBoundedSweep({
     if(result.status==='CANCELLED_BEFORE_REQUEST'){
       reason='CANCELLED';break;
     }
-    if(['RATE_WAIT','BUDGET_PAUSED','NEEDS_REVIEW'].includes(result.status)){
+    if(['RATE_WAIT','BUDGET_PAUSED'].includes(result.status)||
+       (result.status==='NEEDS_REVIEW'&&result.attempted===false)){
       reason=result.status;waitMs=result.waitMs??0;break;
     }
     attempts++;
