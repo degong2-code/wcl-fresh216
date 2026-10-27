@@ -17,6 +17,8 @@ const sameProof=(s)=>{
     str(p.actorRef) && typeof p.bossDps==='number' &&
     Number.isFinite(p.bossDps) && p.bossDps>=0 && p.bossDps<=s.totalDps &&
     p.snapshotSha===s.snapshotSha && p.reportCode===s.reportCode &&
+    Number.isSafeInteger(p.reportRevision) && p.reportRevision>=0 &&
+    (s.reportRevision==null || s.reportRevision===p.reportRevision) &&
     p.fightId===s.fightId && p.encounterId===s.encounterId &&
     p.difficulty===s.difficulty;
 };
@@ -25,6 +27,7 @@ export function planFull216(slots){
   requireIt(Array.isArray(slots),'SCOPE_INPUT_INVALID');
   requireIt(slots.length===21600,'SCOPE_EXACT_21600_REQUIRED');
   const jobs=new Map(),encounters=new Map();
+  const bossByEncounter=new Map(),encounterByBoss=new Map();
   let difficulty=null,scopeKey=null;
   let missingIdentity=0;
   for(const s of slots){
@@ -40,6 +43,13 @@ export function planFull216(slots){
     requireIt(parts.length===3 && str(parts[0]) &&
       parts[1]===s.className&&parts[2]===s.specName,'SCOPE_JOB_CLASS_IDENTITY');
     const jobKey=s.jobKey;
+    const bossName=parts[0];
+    if(bossByEncounter.has(s.encounterId))
+      requireIt(bossByEncounter.get(s.encounterId)===bossName,'SCOPE_BOSS_ENCOUNTER_DRIFT');
+    if(encounterByBoss.has(bossName))
+      requireIt(encounterByBoss.get(bossName)===s.encounterId,'SCOPE_BOSS_ENCOUNTER_DRIFT');
+    bossByEncounter.set(s.encounterId,bossName);
+    encounterByBoss.set(bossName,s.encounterId);
     let job=jobs.get(jobKey);
     if(!job){
       job={jobKey,encounterId:s.encounterId,snapshotSha:s.snapshotSha,
@@ -60,8 +70,13 @@ export function planFull216(slots){
   }
   requireIt(jobs.size===216&&encounters.size===8,'SCOPE_JOB_OR_ENCOUNTER_COUNT');
   for(const job of jobs.values())requireIt(job.ranks.size===100,'SCOPE_JOB_TOP100_INCOMPLETE');
-  for(const specs of encounters.values())
+  let canonicalSpecs=null;
+  for(const specs of encounters.values()){
     requireIt(specs.size===27,'SCOPE_ENCOUNTER_SPECS_INCOMPLETE');
+    const signature=JSON.stringify([...specs].sort());
+    if(canonicalSpecs===null)canonicalSpecs=signature;
+    else requireIt(signature===canonicalSpecs,'SCOPE_SPECIALIZATION_SET_DRIFT');
+  }
   // Do not invent a WCL Report/Fight when a pending slot lacks one.
   requireIt(missingIdentity===0,'SCOPE_PENDING_FIGHT_UNRESOLVED');
   const plan=planFightFetches(slots);
