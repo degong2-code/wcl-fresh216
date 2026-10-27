@@ -35,7 +35,7 @@ const mockFetch=(calls,{already=false}={})=>async(url,opts)=>{
       reportData:{report:{code:'PUBLIC_SYNTHETIC',revision:2,
         ...(rank?{
           overall:{data:[fight(2000)]},boss:{data:[fight(1700)]}
-        }:{damage:{entries:[{id:19,total:333333}]}})
+        }:{damage:{data:{entries:[{id:19,total:333333}]}}})
       }}
     }})};
   }
