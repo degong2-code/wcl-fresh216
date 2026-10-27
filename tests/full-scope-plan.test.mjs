@@ -53,6 +53,8 @@ test('bounded report waves reuse one Report body across four fights per wave',()
   assert.equal(Object.keys(q.variables).length,5);
   assert.equal(q.query.match(/:rankings\(/g).length,8);
   assert.match(q.query,/report\(code:\$code\)\{code revision/);
+  assert.match(q.query,/rateLimitData\{currentRequest\}/);
+  assert.doesNotMatch(q.query,/currentRequest\{/);
 });
 test('missing rank, duplicate rank and snapshot mixing block the entire 216-run',()=>{
   const missing=fullSlots();missing.pop();
