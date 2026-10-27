@@ -225,8 +225,9 @@ export function auditFreshServerlessIdentity({
       if(bucket.length>1)res.masterDuplicatePositiveIds++;
     }
     if(a?.type!=='Player'||positive(a.petOwner))continue;
-    const k=JSON.stringify([normalize(a.name),normalize(a.subType)]);
-    if(k.includes('null'))continue;
+    const name=normalize(a.name),klass=normalize(a.subType);
+    if(!name||!klass)continue;
+    const k=JSON.stringify([name,klass]);
     const bucket=byNameClass.get(k)??[];
     bucket.push(a);
     byNameClass.set(k,bucket);
