@@ -44,6 +44,9 @@ test('bounded report waves reuse one Report body across four fights per wave',()
   assert.equal(waves.httpRequestsIfExecuted,200);
   assert.equal(waves.queryRankingsAliases,1600);
   assert.equal(waves.theoreticalHttpCallsCoalesced,600);
+  assert.equal(waves.waveJournalRequired,true);
+  assert.equal(waves.currentCheckpointCompatible,false);
+  assert.equal(waves.readyForLiveExecution,false);
   assert.equal(waves.observedWclPoints,null);
   const q=makeRankingsWaveQuery(waves.waves[0]);
   assert.equal(Object.keys(q.variables).length,5);
@@ -155,4 +158,14 @@ test('a verified actor witness cannot skip a new rank when the report revision d
     reportRevision:7,reportCode:row.reportCode,fightId:row.fightId,
     encounterId:row.encounterId,difficulty:row.difficulty};
   assert.throws(()=>planFull216(slots),/SCOPE_UNATTESTED_VERIFIED_SLOT/);
+});
+
+test('single-fight waves are the only format compatible with existing per-fight checkpoint',()=>{
+  const full=planFull216(fullSlots());
+  const plan=planReportWaves(full,{maxFightsPerWave:1});
+  assert.equal(plan.graphQLWaveCount,800);
+  assert.equal(plan.currentCheckpointCompatible,true);
+  assert.equal(plan.waveJournalRequired,false);
+  assert.equal(plan.readyForLiveExecution,false);
+  assert.equal(plan.theoreticalHttpCallsCoalesced,0);
 });
