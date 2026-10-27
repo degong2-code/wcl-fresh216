@@ -25,7 +25,7 @@ const resp=(type='rankings',opts={})=>({
       ...(type==='rankings'?{
         overall:{data:[f([a(2000)])]},
         boss:{data:[f([a(1600)])]}
-      }:{damage:{entries:[{id:9,total:123456}]}})
+      }:{damage:{data:{entries:[{id:9,total:123456}]}}})
     }}
   }},...opts
 });
@@ -302,12 +302,12 @@ test('reject extraneous fights and inconsistent shared actor before second paid 
 });
 
 test('fresh table source rows independently overlap rankings by numeric report actor ID',()=>{
-  const data={
+  const data={data:{
     entries:[
       {id:9,name:'PrivateActorName',total:1250},
       {id:85,name:'PrivatePetName',total:550}
     ],totalTime:10000
-  };
+  }};
   const result=summarizeFreshTableSourceRows(target(),resp().body,data);
   assert.deepEqual(result,{
     ok:true,reason:null,sourceRows:2,sharedRankedSourceRows:1
@@ -321,12 +321,13 @@ test('fresh table source rows independently overlap rankings by numeric report a
 test('unfrozen WCL table JSON cannot masquerade as comparable source rows',async()=>{
   const malformed=[
     [{},{reason:'FRESH_TABLE_ENTRIES_UNOBSERVED'}],
-    [{entries:[]},{reason:'FRESH_TABLE_ENTRIES_UNOBSERVED'}],
-    [{entries:[{id:88,total:1000}]},
+    [{data:{entries:[]}},{reason:'FRESH_TABLE_ENTRIES_UNOBSERVED'}],
+    [{entries:[{id:9,total:100}]},{reason:'FRESH_TABLE_ENTRIES_UNOBSERVED'}],
+    [{data:{entries:[{id:88,total:1000}]} },
       {reason:'FRESH_TABLE_NO_SHARED_RANKED_SOURCE'}],
-    [{entries:[{id:9,total:'500'}]},
+    [{data:{entries:[{id:9,total:'500'}]} },
       {reason:'FRESH_TABLE_ROWS_AMBIGUOUS'}],
-    [{entries:[{id:9,total:100},{id:9,total:200}]},
+    [{data:{entries:[{id:9,total:100},{id:9,total:200}]} },
       {reason:'FRESH_TABLE_ROWS_AMBIGUOUS'}]
   ];
   for(const [damage,expected] of malformed){
@@ -362,7 +363,7 @@ test('two matching WCL table rows yield only structural—not semantic—evidenc
         attempts++;
         const r=resp(attempts===1?'rankings':'table');
         if(attempts===2)r.body.data.reportData.report.damage={
-          entries:[{id:9,total:123456},{id:88,total:3000}]
+          data:{entries:[{id:9,total:123456},{id:88,total:3000}]}
         };
         return r;
       }
