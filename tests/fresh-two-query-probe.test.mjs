@@ -3,7 +3,8 @@ import assert from 'node:assert/strict';
 import fs from 'node:fs';
 import os from 'node:os';
 import path from 'node:path';
-import {buildFreshQueryPair,summarizeFreshRankings,runFreshTwoQueryProbe}
+import {buildFreshQueryPair,summarizeFreshRankings,runFreshTwoQueryProbe,
+  observeFreshRateLimit}
   from '../src/core/fresh-two-query-probe.mjs';
 
 const target=()=>({reportCode:'PUBLIC_SYNTHETIC',fightId:17});
@@ -168,4 +169,94 @@ test('invalid public source must fail before any operation',()=>{
       snapshotSha:'old-not-needed'},
     {reportCode:'PUBLIC_SYNTHETIC',fightId:'17'}
   ])assert.throws(()=>buildFreshQueryPair(t),/FRESH_PUBLIC_REPORT_TARGET_INVALID/);
+});
+
+test('queries request official per-request and hourly database point witnesses',()=>{
+  for(const request of buildFreshQueryPair(target())){
+    assert.match(request.query,/currentRequest limitPerHour pointsSpentThisHour pointsResetIn databaseLimitPerHour databasePointsSpentThisHour userHasRemainingPoints userPointsResetIn/);
+    assert.doesNotMatch(request.query,/currentRequest\\{/);
+  }
+});
+
+test('direct WCL category point witnesses preserve database subset semantics',()=>{
+  const body=resp().body;
+  body.data.rateLimitData.currentRequest={
+    total:18,application:13,database:7,user:4
+  };
+  body.data.rateLimitData.databaseLimitPerHour=100;
+  body.data.rateLimitData.databasePointsSpentThisHour=47;
+  body.data.rateLimitData.userHasRemainingPoints=false;
+  const w=observeFreshRateLimit(body);
+  assert.deepEqual(w,{
+    total:18,pointClasses:{application:13,database:7,user:4},
+    appRemaining:1900,databaseRemaining:53,
+    userHasRemainingPoints:false,classWitnesses:3
+  });
+  // Reported total is NEVER application+database+user: database
+  // is a subset of application and the minimum request cost is separate.
+  assert.notEqual(w.total,
+    w.pointClasses.application+w.pointClasses.database+w.pointClasses.user);
+});
+
+test('missing point classes stay null; no zero-cost inference from total',()=>{
+  const w=observeFreshRateLimit(resp().body);
+  assert.equal(w.total,4);
+  assert.deepEqual(w.pointClasses,{
+    application:null,database:null,user:null
+  });
+  assert.equal(w.classWitnesses,0);
+  assert.equal(w.databaseRemaining,null);
+  assert.equal(w.userHasRemainingPoints,null);
+});
+
+test('invalid category metadata cannot become a false point witness',()=>{
+  const body=resp().body;
+  body.data.rateLimitData.currentRequest={
+    total:5,application:-3,database:'5',user:NaN
+  };
+  body.data.rateLimitData.databaseLimitPerHour='300';
+  body.data.rateLimitData.databasePointsSpentThisHour=3;
+  body.data.rateLimitData.userHasRemainingPoints='true';
+  const w=observeFreshRateLimit(body);
+  assert.deepEqual(w.pointClasses,{
+    application:null,database:null,user:null
+  });
+  assert.equal(w.classWitnesses,0);
+  assert.equal(w.databaseRemaining,null);
+  assert.equal(w.userHasRemainingPoints,null);
+});
+
+test('two synthetic HTTP receipts retain distinct measured rate category classes',async()=>{
+  await withDir(async dir=>{
+    let requests=0;
+    const s=await runFreshTwoQueryProbe({
+      target:target(),privateOutputDir:dir,
+      send:async()=>{
+        requests++;
+        const reply=resp(requests===1?'rankings':'table');
+        const rate=reply.body.data.rateLimitData;
+        rate.currentRequest=requests===1?
+          {total:10,application:9,database:8,user:0}:
+          {total:6,application:5,database:0,user:0};
+        rate.databaseLimitPerHour=1000;
+        rate.databasePointsSpentThisHour=requests===1?120:120;
+        rate.userHasRemainingPoints=null;
+        return reply;
+      }
+    });
+    assert.equal(requests,2);
+    assert.equal(s.status,'RECORDED');
+    assert.equal(s.observations[0].reportedTotalPoints,10);
+    assert.equal(s.observations[0].appPoints,9);
+    assert.equal(s.observations[0].databasePoints,8);
+    assert.equal(s.observations[0].userPoints,0);
+    assert.equal(s.observations[1].reportedTotalPoints,6);
+    assert.equal(s.observations[1].appPoints,5);
+    assert.equal(s.observations[1].databasePoints,0);
+    assert.equal(s.observations[0].databaseHeadroomObserved,880);
+    assert.equal(s.observations[0].pointClassWitnessCount,3);
+    assert.equal(s.tableAdopted,false);
+    const disk=JSON.parse(fs.readFileSync(path.join(dir,'summary.json')));
+    assert.deepEqual(disk.observations,s.observations);
+  });
 });
