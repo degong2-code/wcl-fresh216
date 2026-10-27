@@ -57,34 +57,7 @@ jobs:
         run: |
           set -euo pipefail
           diff="$(git diff-tree --no-commit-id --name-status -r "$GITHUB_SHA")"
-          if [[ "$diff" == 
-    needs: offline
-    if: >-
-      github.event_name == 'push' &&
-      github.ref == 'refs/heads/work/collector-architecture' &&
-      github.repository == 'degong2-code/wcl-fresh216' &&
-      needs.offline.result == 'success' &&
-      needs.offline.outputs.wcl_request_addition == 'true'
-    runs-on: ubuntu-latest
-    timeout-minutes: 3
-    # Only this isolated, conditional job may create a GitHub dispatch.
-    # The offline test job never receives Actions:write or WCL Secrets.
-    permissions:
-      contents: read
-      actions: write
-    steps:
-      - uses: actions/checkout@v4
-        with:
-          persist-credentials: false
-          fetch-depth: 2
-      - uses: actions/setup-node@v4
-        with:
-          node-version: '22'
-      - name: Validate approved request and dispatch main one-time probe
-        env:
-          GITHUB_TOKEN: ${{ github.token }}
-        run: node tools/dispatch-approved-wcl-once.mjs
-A\texperiments/wcl-one-query-identity-20261027.json' ]]; then
+          if [[ "$diff" == $'A\texperiments/wcl-one-query-identity-20261027.json' ]]; then
             echo "enabled=true" >> "$GITHUB_OUTPUT"
           fi
 
@@ -126,10 +99,9 @@ A\texperiments/wcl-one-query-identity-20261027.json' ]]; then
       needs.offline.outputs.identity_request_addition == 'true'
     runs-on: ubuntu-latest
     timeout-minutes: 4
-    # Separate, user-approved 1-query budget. No Actions:write required.
-    # This job alone receives WCL Secrets; ordinary test and relay jobs do not.
+    # Only this dedicated job receives WCL credentials.
     permissions:
-      contents: write  # atomic one-time consumed ref BEFORE OAuth/GraphQL
+      contents: write
     steps:
       - uses: actions/checkout@v4
         with:
@@ -138,10 +110,9 @@ A\texperiments/wcl-one-query-identity-20261027.json' ]]; then
       - uses: actions/setup-node@v4
         with:
           node-version: '22'
-      - name: Execute one approved same-Report/Fight identity witness
+      - name: Execute owner-approved single WCL identity request
         env:
           GITHUB_TOKEN: ${{ github.token }}
           WCL_CLIENT_ID: ${{ secrets.WCL_CLIENT_ID }}
           WCL_CLIENT_SECRET: ${{ secrets.WCL_CLIENT_SECRET }}
         run: node tools/run-actions-wcl-one-query-identity.mjs
-
