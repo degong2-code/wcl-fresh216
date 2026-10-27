@@ -70,3 +70,39 @@ export function resolveConservativeDirect(overall,boss) {
   }
   return {matched,calibrators};
 }
+
+/**
+ * Minimal legacy-compatible guard: reject a direct shortcut when its key is
+ * not unique on EITHER metric. Unique name-only matches are retained, so
+ * this is NOT independent canonical actor proof. It only prevents the
+ * demonstrated duplicate-name double-attribution failure.
+ */
+const legacyKey = row => {
+  const f=fight(row);
+  if(!f)return null;
+  const id=actor(row);
+  if(id)return JSON.stringify([f.code,f.id,'id',id]);
+  const name=String(row.name||'').trim().toLowerCase();
+  return name&&name!=='anonymous'?JSON.stringify([f.code,f.id,'name',name]):null;
+};
+export function resolveCollisionGuardedDirect(overall,boss){
+  if(!Array.isArray(overall)||!Array.isArray(boss))throw Error('DIRECT_RANKING_SHAPE');
+  const left=new Map(),right=new Map();
+  for(const row of overall){
+    const k=legacyKey(row);
+    if(k)left.set(k,(left.get(k)||0)+1);
+  }
+  for(const row of boss){
+    const k=legacyKey(row);
+    if(k){const list=right.get(k)||[];list.push(row);right.set(k,list);}
+  }
+  const matched=Array(overall.length).fill(null),calibrators=[];
+  for(let i=0;i<overall.length;i++){
+    const row=overall[i],k=legacyKey(row),cand=k?right.get(k):null;
+    if(!k||left.get(k)!==1||!cand||cand.length!==1)continue;
+    const d=numeric(row.amount),b=numeric(cand[0].amount);
+    if(d===null||d<=0||b===null||b<0||b>d+.005)continue;
+    matched[i]=b;calibrators.push({row,boss:b});
+  }
+  return {matched,calibrators};
+}
