@@ -260,3 +260,41 @@ test('two synthetic HTTP receipts retain distinct measured rate category classes
     assert.deepEqual(disk.observations,s.observations);
   });
 });
+
+test('reject extraneous fights and inconsistent shared actor before second paid query',async()=>{
+  for(const change of [
+    r=>r.body.data.reportData.report.overall.data.push({
+      fightID:18,encounter:{id:3470},difficulty:4,
+      roles:{dps:{characters:[a(2500)]}}
+    }),
+    r=>r.body.data.reportData.report.boss.data.push({
+      fightID:18,encounter:{id:3470},difficulty:4,
+      roles:{dps:{characters:[a(1300)]}}
+    }),
+    r=>r.body.data.reportData.report.overall.data[0].roles.dps.characters.push(a(1000,10))||
+      r.body.data.reportData.report.boss.data[0].roles.dps.characters.push(a(1100,10)),
+    r=>{
+      r.body.data.reportData.report.overall.data[0].roles.dps.characters.push(a(1000,10));
+      r.body.data.reportData.report.boss.data[0].roles.dps.characters.push({
+        ...a(800,10),spec:'Elemental'
+      });
+    }
+  ]){
+    await withDir(async dir=>{
+      let calls=0;
+      const summary=await runFreshTwoQueryProbe({
+        target:target(),privateOutputDir:dir,send:async()=>{
+          calls++;
+          const r=resp();
+          change(r);
+          return r;
+        }
+      });
+      assert.equal(calls,1);
+      assert.equal(summary.status,'NEEDS_REVIEW');
+      assert.equal(summary.graphqlRequests,1);
+      assert.equal(summary.tableAdopted,false);
+      assert.match(summary.reason,/FRESH_(FIGHT_SCOPE_UNVERIFIED|ACTOR_METRIC_CONFLICT)/);
+    });
+  }
+});
