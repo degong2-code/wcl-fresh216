@@ -59,6 +59,7 @@ jobs:
           WCL_PROBE_PUBLIC_REPORT_CODE: ${{ inputs.report_code }}
           WCL_PROBE_PUBLIC_FIGHT_ID: ${{ inputs.fight_id }}
           WCL_PROBE_DISPATCH_PURPOSE: OWNER_APPROVED_20261027_MAX_TWO
+          WCL_PROBE_MODE: FRESH_PUBLIC_REPORT_ONLY
         shell: bash
         run: |
           set -euo pipefail
