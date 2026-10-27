@@ -98,6 +98,40 @@ user-approved, suitably verified fallback) could resolve that ambiguity.
 The 44 snapshots may not represent all 216 jobs. No benchmarked WCL
 point or end-to-end speed saving is claimed.
 
+## Private saved-PROOF concordance audit (2026-10-28)
+
+The same 44 snapshot envelopes were joined, in read-only memory, with
+their private G4.13 10-column PROOF ledger. A candidate was counted only
+when the envelope's **stored document SHA256** and the PROOF's
+overall/boss fingerprint references matched. No private per-rank fields
+or workbook were committed to this repository.
+
+| Archived sample | Count |
+| --- | ---: |
+| Authenticated snapshot/PROOF pairs | 44 |
+| All rank slots | 4,400 |
+| Non-null stored PROOF boss values | **4,326** |
+| Direct candidates via original installed name join | **2,721** |
+| Direct candidates whose saved PROOF boss amount equals direct amount | **2,721** |
+| Direct amount disagrees / missing in saved PROOF | **0 / 0** |
+| Other stored values not produced by a direct join | **1,605** |
+| Missing boss values | **74** |
+| Rank 1 / 30 / 100 missing | **0 / 2 / 1** |
+
+This certifies **persisted numeric concordance**, not canonical
+same-character provenance. The source formats lack both report-local
+actor IDs and realm/canonical character IDs in the stored world-ranking
+rows. Nor does a numeric equality show that 1,605 non-direct stored
+values each had an independently archived per-rank actor witness.
+
+The pure helper `auditDirectProofConcordance` summarizes one
+100-rank synthetic or pre-audited private snapshot without emitting
+actor details. It deliberately returns
+`canonicalActorIdentityVerified:false` and
+`sourceCommitIndependentlyChecked:false`; callers must first check
+the original source SHA/PROOF provenance. This is NOT a source promotion,
+published proof upgrade or live Apps Script integration.
+
 ## Next safe checks before an approved GAS change
 
 - Privately quantify name-only direct matches and duplicate-name exposure
