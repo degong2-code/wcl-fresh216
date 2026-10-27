@@ -2,7 +2,7 @@ import {randomUUID} from 'node:crypto';
 import {makeRankingsQuery,decodeRankingsEnvelope}
   from '../adapters/wcl-rankings-envelope.mjs';
 import {joinFightEvidence} from './evidence-join.mjs';
-import {readyFetches,beginFetch,completeFetch,uncertainFailure}
+import {readyFetches,beginFetch,completeFetch,uncertainFailure,checkpointStats}
   from './checkpoint.mjs';
 
 /**
@@ -87,5 +87,63 @@ export async function executeOneReadyFight({
     observedPoints:entry.observedPoints,
     wallMs:entry.wallMs,
     incident:entry.incident?.code??null
+  };
+}
+
+/**
+ * Bounded sequential sweep, no timers or built-in HTTP / Sheets adapters.
+ * The host can schedule another sweep tick, preserving a single run's state.
+ * A single uncertain request STOPs the sweep for human reconciliation even
+ * if other READY fights exist. One click in a future host must own that
+ * scheduling, rate gating, and end-to-end progress UI.
+ */
+export async function runBoundedSweep({
+  store,transport,maxAttempts=16,clock=Date.now,
+  newAttemptId=randomUUID,shouldCancel=()=>false,onProgress=()=>{}
+}={}){
+  if(!store||typeof store.read!=='function'||typeof store.update!=='function'||
+     typeof transport!=='function'||typeof newAttemptId!=='function'||
+     typeof shouldCancel!=='function'||typeof onProgress!=='function'||
+     !Number.isSafeInteger(maxAttempts)||maxAttempts<1||maxAttempts>128)
+    throw Error('SWEEP_CONFIG_INVALID');
+  let attempts=0,verifiedSlots=0,unresolvedSlots=0,reason='BUDGET_REACHED';
+  for(let i=0;i<maxAttempts;i++){
+    if(shouldCancel()){reason='CANCELLED';break;}
+    const result=await executeOneReadyFight({
+      store,transport,clock,attemptId:newAttemptId(),shouldCancel
+    });
+    if(result.status==='NOT_ACTIVE'||result.status==='NO_READY'){
+      reason=result.status;break;
+    }
+    if(result.status==='CANCELLED_BEFORE_REQUEST'){
+      reason='CANCELLED';break;
+    }
+    attempts++;
+    verifiedSlots+=result.verifiedSlots;
+    unresolvedSlots+=result.unresolvedSlots;
+    // Progress is notified AFTER the corresponding commit is durable.
+    const stats=checkpointStats(store.read());
+    const done=stats.counts.COMPLETED+stats.counts.COMPLETED_PARTIAL;
+    const total=Object.values(stats.counts).reduce((a,b)=>a+b,0);
+    await onProgress({
+      attempts,verifiedSlots,unresolvedSlots,
+      completedFightGroups:done,totalFightGroups:total,
+      readyFightGroups:stats.counts.READY,
+      reviewFightGroups:stats.counts.NEEDS_REVIEW,
+      pointTotalConfirmed:stats.pointsTotalConfirmed
+    });
+    if(result.status==='NEEDS_REVIEW'){
+      reason='NEEDS_REVIEW';
+      break;
+    }
+  }
+  const final=checkpointStats(store.read());
+  if(reason==='BUDGET_REACHED' && final.counts.READY===0)
+    reason='NO_READY';
+  return {
+    status:reason,attempts,verifiedSlots,unresolvedSlots,
+    readyFightGroups:final.counts.READY,
+    reviewFightGroups:final.counts.NEEDS_REVIEW,
+    pointsTotalConfirmed:final.pointsTotalConfirmed
   };
 }
