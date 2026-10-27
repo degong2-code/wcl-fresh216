@@ -96,6 +96,53 @@ export function summarizeFreshRankings(target,body) {
     encounterId:all.encounter.id,difficulty:all.difficulty,
     verifiedActors,totalActors:totals.size,bossActors:bosses.size};
 }
+/**
+ * JSON table evidence is deliberately a SHAPE observation, not equivalence.
+ * Report.table() is an unfrozen JSON scalar. We recognize ONLY a source-view
+ * "entries" array with unique positive report actor IDs and numeric raw
+ * damage totals. Never convert totals to ranking DPS, assign pet ownership
+ * or claim any boss-target numerator parity without separate evidence.
+ *
+ * No report codes, actor IDs, names or raw damage totals leave this helper.
+ */
+export function summarizeFreshTableSourceRows(target,rankingsBody,damage) {
+  const ref=summarizeFreshRankings(target,rankingsBody);
+  if(!ref.ok)return {
+    ok:false,reason:'FRESH_TABLE_RANKINGS_REFERENCE_INVALID',
+    sourceRows:0,sharedRankedSourceRows:0
+  };
+  if(!damage||!Array.isArray(damage.entries)||damage.entries.length===0)
+    return {
+      ok:false,reason:'FRESH_TABLE_ENTRIES_UNOBSERVED',
+      sourceRows:0,sharedRankedSourceRows:0
+    };
+  const report=rankingsBody.data.reportData.report;
+  const totals=fightOf(report.overall,target.fightId).roles.dps.characters;
+  const bosses=fightOf(report.boss,target.fightId).roles.dps.characters;
+  const ranked=new Set(totals.map(actorId));
+  const bossIds=new Set(bosses.map(actorId));
+  const witnessed=new Set();
+  let matched=0;
+  for(const row of damage.entries){
+    const id=actorId(row);
+    if(!id||!nonNegative(row?.total)||witnessed.has(id))
+      return {
+        ok:false,reason:'FRESH_TABLE_ROWS_AMBIGUOUS',
+        sourceRows:damage.entries.length,sharedRankedSourceRows:matched
+      };
+    witnessed.add(id);
+    if(ranked.has(id)&&bossIds.has(id))matched++;
+  }
+  if(matched===0)return {
+    ok:false,reason:'FRESH_TABLE_NO_SHARED_RANKED_SOURCE',
+    sourceRows:damage.entries.length,sharedRankedSourceRows:0
+  };
+  return {
+    ok:true,reason:null,sourceRows:damage.entries.length,
+    sharedRankedSourceRows:matched
+  };
+}
+
 const rateOf=body=>body?.data?.rateLimitData??null;
 /**
  * Direct WCL v2 RateLimitData JSON witnesses only. Database is a subset
@@ -168,7 +215,7 @@ export async function runFreshTwoQueryProbe({
       target.reportCode+':'+target.fightId).digest('hex')
   };
   writePrivate(privateOutputDir,'journal.json',journal);
-  let reference=null;
+  let reference=null,firstRankingsBody=null,tableShape=null;
   for(let i=0;i<2;i++){
     const q=queries[i];
     journal.status='IN_FLIGHT';
@@ -219,6 +266,7 @@ export async function runFreshTwoQueryProbe({
       if(!summary.ok)reason=summary.reason;
       else {
         reference=summary;
+        firstRankingsBody=reply.body;
         journal.liveBaseline={
           encounterId:summary.encounterId,
           difficulty:summary.difficulty,
@@ -233,6 +281,17 @@ export async function runFreshTwoQueryProbe({
         reason='FRESH_APP_HEADROOM_UNKNOWN_OR_LOW';
     }else if(!reference||report?.revision!==reference.revision||
       report?.damage==null)reason='FRESH_TABLE_REVISION_OR_SHAPE_UNPROVEN';
+    else {
+      tableShape=summarizeFreshTableSourceRows(
+        target,firstRankingsBody,report.damage);
+      if(!tableShape.ok)reason=tableShape.reason;
+      // Raw table source ID/damage observations remain private.
+      journal.tableShapeWitness={
+        status:tableShape.ok?'SHARED_SOURCE_ROWS_OBSERVED':tableShape.reason,
+        sourceRows:tableShape.sourceRows,
+        sharedRankedSourceRows:tableShape.sharedRankedSourceRows
+      };
+    }
 
     journal.inFlightKind=null;
     journal.inFlightQueryDigest=null;
@@ -249,6 +308,10 @@ export async function runFreshTwoQueryProbe({
     source:'FRESH_WCL_NO_HISTORIC_EXACT100_DEPENDENCY',
     liveReferenceObserved:reference!==null,
     matchedRankingsActors:reference?.verifiedActors??0,
+    tableSourceRowsObserved:tableShape?.sourceRows??null,
+    tableSharedRankedSourceRowsObserved:tableShape?.sharedRankedSourceRows??null,
+    tableShapeStatus:tableShape===null?'NOT_OBSERVED':
+      tableShape.ok?'SHARED_SOURCE_ROWS_OBSERVED':tableShape.reason,
     sameFightTableResponseRecorded:journal.attemptedGraphql===2&&
       journal.status==='RECORDED',
     actorBossTargetAndDpsDenominatorParity:'UNPROVEN',
