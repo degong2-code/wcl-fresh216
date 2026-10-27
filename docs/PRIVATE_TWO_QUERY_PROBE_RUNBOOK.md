@@ -6,13 +6,29 @@ for continuous collection, a third call, new OAuth grants, deployment,
 Google Sheets writes, or PR merge. The public experiment branch and CI
 NEVER connect to WCL.
 
-## Why execution cannot be performed from GitHub/ChatGPT
+## GitHub Actions manual-dispatch path and missing private evidence
 
-A user-owned WCL OAuth credential pair and one source ranking snapshot
-(report code, FightID, revision, the original rank slot) are required in a
-**private machine**. Neither credentials nor a target for *this exact probe*
-are present in the repository. Do not mine the Git history, invent a report
-or use the WCL web page as a substitute for observed API point accounting.
+Repository Actions Secrets **WCL_CLIENT_ID** and **WCL_CLIENT_SECRET**
+are now configured by the owner; their actual values have not been accessed
+or verified by this chat. They are injected only into the dedicated
+workflow_dispatch job, never PR/offline CI. An authentic original ranking
+snapshot is still required; it is deliberately NOT public and is NOT yet
+available as the additional **WCL_PROBE_FIXTURE_JSON** repository secret.
+Never mine Git history, guess Fight/report identities or invent a snapshot.
+
+The ONE-TIME Actions dispatcher exists in the default **main** branch:
+'.github/workflows/wcl-two-query-probe.yml'. It checks out an immutable
+CI-verified code commit rather than a movable PR head. The workflow only
+runs on an explicit **workflow_dispatch** for main, with one global job
+concurrency group and one persistent atomic consumed Git ref. It cannot
+start on push, a timer or a pull-request event.
+
+The owner may request the assistant to start the workflow after the missing
+private source is selected. The available GitHub connector in this chat can
+write workflow files and inspect runs, but does not expose a
+workflow_dispatch create-run operation. Do not claim a GraphQL call occurred
+just because the workflow now exists. Running it may require Work-mode
+browser automation or a different authorized execution path.
 
 This utility deliberately uses only existing **client_credentials** to access
 the public v2 endpoint. It cannot read private reports and CANNOT test the
@@ -115,3 +131,42 @@ The repository's offline CI runs seven synthetic core-probe tests and
 three CLI tests, including on-disk no-replay barriers, explicit consent
 flags and fail-stop after the first request. These tests perform ZERO WCL/OAuth network requests. See the
 current HEAD's CI run; never infer actual point savings from synthetic data.
+
+
+## Actions Secrets, evidence storage and one-time anti-replay
+
+The workflow reads (only at job execution) three repository Secrets:
+- 'WCL_CLIENT_ID' — already reportedly registered by the user;
+- 'WCL_CLIENT_SECRET' — already reportedly registered by the user;
+- 'WCL_PROBE_FIXTURE_JSON' — **NOT confirmed; required**, contains one
+  authentic private original ranking slot and Report/Fight/revision.
+Do not put fixture JSON (especially report codes and actor names) into
+workflow_dispatch inputs, public issues, public pull requests or logs.
+Secrets are not themselves proof the snapshot is authentic; perform original
+source comparison before setting fixture.
+
+The Actions runner creates the Git ref
+'refs/heads/wcl-fresh216-one-time-probe-consumed-20261027' **atomically** before
+any OAuth or WCL GraphQL request. A 422 "already exists" stops before spending
+points, including an attempted rerun in another ephemeral GitHub runner.
+This ref is permanent evidence that one attempt was *reserved*; its existence
+does NOT prove any request occurred. DO NOT delete the ref to bypass the
+owner's one-time permission. Its creation requires the workflow's narrow
+'contents: write' job permission. GitHub Actions concurrency serializes
+races but the atomic ref is the durable cross-run no-replay guard.
+
+The Actions runner does NOT export or upload private raw responses to
+GitHub Artifacts or logs. It prints only a redacted summary (method,
+HTTP status, available aggregate point witness, duration, conservative
+semantic verdict). Raw data is removed from the ephemeral runner at exit.
+**This means it cannot establish detailed actor/target/pet parity or retain
+private forensic data across runner destruction.** It is a small,
+bounded first cost/response-shape observation, not full API semantic proof.
+A separate protected evidence-retention design would require another
+deliberate design decision before performing an expensive experiment if
+raw-response review is indispensable.
+
+The original Windows local-only CLI remains separately available and
+continues refusing GitHub Actions; it must not be confused with
+'tools/run-actions-wcl-two-query-probe.mjs'. Neither executor implements a
+real full-216 collector, Sheets writes, retry loops or User OAuth.
