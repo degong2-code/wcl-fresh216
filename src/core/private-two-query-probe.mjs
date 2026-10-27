@@ -129,8 +129,9 @@ export async function runPrivateTwoQueryProbe({
       response=await send(request.query);
       if(!validResponse(response))transportError=true;
     }catch(e){transportError=true;}
+    const finishedAtMs=clock();
     const elapsedMs=typeof journal.startedAtMs==='number'?
-      Math.max(0,clock()-journal.startedAtMs):null;
+      Math.max(0,finishedAtMs-journal.startedAtMs):null;
     if(transportError){
       journal.status='NEEDS_REVIEW';journal.reviewRequired=true;
       journal.failure='UNCERTAIN_TRANSPORT_MAY_HAVE_SPENT_POINTS';
@@ -143,6 +144,8 @@ export async function runPrivateTwoQueryProbe({
     atomicPrivateJson(privateOutputDir,'response-'+(i+1)+'.json',
       {requestKind:request.kind,body:response.body,httpStatus:response.httpStatus});
     const observation=rowOf(request,response,elapsedMs,authFlow);
+    observation.startedAtMs=journal.startedAtMs;
+    observation.finishedAtMs=finishedAtMs;
     journal.observations.push(observation);
     const rate=rateOf(response.body);
     const original= response.body?.data?.reportData?.report;
