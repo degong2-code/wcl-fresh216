@@ -15,6 +15,7 @@ import path from 'node:path';
 import {performance} from 'node:perf_hooks';
 import {planFull216} from '../src/core/full-scope-plan.mjs';
 import {JsonCheckpointStore} from '../src/adapters/json-checkpoint-store.mjs';
+import {JournalCheckpointStore} from '../src/adapters/journal-checkpoint-store.mjs';
 import {
   newCheckpoint,registerPlan,beginFetch,completeFetch,checkpointStats
 } from '../src/core/checkpoint.mjs';
@@ -65,55 +66,79 @@ const measure=fn=>{
 const root=fs.mkdtempSync(path.join(os.tmpdir(),'fresh216-io-synthetic-'));
 try{
   const phases=[];
+  const footprints=(type,location)=>{
+    if(type==='FULL_JSON')return fs.statSync(location).size;
+    const eventsPath=path.join(location,'events');
+    return fs.statSync(path.join(location,'base.json')).size+
+      fs.readdirSync(eventsPath).reduce(
+        (sum,name)=>sum+fs.statSync(path.join(eventsPath,name)).size,0);
+  };
   for(const completed of [0,400,800-samples]){
-    const seed=structuredClone(initial);
-    for(let i=0;i<completed;i++){
-      const e=seed.entries[entryKeys[i]];
-      e.status='COMPLETED';
-      e.attempt={id:'SYNTHETIC_SEED_'+i,startedAtMs:1};
-      e.result=joinedFor(e);
-      e.observedPoints=1; // synthetic point marker, NEVER a WCL cost datum
-      e.wallMs=1;
+    for(const type of ['FULL_JSON','APPEND_ONLY_JOURNAL']){
+      const seed=structuredClone(initial);
+      for(let i=0;i<completed;i++){
+        const e=seed.entries[entryKeys[i]];
+        e.status='COMPLETED';
+        e.attempt={id:'SYNTHETIC_SEED_'+i,startedAtMs:1};
+        e.result=joinedFor(e);
+        e.observedPoints=1; // test marker only; never a real WCL charge
+        e.wallMs=1;
+      }
+      const stage=['EMPTY','HALF_EVIDENCE','NEAR_FULL_EVIDENCE'][
+        Math.floor(phases.length/2)];
+      const location=path.join(root,stage+'_'+type+
+        (type==='FULL_JSON'?'.json':''));
+      const Store=type==='FULL_JSON'?JsonCheckpointStore:JournalCheckpointStore;
+      const store=new Store(location);
+      const init=measure(()=>store.init(seed)).ms;
+      const startBytes=footprints(type,location);
+      const beginTimes=[],finishTimes=[];
+      for(let i=0;i<samples;i++){
+        const key=entryKeys[completed+i];
+        const attemptId='SYNTHETIC_ATTEMPT_'+stage+'_'+i;
+        const started=measure(()=>store.update(s=>beginFetch(s,key,attemptId,10)));
+        beginTimes.push(started.ms);
+        const joined=joinedFor(started.value.entries[key]);
+        const finished=measure(()=>store.update(s=>completeFetch(s,key,attemptId,
+          joined,{points:1,wallMs:1})));
+        finishTimes.push(finished.ms);
+      }
+      const last=store.read(),stats=checkpointStats(last);
+      if(stats.counts.COMPLETED!==completed+samples||
+         stats.verifiedSlotEvidence!==(completed+samples)*27||
+         stats.counts.IN_FLIGHT!==0||stats.counts.NEEDS_REVIEW!==0)
+        throw Error('BENCHMARK_DURABILITY_OR_COUNT_MISMATCH');
+      const cold=measure(()=>new Store(location).read());
+      if(JSON.stringify(cold.value)!==JSON.stringify(last))
+        throw Error('BENCHMARK_COLD_RESTART_REPLAY_MISMATCH');
+      const endBytes=footprints(type,location);
+      phases.push({
+        storeType:type,stage,seedCompletedFightGroups:completed,samples,
+        initialCheckpointBytes:startBytes,finalCheckpointBytes:endBytes,
+        initMs:Math.round(init*100)/100,
+        coldRestartReadMs:Math.round(cold.ms*100)/100,
+        beginMsP50:percentile(beginTimes,.5),
+        beginMsP95:percentile(beginTimes,.95),
+        completeMsP50:percentile(finishTimes,.5),
+        completeMsP95:percentile(finishTimes,.95),
+        measuredTransitions:samples*2,readbackVerified:true,
+        benchmarkLimit:'PRESEEDED_BASELINE; NOT FULL_HISTORY_JOURNAL_REPLAY'
+      });
     }
-    const stage=['EMPTY','HALF_EVIDENCE','NEAR_FULL_EVIDENCE'][phases.length];
-    const file=path.join(root,stage+'.json');
-    const store=new JsonCheckpointStore(file);
-    const init=measure(()=>store.init(seed)).ms;
-    const startBytes=fs.statSync(file).size;
-    const beginTimes=[],finishTimes=[];
-    for(let i=0;i<samples;i++){
-      const key=entryKeys[completed+i],attemptId='SYNTHETIC_ATTEMPT_'+stage+'_'+i;
-      const started=measure(()=>store.update(s=>beginFetch(s,key,attemptId,10)));
-      beginTimes.push(started.ms);
-      const joined=joinedFor(started.value.entries[key]);
-      const finished=measure(()=>store.update(s=>completeFetch(s,key,attemptId,
-        joined,{points:1,wallMs:1})));
-      finishTimes.push(finished.ms);
-    }
-    const last=store.read(),stats=checkpointStats(last);
-    if(stats.counts.COMPLETED!==completed+samples||
-      stats.verifiedSlotEvidence!==(completed+samples)*27||
-      stats.counts.IN_FLIGHT!==0 ||stats.counts.NEEDS_REVIEW!==0)
-      throw Error('BENCHMARK_DURABILITY_OR_COUNT_MISMATCH');
-    const endBytes=fs.statSync(file).size;
-    phases.push({
-      stage,seedCompletedFightGroups:completed,samples,
-      initialCheckpointBytes:startBytes,finalCheckpointBytes:endBytes,
-      initMs:Math.round(init*100)/100,
-      beginMsP50:percentile(beginTimes,.5),
-      beginMsP95:percentile(beginTimes,.95),
-      completeMsP50:percentile(finishTimes,.5),
-      completeMsP95:percentile(finishTimes,.95),
-      measuredTransitions:samples*2,readbackVerified:true
-    });
   }
   console.log('FRESH216_OFFLINE_CHECKPOINT_BENCHMARK='+JSON.stringify({
-    testKind:'SYNTHETIC_21600_RANK_CHECKPOINT_IO_ONLY',
+    testKind:'SYNTHETIC_21600_RANK_CHECKPOINT_IO_COMPARISON',
     oneFightPerOperation:true,
     inventedFightGroups:800,ranks:21600,jobs:216,
-    sampleHost:'CI_OR_LOCAL_NODE_FILESYSTEM_NOT_PRODUCTION_HOST',
+    sampleHost:'GITHUB_ACTIONS_OR_LOCAL_FILESYSTEM_NOT_PRODUCTION',
     noWclRequests:true,noSheetWrites:true,realApiPointSavings:null,
     realCollectorWallTimeImprovement:null,
+    limitations:[
+      'SYNTHETIC_800_FIGHT_OVERLAP_NOT_MEASURED_IN_REAL_WCL',
+      'EACH_PROGRESS_STAGE_PRESEEDED_NO_FULL_LENGTH_REPLAY_OR_COMPACTION',
+      'SMALL_SAMPLES_UNCONTROLLED_CI_HOST',
+      'PRIVATE_TARGET_HOST_PERFORMANCE_UNMEASURED'
+    ],
     phases
   }));
 }finally{
