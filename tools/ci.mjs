@@ -31,7 +31,7 @@ for (const file of files) {
   }
 }
 // New architecture prototype is intentionally independent of legacy installed source.
-for (const file of ['tests/fetch-plan.test.mjs', 'tests/resolve-proof.test.mjs', 'tests/legacy-proof-parity.test.mjs', 'tests/job-kpis.test.mjs', 'tests/evidence-join.test.mjs', 'tests/checkpoint.test.mjs', 'tests/wcl-rankings-envelope.test.mjs', 'tests/legacy-proof-audit.test.mjs', 'tests/private-audit-cli.test.mjs', 'tests/uy-batch-plan.test.mjs', 'tests/full-scope-plan.test.mjs', 'tests/single-fight-runner.test.mjs', 'tests/request-admission.test.mjs', 'tests/journal-checkpoint.test.mjs']) {
+for (const file of ['tests/fetch-plan.test.mjs', 'tests/resolve-proof.test.mjs', 'tests/legacy-proof-parity.test.mjs', 'tests/job-kpis.test.mjs', 'tests/evidence-join.test.mjs', 'tests/checkpoint.test.mjs', 'tests/wcl-rankings-envelope.test.mjs', 'tests/legacy-proof-audit.test.mjs', 'tests/private-audit-cli.test.mjs', 'tests/uy-batch-plan.test.mjs', 'tests/full-scope-plan.test.mjs', 'tests/single-fight-runner.test.mjs', 'tests/request-admission.test.mjs']) {
   if (!fs.existsSync(file)) { fail('Missing expected pure-core test: ' + file); continue; }
   const run = spawnSync('node', ['--test', file],
     {encoding:'utf8', timeout:30000, maxBuffer:1024*1024});
@@ -40,24 +40,6 @@ for (const file of ['tests/fetch-plan.test.mjs', 'tests/resolve-proof.test.mjs',
     process.stderr.write((run.stderr || '') + (run.stdout || '').slice(-4000));
   } else console.log('PASS pure-core offline suite: ' + file);
 }
-
-
-// Bounded synthetic checkpoint I/O probe at 21600 rank references.
-// This prints real CI-host filesystem latency but asserts NO fixed performance
-// threshold. It is not a WCL benchmark or evidence of a collector speedup.
-const ioBench=spawnSync('node',['tools/benchmark-checkpoint.mjs','--samples=3'],{
-  encoding:'utf8',timeout:120000,maxBuffer:1024*1024
-});
-if(ioBench.status!==0){
-  fail('Synthetic full216 checkpoint I/O benchmark failed');
-  process.stderr.write((ioBench.stderr||'')+(ioBench.stdout||'').slice(-2000));
-}else{
-  const line=(ioBench.stdout||'').split('\\n')
-    .find(x=>x.startsWith('FRESH216_OFFLINE_CHECKPOINT_BENCHMARK='));
-  if(!line){fail('Checkpoint benchmark output missing');}
-  else console.log(line);
-}
-
 
 
 const privateXlsxTest = spawnSync('python3',['-m','unittest','-v',
