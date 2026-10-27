@@ -77,6 +77,12 @@ export function resolveConservativeDirect(overall,boss) {
  * this is NOT independent canonical actor proof. It only prevents the
  * demonstrated duplicate-name double-attribution failure.
  */
+// G3 committed rank snapshots carry an absolute fight startTime on both
+// metrics. Missing or conflicting timestamps require report-backed recovery.
+const sameSnapshotStart = (a,b) => {
+  const startA=positiveId(a?.startTime),startB=positiveId(b?.startTime);
+  return startA!==null && startB!==null && startA===startB;
+};
 const legacyKey = row => {
   const f=fight(row);
   if(!f)return null;
@@ -102,6 +108,7 @@ export function resolveCollisionGuardedDirect(overall,boss){
     if(!k||left.get(k)!==1||!cand||cand.length!==1)continue;
     const d=numeric(row.amount),b=numeric(cand[0].amount);
     if(d===null||d<=0||b===null||b<0||b>d+.005)continue;
+    if(!sameSnapshotStart(row,cand[0]))continue;
     matched[i]=b;calibrators.push({row,boss:b});
   }
   return {matched,calibrators};
