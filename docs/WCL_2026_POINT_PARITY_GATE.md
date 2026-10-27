@@ -98,3 +98,35 @@ compensate for wrong attribution.
   point allocation and whether this mode is needed.
 
 **Do not schedule, run, or repeat an actual experiment from this document alone.**
+
+
+## Offline receipt assessment (new, still NO LIVE authorization)
+
+The existing two-query plan now exposes
+'fingerprintComparisonRequest(request)' and
+'assessTwoRequestComparison(plan, observations)' from
+'src/core/wcl-query-comparison.mjs'. These are pure, network-free helpers
+for processing redacted observation metadata **after** a separately authorized
+private experiment. They neither create authorization nor execute requests.
+
+- Require the original ordered request fingerprints, at most TWO observations
+  for ONE Report/Fight; mismatched or third entries are rejected.
+- Return only aggregate metadata. Raw reports, actor IDs, credentials,
+  caller-added fields and rankings data are never copied to the summary.
+- Reported 'currentRequest.total' is held independently from any directly
+  witnessed Application/Database/User categories. Category costs remain NULL
+  when category-level evidence is unavailable; no deduction from HTTP count,
+  GraphQL alias count or client-credentials point eligibility is allowed.
+- A valid HTTP/GraphQL response with matching revision is **necessary but
+  not sufficient** for correctness. Even two nominal successes yield
+  'NOT_EQUIVALENT_OR_UNPROVEN' and 'adoptTable:false'. Target classification,
+  pet ownership, DPS denominator and per-rank actor parity require a separate
+  evidence-based validator after actual response shapes are known.
+- This is an offline comparison receipt *structure*, not proof that supplied
+  metadata was genuinely produced by WCL or that the live query is valid.
+  Never use it as the live point admission or production execution host.
+
+Offline regression adds six fail-closed Node test declarations, all using
+synthetic non-real reports. Existing historical installed-source tests remain
+outside this synthetic CI. The one-time real probe remains PENDING EXPLICIT
+USER APPROVAL; zero live WCL requests are introduced by this change.
