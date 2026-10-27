@@ -50,16 +50,24 @@ export function diagnoseFreshActorNamespaces({
 
   const bossMap=new Map(),rankedMatched=new Map(),tableMap=new Map();
   for(const a of onlyBoss){
-    if(!positive(a?.id)||bossMap.has(a.id))
-      return empty('RANKED_ACTOR_IDS_AMBIGUOUS');
+    if(!positive(a?.id)||bossMap.has(a.id)||
+       typeof a.amount!=='number'||!Number.isFinite(a.amount)||
+       a.amount<0)
+      return empty('RANKED_ACTOR_IDS_OR_METRICS_INVALID');
     bossMap.set(a.id,a);
   }
+  // Record EVERY total-DPS actor, including those absent from bossdps:
+  // otherwise two unmatched actors sharing an ID silently pass validation.
+  const totalIds=new Set();
   for(const a of all){
-    if(!positive(a?.id)||rankedMatched.has(a.id))
-      return empty('RANKED_ACTOR_IDS_AMBIGUOUS');
+    if(!positive(a?.id)||totalIds.has(a.id)||
+       typeof a.amount!=='number'||!Number.isFinite(a.amount)||
+       a.amount<=0)
+      return empty('RANKED_ACTOR_IDS_OR_METRICS_INVALID');
+    totalIds.add(a.id);
     const b=bossMap.get(a.id);
     if(!b)continue;
-    if(a.class!==b.class||a.spec!==b.spec)
+    if(a.class!==b.class||a.spec!==b.spec||b.amount>a.amount)
       return empty('RANKED_METRICS_CONFLICT');
     rankedMatched.set(a.id,a);
   }
