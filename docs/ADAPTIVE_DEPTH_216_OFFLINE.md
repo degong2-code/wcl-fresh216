@@ -96,3 +96,27 @@ The new `src/core/report-wave-runner.mjs` accepts a caller-injected transport
 and existing atomic JsonCheckpointStore; no live execution is enabled by the
 plan itself. Synthetic 4-fight regressions cover restart, invalid/partial
 responses, actor ambiguity, budget admission and replay refusal.
+
+
+## Shared rank + Report host boundary (2026-10-28)
+
+Implemented as `src/core/adaptive-collector-runner.mjs` and
+`src/core/rank-batch-runner.mjs`, using existing schema-1 checkpoint
+plus new `rankRequests` entries. Both ranking and Report attempts share
+one owner, pre-HTTP durable IN_FLIGHT markers, incident/restart recovery,
+observed-point accounting and no automatic repeat of uncertain charged
+requests. Registered ranking query identity and its top100 actor slots
+are immutable even on resume. Ranking page proofs are the only ranks
+counted in next-stage marginal recovery. The Report wave stays one
+charged attempt, not one per fight.
+
+The pure `observed-cost-calibration.mjs` requires at least two
+successful request receipts of each kind by default; its result is
+an empirical *average*, not a guarantee of marginal savings.
+`runOneAdaptiveStep()` defaults to preview and requires
+`mode:'execute'`, explicit approval, point admission policy, injected
+rank+Report transports and a private atomic checkpoint for execution.
+This is an OFFLINE integration boundary, not a running WCL collector.
+
+Detailed protocol and remaining tasks:
+[ADAPTIVE_COLLECTION_HOST_OFFLINE.md](ADAPTIVE_COLLECTION_HOST_OFFLINE.md).

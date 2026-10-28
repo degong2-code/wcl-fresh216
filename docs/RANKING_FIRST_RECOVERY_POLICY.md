@@ -190,3 +190,27 @@ Code: `src/core/report-wave-runner.mjs`,
 This completes the offline **operation boundary**, not the 216-job
 production host, WCL credential binding or measured page-vs-Report
 economics. Historical 75 installed GAS tests remain unrun.
+
+
+## 2026-10-28 unified ranking + Report checkpoint boundary
+
+The source-attested Full216 adaptive planner is now paired with a
+**one-operation-at-a-time, transport-injected offline coordinator**:
+[ADAPTIVE_COLLECTION_HOST_OFFLINE.md](ADAPTIVE_COLLECTION_HOST_OFFLINE.md).
+Rank page requests and grouped Report requests share the SAME durable
+checkpoint, admission policy and uncertain-bill/no-auto-retry behavior.
+Rank evidence only becomes an immutable proof when report/fight,
+non-anonymous unique character name, startTime and known revision
+agree. WCL `hasMorePages=false`, short pages and an observed
+`{error}` page stop further pagination without a project-defined rank
+cutoff. Remaining named + Anonymous actors remain eligible for uniquely
+verified Report fallback.
+
+Observed `currentRequest.total` is recorded per request. Neither the
+previous successful final-run total 234.06 nor a decrease in HTTP calls
+is treated as a measured per-fight Report tariff. The new calibrator
+requires actual ranking and grouped Report request witnesses before
+enabling a two-sided economics estimate. All operations remain
+non-operational without explicit approval, a private persistent store,
+cost admission and an injected WCL transport. No production host,
+Sheets or GAS activation.

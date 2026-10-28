@@ -308,3 +308,13 @@ a theoretical HTTP count alone, and do not reopen the old 44-row G413 audit.
   atomic/regression tests, and preserved the single-fight runner.
 - **No live WCL or Sheets/GAS calls**. Remaining: production host
   wiring, calibrated admission, end-to-end 216 selected-scope trial.
+
+
+## 2026-10-28 unified durable adaptive collector — OFFLINE PASS
+
+- One shared schema-1 checkpoint now persists **BossDPS ranking-page batches** and **grouped Report waves** as distinct, one-request-at-a-time operations. Both protect against duplicate paid attempts after crashes, uncertain responses or source drift.
+- `src/core/rank-batch-runner.mjs` handles next ranking pages, official same-fight/unique-name/startTime matching, WCL page error/short/hasMorePages termination, immutable proof provenance, and Anonymous Report preservation.
+- `src/core/adaptive-collector-runner.mjs` recomputes exact Full216 state from committed proofs and selects exactly one next ranking or grouped Report operation. Preview is read-only; execute requires explicit owner approval, measured point admission and injected transport, with persistent store controlled by the caller.
+- `src/core/observed-cost-calibration.mjs` will only compare two-sided measured rank/Report costs after both are recorded by the shared checkpoint. Prior 234.06 combined request totals are **not** an independently measured Report marginal price.
+- New synthetic tests cover durable rank-batch replay, cross-path mutual exclusion, source drift, terminal pages, and Full216 one-step progression. No WCL/GAS/Sheets calls or main merge.
+- Reference: [ADAPTIVE_COLLECTION_HOST_OFFLINE.md](ADAPTIVE_COLLECTION_HOST_OFFLINE.md). Next: trusted installed-snapshot adapter, authorized persistent single-owner host and same-query Report wave cost measurement before live selected-scope 216.
