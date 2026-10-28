@@ -17,8 +17,13 @@ const sameProof=(s)=>{
     str(p.actorRef) && typeof p.bossDps==='number' &&
     Number.isFinite(p.bossDps) && p.bossDps>=0 && p.bossDps<=s.totalDps &&
     p.snapshotSha===s.snapshotSha && p.reportCode===s.reportCode &&
-    Number.isSafeInteger(p.reportRevision) && p.reportRevision>=0 &&
-    (s.reportRevision==null || s.reportRevision===p.reportRevision) &&
+    (Number.isSafeInteger(p.reportRevision)&&p.reportRevision>=0&&
+      (s.reportRevision==null||s.reportRevision===p.reportRevision) ||
+     p.reportRevision==null&&s.reportRevision==null&&
+      p.discovery?.kind==='BOSSDPS_RANKING_PAGE'&&
+      Number.isSafeInteger(p.discovery.page)&&p.discovery.page>=1&&
+      typeof s.startTime==='number'&&Number.isFinite(s.startTime)&&
+      p.sourceStartTime===s.startTime) &&
     p.fightId===s.fightId && p.encounterId===s.encounterId &&
     p.difficulty===s.difficulty;
 };
