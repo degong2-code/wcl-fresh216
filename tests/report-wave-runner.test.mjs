@@ -111,10 +111,10 @@ test('HTTP 504 and ambiguous transport: no fabricated points or automatic retry'
  assert.equal(checkpointStats(store.read()).pointsUnobserved,1);
  assert.equal(checkpointStats(store.read()).pointsTotalConfirmed,null);
  let calls=0;
- const next=await executeOneReportWave({store,wave,attemptId:'W-2',
-   clock:()=>200,transport:async()=>{calls++;return apiBody(wave);}});
+ await assert.rejects(()=>executeOneReportWave({store,wave,attemptId:'W-2',
+   clock:()=>200,transport:async()=>{calls++;return apiBody(wave);}}),
+   /WAVE_CHECKPOINT_NOT_READY/);
  assert.equal(calls,0);
- assert.equal(next.status==='NEEDS_REVIEW'||next.status==='WAVE_CHECKPOINT_NOT_READY',true);
 });
 test('crash after marker leaves whole wave NEEDS_REVIEW on recovery',()=>{
  const {state,wave}=setup();
