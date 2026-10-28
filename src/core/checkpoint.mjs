@@ -231,7 +231,8 @@ export function beginWaveFetch(state,wave,attemptId,atMs){
     e.status==='IN_FLIGHT'||e.status==='NEEDS_REVIEW'||
     (e.attempt&&e.observedPoints===null)),
     'SCOPE_HAS_UNRESOLVED_ATTEMPT');
-  ok(!Object.values(state.entries).some(e=>e.attempt?.id===attemptId),
+  ok(![...Object.values(state.entries),...Object.values(state.rankRequests??{}),
+    ...Object.values(state.sourceRequests??{})].some(e=>e.attempt?.id===attemptId),
     'DUPLICATE_ATTEMPT_ID');
   const out=clone(state),canonical=keys.slice().sort();
   for(const k of keys){
