@@ -48,7 +48,7 @@ const nameMasked=n=>!String(n??'').trim()||
   String(n).trim().toLowerCase()==='anonymous'||
   /^player\s*\(\d+\)$/i.test(String(n).trim());
 
-export function importCommittedG3Snapshots({manifest,items}={}){
+export function importCommittedG3Snapshots({manifest,items,allowPartial=false}={}){
   yes(manifest&&typeof manifest==='object'&&
     typeof manifest.scopeKey==='string'&&manifest.scopeKey&&
     typeof manifest.producerScope==='string'&&manifest.producerScope&&
@@ -56,7 +56,9 @@ export function importCommittedG3Snapshots({manifest,items}={}){
     (manifest.difficulty===4||manifest.difficulty===5)&&
     /^date\.\d+\.\d+$/.test(manifest.filter??'')&&
     manifest.partitionMode==='EXPLICIT_1'&&
-    Array.isArray(items)&&items.length===216,'G3_IMPORT_MANIFEST_INVALID');
+    Array.isArray(items)&& (allowPartial===true?
+      items.length>=1&&items.length<=216:items.length===216),
+    'G3_IMPORT_MANIFEST_INVALID');
   // This adapter supports the historical G3 scope, NOT a new latest-partition
   // snapshot. Extend only after a different producer schema is attested.
   yes(manifest.producerScope==='12.1|1|2026-10-08|2026-10-12|4'&&
@@ -149,12 +151,17 @@ export function importCommittedG3Snapshots({manifest,items}={}){
       });
     }
   }
-  yes(originals.size===216&&[...originals].every(n=>n>=4&&n<=219),
+  yes(originals.size===items.length&&[...originals].every(n=>n>=4&&n<=219),
     'G3_IMPORT_RAW_ROWS_INCOMPLETE');
-  const plan=planFull216(slots);
+  const complete=originals.size===216;
+  if(!allowPartial)yes(complete,'G3_IMPORT_RAW_ROWS_INCOMPLETE');
+  const plan=complete?planFull216(slots):null;
   return {slots,summary:{
-    schema:1,scopeKey:manifest.scopeKey,jobs:plan.jobs,
-    rankSlots:plan.rankSlots,pending:plan.pendingRankSlots,
+    schema:1,scopeKey:manifest.scopeKey,jobs:plan?.jobs??originals.size,
+    rankSlots:plan?.rankSlots??slots.length,
+    pending:plan?.pendingRankSlots??slots.length,
+    full216SourceComplete:complete,
+    full216DispatchEligible:complete,
     anonymous:slots.filter(s=>nameMasked(s.name)).length,
     source:'COMMITTED_G3_G413_ENVELOPES_WITH_RAW_A_T',
     shaChecks:'ENVELOPE_AND_BOTH_METRICS_AND_RAW_KPIS',
