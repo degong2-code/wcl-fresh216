@@ -180,3 +180,21 @@ test('resumed paid query cannot change checkpointed boss, spec or actor slots',a
    /RANK_REQUEST_SLOT_DRIFT/);
  assert.equal(calls,0);assert.equal(store.updates,0);
 });
+
+test('hasMorePages=false terminates a full 100-row page with no extra paid rank',async()=>{
+ const rows=slots(),store=mem(registerRankBatch(
+   newCheckpoint(scopeKey,'r1'),batch(rows)));
+ const req=readyRankBatches(store.read())[0];
+ const out=await executeOneRankBatch({store,request:req,attemptId:'LAST',
+   clock:()=>100,transport:async()=>{
+     const reply=body(rows);
+     reply.body.data.worldData.encounter.b0.hasMorePages=false;
+     return reply;
+   }});
+ assert.equal(out.status,'RECORDED');
+ const observed=committedRankingEvidence(store.read())[0].pages[0];
+ assert.equal(observed.rowCount,100);
+ assert.equal(observed.hasMorePages,false);
+ assert.throws(()=>store.update(s=>registerRankBatch(s,batch(rows,2))),
+   /RANK_REQUEST_SEQUENCE_OR_SNAPSHOT_DRIFT/);
+});
