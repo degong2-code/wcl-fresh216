@@ -117,3 +117,13 @@ test('wrong report/fight, date or duplicate RAW row cannot silently enter cohort
  assert.throws(()=>importCommittedG3Snapshots({manifest,items:duplicated}),
    /G3_IMPORT_DUPLICATE_JOB/);
 });
+
+test('44 committed envelopes can be integrity-audited, never mistaken for 216',()=>{
+ const items=fixtures.slice(0,44);
+ assert.throws(()=>importCommittedG3Snapshots({manifest,items}),/G3_IMPORT_MANIFEST_INVALID/);
+ const result=importCommittedG3Snapshots({manifest,items,allowPartial:true});
+ assert.equal(result.summary.jobs,44);
+ assert.equal(result.summary.rankSlots,4400);
+ assert.equal(result.summary.full216SourceComplete,false);
+ assert.equal(result.summary.full216DispatchEligible,false);
+});
