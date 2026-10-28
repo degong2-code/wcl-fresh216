@@ -318,3 +318,13 @@ a theoretical HTTP count alone, and do not reopen the old 44-row G413 audit.
 - `src/core/observed-cost-calibration.mjs` will only compare two-sided measured rank/Report costs after both are recorded by the shared checkpoint. Prior 234.06 combined request totals are **not** an independently measured Report marginal price.
 - New synthetic tests cover durable rank-batch replay, cross-path mutual exclusion, source drift, terminal pages, and Full216 one-step progression. No WCL/GAS/Sheets calls or main merge.
 - Reference: [ADAPTIVE_COLLECTION_HOST_OFFLINE.md](ADAPTIVE_COLLECTION_HOST_OFFLINE.md). Next: trusted installed-snapshot adapter, authorized persistent single-owner host and same-query Report wave cost measurement before live selected-scope 216.
+
+
+## 2026-10-28 historical committed G3 snapshot adapter — OFFLINE PASS
+
+- Added [G3_COMMITTED_SNAPSHOT_ADAPTER_OFFLINE.md](G3_COMMITTED_SNAPSHOT_ADAPTER_OFFLINE.md) and pure `src/core/g3-snapshot-adapter.mjs`, backed by 216×100 synthetic snapshot integrity tests.
+- Reads only caller-supplied G3/G4.13 **COMMITTED** envelope+RAW A:T data. Validates original SHA-256 envelope and per-metric rank digests, run/row/job scope, top100 figures, date, 8×27 cohort, and report/fight IDs; does NOT import user data in CI.
+- Historical G3 is **2026-10-08..12, partition 1**, not the newer 2026-10-22..28 latest partition. Mismatched periods are rejected; never relabel historical slots as current.
+- G3 does not attest reportRevision: keep it null; adaptive planner sends those jobs to official same-fight Report fallback rather than waste ranking calls unable to produce fully attested proofs.
+- Checksums verify internal source consistency, **not independent installed-sheet authenticity**. Actual 216 committed envelopes were not retrieved and full216 live coverage remains untested.
+- Next: private authoritative snapshot export/provenance and a fresh-period source contract, then persistent live host, measured grouped Report costs and selected-scope benchmark.
