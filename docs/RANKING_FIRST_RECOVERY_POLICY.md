@@ -142,3 +142,24 @@ Grouped official same-fight Report fallback then recovered **37 named + 4 Anonym
 Successful final run: 20 GraphQL requests, reported request-total sum **234.06**, 22.509 s summed GraphQL elapsed. Full sanitized receipt: [LIVE_NEKZALI_COMPLETION_DEPTH_20261028.md](LIVE_NEKZALI_COMPLETION_DEPTH_20261028.md).
 
 **Active policy:** adaptive ranking-first discovery is an optimization, not the completion mechanism. Stop ranking on measured low marginal value or WCL pagination unavailability; then use bounded grouped same-fight Report rankings for all residual named and Anonymous slots. Preserve null for genuinely ambiguous future cases rather than guessing.
+
+
+## 2026-10-28 adaptive Full216 planner integration (OFFLINE PASS)
+
+The no-fixed-rank-cap live 300/300 result is now represented by a pure
+216-job decision module: [ADAPTIVE_DEPTH_216_OFFLINE.md](ADAPTIVE_DEPTH_216_OFFLINE.md).
+It reuses the exact Full216 snapshot/proof validator and globally
+deduplicated report/fight groups. The decision compares recently observed
+**verified same-fight page gains** with an optimistic upper bound on
+**globally avoidable Report fights**. A match on a fight already requiring
+Report does not imply a saved Report request. Cost calibration must be
+supplied from observed WCL request totals, not from hardcoded tariffs.
+Unknown cost, poor marginal yield, a short page, or WCL pagination
+unavailability routes residual named + Anonymous slots to Report candidates.
+Page candidates and grouped Report waves are **not operationally authorized**
+and there is no new paid runner or durable wave journal.
+
+Existing VERIFIED same-fight BossDPS proofs are reused, and no guessed
+BossDPS value or Anonymous exclusion is introduced. Synthetic 216×100
+regressions passed on the development branch; this does not constitute a
+measured live 216-job execution.
