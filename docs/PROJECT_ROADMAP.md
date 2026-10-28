@@ -365,3 +365,26 @@ a theoretical HTTP count alone, and do not reopen the old 44-row G413 audit.
 - Still required: explicit fixed-budget authorization, private persistent
   host WCL transport, real 8-alias query calibration, then full
   source capture; no Sheets/GAS/main deployment.
+
+
+## 2026-10-28 owner-approved Oct22–27 fresh source live pilot SUCCESS
+
+- Owner changed date window to 2026-10-22..27 KST, server filter
+  `date.1792594800000.1793113200000`. Default/latest partition
+  still means GraphQL `partition` field omitted.
+- One-time authorization on exclusive experiment file addition;
+  consumed immutable GitHub ref before OAuth. Actual Actions
+  run [40652619477](https://github.com/degong2-code/wcl-fresh216/actions/runs/40652619477)
+  SUCCESS, 1 WCL GraphQL call, **8.01 currentRequest.total**,
+  **954 ms**, eight first-roster specs **100/100 each (800 rows)**.
+- The public paid job printed only sanitized row counts/cost/time;
+  no raw actor rows or secrets. Raw response was NOT persisted in
+  ephemeral Actions.
+- Therefore **actual durable fresh source remains 0/216**,
+  even though live shape verification is 8/8. Earlier 44 G4.13
+  jobs remain Oct8–12 partition1, not applicable.
+- Do not run remaining 31 planned paid requests into ephemeral/public
+  Actions storage. Next: owner-controlled PRIVATE PERSISTENT
+  WCL host with existing shared schema-1 sourceRequests checkpoint;
+  measure all new-period 216 ranks before BossDPS recovery.
+- Full receipt: [LIVE_FRESH_COHORT_20261022_27_8ALIAS_PILOT.md](LIVE_FRESH_COHORT_20261022_27_8ALIAS_PILOT.md).
