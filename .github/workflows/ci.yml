@@ -81,12 +81,7 @@ jobs:
         run: |
           set -euo pipefail
           diff="$(git diff-tree --no-commit-id --name-status -r "$GITHUB_SHA")"
-          if [[ "$diff" == $'A\texperiments/approved-nekzali-current-20261028.json' ]]; then
-            echo "enabled=true" >> "$GITHUB_OUTPUT"
-          fi
-          if [[ "$diff" == $'A\texperiments/approved-nekzali-20261022-28-boss1000.json' ]]; then
-            echo "enabled=true" >> "$GITHUB_OUTPUT"
-          fi
+          if [[ "$diff" == 
 
   approved-one-time-wcl-relay:
     needs: offline
@@ -198,8 +193,10 @@ jobs:
           WCL_CLIENT_ID: ${{ secrets.WCL_CLIENT_ID }}
           WCL_CLIENT_SECRET: ${{ secrets.WCL_CLIENT_SECRET }}
         run: node tools/run-actions-approved-measurement.mjs
-A\texperiments/approved-nekzali-current-20261028.json' || \
-                "$diff" == 
+A\texperiments/approved-nekzali-current-20261028.json' ]]; then
+            echo "enabled=true" >> "$GITHUB_OUTPUT"
+          fi
+          if [[ "$diff" == 
 
   approved-one-time-wcl-relay:
     needs: offline
