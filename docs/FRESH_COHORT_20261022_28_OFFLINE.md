@@ -1,3 +1,11 @@
+> **Period update (2026-10-28):** The owner changed this
+> previously proposed Oct22–28 KST window to **Oct22–27 KST**.
+> Source code now uses `date.1792594800000.1793113200000`;
+> use [the latest owner-approved live pilot](LIVE_FRESH_COHORT_20261022_27_8ALIAS_PILOT.md)
+> for current scope and actual query costs. The older date range
+> documented below is a superseded design reference, **not** the
+> current collection target.
+
 # Fresh216 Heroic TotalDPS source acquisition — OFFLINE implementation
 
 **Status (2026-10-28 KST):** Source capture engine, full
