@@ -84,8 +84,8 @@ export async function executePrivateCohortCli({
     // Do not request OAuth if the checkpoint is already unsafe or complete.
     const before=readPrivateCohortStatus({store,scopeKey:SCOPE,sourceCommit});
     if(['NEEDS_REVIEW','SOURCE_COMPLETE'].includes(before.run.stage)){
-      write(JSON.stringify({mode:'collect',...before,
-        attempted:false}));return before;
+      const stopped={mode:'collect',...before,attempted:false};
+      write(JSON.stringify(stopped));return stopped;
     }
     const transport=await makePrivateWclTransport({
       clientId:env.WCL_CLIENT_ID,clientSecret:env.WCL_CLIENT_SECRET,
