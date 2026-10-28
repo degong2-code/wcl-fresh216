@@ -342,3 +342,26 @@ a theoretical HTTP count alone, and do not reopen the old 44-row G413 audit.
   unique same report/fight/name plus exact timestamp is owner-approved,
   with mismatch and duplicate candidates fail-closed. Original G3
   snapshots still concern Oct8–12 partition1, not Oct22–28 latest.
+
+
+## 2026-10-28 new-period TotalDPS 216-job capture engine — OFFLINE PASS
+
+- Implemented [fresh fixed-period source acquisition](FRESH_COHORT_20261022_28_OFFLINE.md):
+  `src/core/fresh-cohort-source.mjs` and 10 offline regression tests.
+- Exact **Oct22–28 KST latest/default partition**, 8 fixed boss
+  encounter IDs and 27 fixed DPS specs from imported owner GAS
+  `BOSS_LIST`/`DPS_SPECS`. Does not reuse Oct8–12 partition1.
+- One Top100 `metric:dps` page/spec. Up to 8 same-boss specializations
+  per GraphQL request -> **32 planned one-owner operations**, not a
+  measured request time or WCL point cost.
+- Reuses same private, persistent schema-1 checkpoint with
+  `sourceRequests`, alongside rank batch/Report wave. Request cost
+  counted once. Fail-closed after partial/error/unknown charged response,
+  crash and source roster drift.
+- Strict source gate: 216×100 captured, 32 successful persisted source
+  requests and measured point receipts required before emitting
+  Full216 slots. Remaining new-period source jobs **216/216 not yet
+  actually captured**; offline synthetic 216/216 is not live success.
+- Still required: explicit fixed-budget authorization, private persistent
+  host WCL transport, real 8-alias query calibration, then full
+  source capture; no Sheets/GAS/main deployment.
