@@ -115,3 +115,10 @@ snapshots independently of public GitHub.
 The remaining two steps are: an owner-authorized source capture
 using actual WCL OAuth on a **durable private host**, and a cost/coverage
 audit before the adaptive BossDPS collector or Sheets/GAS activation.
+
+
+> **New private-host implementation:** The missing durable execution
+> path is now code-complete but only **OFFLINE TESTED**, not deployed:
+> [PRIVATE_FRESH216_HOST_RUNBOOK.md](PRIVATE_FRESH216_HOST_RUNBOOK.md).
+> The latest owner-approved source window is **Oct22–27 KST**, not the
+> superseded Oct22–28 design. No additional WCL queries were made.
