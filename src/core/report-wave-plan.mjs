@@ -3,10 +3,10 @@
  * one report(code) GraphQL document per wave. No network, credentials or
  * durable cache. HTTP request count is NOT WCL API point cost.
  *
- * IMPORTANT: a wave is ONE potentially charged HTTP operation. Do not use a
- * separate per-fight "IN_FLIGHT" checkpoint when issuing a multi-fight wave:
- * the durable executor must checkpoint the WHOLE wave before HTTP and only
- * fan out proofs after the response is safely committed.
+ * IMPORTANT: a wave is ONE potentially charged HTTP operation. The common
+ * checkpoint.mjs now supports an atomic whole-wave IN_FLIGHT/commit operation.
+ * report-wave-runner.mjs is the offline transport-injected execution boundary.
+ * Never dispatch a multi-fight wave using the single-fight runner.
  */
 const fail=code=>{throw Error(code);};
 const ok=(condition,code)=>{if(!condition)fail(code);};
@@ -63,10 +63,11 @@ export function planReportWaves(fetchPlan,{maxFightsPerWave=4}={}){
     separateFightHttpBaseline:fightGroups,
     // Only an HTTP count under the same single-fight query model.
     theoreticalHttpCallsCoalesced:fightGroups-waves.length,
-    // Existing checkpoint.mjs protects one fight per HTTP attempt. Bundled
-    // waves need their OWN atomic operation-level journal before activation.
+    // The older single-fight runner cannot execute multi-fight waves.
+    // The shared checkpoint now supports one atomic request spanning a wave.
     currentCheckpointCompatible:waves.every(w=>w.fightGroups.length===1),
-    waveJournalRequired:waves.some(w=>w.fightGroups.length>1),
+    waveCheckpointCompatible:true,
+    waveJournalRequired:false,
     readyForLiveExecution:false,
     pendingRankReferences:references,observedWclPoints:null,
     expectedWclPointSavings:null
