@@ -99,7 +99,11 @@ export function makeRankingsWaveQuery(wave){
   };
 }
 export function decodeRankingsWave(wave,httpStatus,body){
-  const p=body?.data?.rateLimitData?.currentRequest?.total;
+  let requestCost=body?.data?.rateLimitData?.currentRequest;
+  if(typeof requestCost==='string'){
+    try{requestCost=JSON.parse(requestCost);}catch{requestCost=null;}
+  }
+  const p=requestCost?.total;
   const observedPoints=typeof p==='number'&&Number.isFinite(p)&&p>=0?p:null;
   const refuse=reason=>({status:reason,observedPoints,results:[]});
   if(!wave||!Array.isArray(wave.fightGroups)||wave.fightGroups.length===0)
