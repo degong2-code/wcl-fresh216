@@ -10,7 +10,8 @@ import {planFightFetches} from '../src/core/fetch-plan.mjs';
 import {beginRankBatch,registerRankBatch,readyRankBatches}
   from '../src/core/rank-batch-checkpoint.mjs';
 import {
- validateFreshCohortManifest,planFreshCohortBatches,
+ validateFreshCohortManifest,makeFreshDatedHeroicManifest,
+ planFreshCohortBatches,
  buildFreshCohortQuery,installFreshCohortPlan,
  nextFreshCohortBatch,beginFreshCohortBatch,
  decodeFreshCohortBatch,exportVerifiedFreshCohort,
@@ -19,14 +20,7 @@ import {
 
 const FILTER='date.1792594800000.1793199600000';
 function manifest(){
- return {scopeKey:'heroic:dated:oct22-28',
-   difficulty:4,partitionMode:'LATEST_DEFAULT',filter:FILTER,
-   bosses:Array.from({length:8},(_,i)=>({
-     name:'TestBoss'+i,encounterId:3470+i
-   })),
-   specs:Array.from({length:27},(_,i)=>({
-     className:'Class'+i,specName:'Spec'+i
-   }))};
+ return makeFreshDatedHeroicManifest('heroic:dated:oct22-28');
 }
 const policy={notBeforeMs:0,maxObservedPoints:1000,reservePoints:30};
 const mem=state=>{
@@ -192,7 +186,7 @@ test('source origin mismatch cannot redefine jobs after checkpoint registration'
    newCheckpoint(m.scopeKey,'run-stable'),m);
  const bad=manifest();bad.specs[0].specName='Different';
  assert.throws(()=>nextFreshCohortBatch(ready,bad),
-   /FRESH_COHORT_MANIFEST_OR_REQUEST_DRIFT/);
+   /FRESH_COHORT_ROSTER_NOT_ATTESTED/);
  const b=nextFreshCohortBatch(ready,m).batch;
  const changed=structuredClone(b);
  changed.jobs[0].specName='Changed';
@@ -204,9 +198,9 @@ test('charged source IN_FLIGHT blocks another report attempt in same scope',()=>
    newCheckpoint(m.scopeKey,'run-mutex'),m);
  const b=nextFreshCohortBatch(state,m).batch;
  const started=beginFreshCohortBatch(state,b,'SOURCE',100);
- const s={scopeKey:m.scopeKey,jobKey:'TestBoss0|Class0|Spec0',
+ const s={scopeKey:m.scopeKey,jobKey:'네크잘리|DeathKnight|Frost',
    rank:1,snapshotSha:'a'.repeat(64),status:'PENDING',totalDps:500,
-   className:'Class0',specName:'Spec0',name:'Actor1',
+   className:'DeathKnight',specName:'Frost',name:'Actor1',
    reportCode:'TEST_REPORT',fightId:5,
    encounterId:3470,difficulty:4,reportRevision:null};
  const grouped=planFightFetches([s]).groups;
