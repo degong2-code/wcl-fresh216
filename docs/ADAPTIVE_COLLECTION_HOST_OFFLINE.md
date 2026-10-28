@@ -118,3 +118,15 @@ G3 source is Oct 8–12/partition 1 and has no attested report revision;
 the importer retains this instead of manufacturing new-period data or
 allowing unprovable ranking shortcuts. Obtain the private actual export
 and producer scope attestation before live execution.
+
+## 2026-10-28 actual workbook provenance audit
+
+A previously uploaded original XLSX supplied a **partial historical**
+G4.13 source: 44 COMMITTED envelopes and 44 RAW A:T rows. All 44
+passed envelope/metric digest and RAW-KPI parity. There is no complete
+216-job current-period source in that uploaded workbook. The public
+repository contains only code and sanitized count-level evidence.
+The G3 adapter supports audited partial import with a non-dispatchable
+flag; its strict full216 path remains unchanged. The owner-approved
+same report/fight/name/startTime unique identity rule is now recognized
+for ranking proof even when the historical producer omitted reportRevision.
