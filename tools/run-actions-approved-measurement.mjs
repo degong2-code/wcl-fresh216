@@ -11,6 +11,10 @@ import {
   DATED_REQUEST,DATED_ONCE_REF,DATED_TARGET,
   validateDatedRequest,buildDatedDepthQuery,summarizeDatedDepth
 } from '../src/core/approved-ranking-depth-date1000-trial.mjs';
+import {
+  LATEST_REQUEST,LATEST_ONCE_REF,LATEST_TARGET,
+  validateLatestRequest,buildLatestDepthQuery,summarizeLatestDepth
+} from '../src/core/approved-ranking-depth-date1000-latest-partition.mjs';
 
 const REPO='degong2-code/wcl-fresh216';
 const BRANCH='refs/heads/work/collector-architecture';
@@ -43,6 +47,10 @@ const experimentForChange=(changedFiles)=>{
   if(diff==='A\t'+DATED_REQUEST)return {
     requestPath:DATED_REQUEST,onceRef:DATED_ONCE_REF,target:DATED_TARGET,
     validate:validateDatedRequest,build:buildDatedDepthQuery,summarize:summarizeDatedDepth
+  };
+  if(diff==='A\t'+LATEST_REQUEST)return {
+    requestPath:LATEST_REQUEST,onceRef:LATEST_ONCE_REF,target:LATEST_TARGET,
+    validate:validateLatestRequest,build:buildLatestDepthQuery,summarize:summarizeLatestDepth
   };
   throw Error('MEASUREMENT_NOT_EXCLUSIVE_REQUEST_ADDITION');
 };
