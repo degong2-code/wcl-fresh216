@@ -6,6 +6,7 @@ import {prepareAdaptiveNext} from '../src/core/adaptive-collector-runner.mjs';
 import {newCheckpoint} from '../src/core/checkpoint.mjs';
 
 const digest=x=>createHash('sha256').update(x,'utf8').digest('hex');
+const split=s=>s.match(/[\s\S]{1,12000}/g);
 const manifest={
  scopeKey:'heroic:historical:source-review',
  producerScope:'12.1|1|2026-10-08|2026-10-12|4',
@@ -52,7 +53,7 @@ function makeFixture(){
    items.push({status:'COMMITTED',rawRow:raw,
      envelope:{version:1,runId:manifest.runId,
        key,scope:manifest.producerScope,rawRowNumber:row,
-       sha256:digest(json),chunkCount:1,chunks:[json]}});
+       sha256:digest(json),chunkCount:split(json).length,chunks:split(json)}});
  }
  return items;
 }
@@ -60,7 +61,8 @@ const fixtures=makeFixture();
 const parse=(entry)=>JSON.parse(entry.envelope.chunks.join(''));
 const repack=(entry,doc)=>{
  const json=JSON.stringify(doc);
- entry.envelope.chunks=[json];entry.envelope.chunkCount=1;
+ entry.envelope.chunks=split(json);
+ entry.envelope.chunkCount=entry.envelope.chunks.length;
  entry.envelope.sha256=digest(json);
 };
 test('imports exactly 216 committed G3 jobs and 21600 immutable source slots',()=>{
@@ -75,8 +77,9 @@ test('imports exactly 216 committed G3 jobs and 21600 immutable source slots',()
  // as a source of the newer latest-partition Oct 22..28 cohort.
  const preview=prepareAdaptiveNext({slots:imported.slots,
    state:newCheckpoint(manifest.scopeKey,'private-historical')});
- assert.equal(preview.kind,'RANK_BATCH');
- assert.equal(preview.request.filter,manifest.filter);
+ assert.equal(preview.kind,'REPORT_WAVE');
+ assert.equal(preview.nextPageCount,undefined);
+ assert.equal(preview.wave.fightGroups[0].scopeKey,manifest.scopeKey);
 });
 test('staged, corrupted digest and source scope mismatch are rejected',()=>{
  const stage=structuredClone(fixtures);stage[0].status='STAGED';
