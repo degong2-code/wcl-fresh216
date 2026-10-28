@@ -174,6 +174,97 @@ export function uncertainFailure(state,key,attemptId,{code,points=null,wallMs=nu
   e.observedPoints=points;e.wallMs=wallMs;
   out.version++;return out;
 }
+
+/**
+ * A Report wave is ONE WCL request covering 1..8 already-registered fights.
+ * It reuses the existing persisted checkpoint entries, not a second journal.
+ * Each member has the SAME attempt id, membership and ONE request-level cost.
+ * The store commits the entire returned state atomically.
+ */
+const waveKeys=(state,wave)=>{
+  ok(state?.schema===1&&state.status==='ACTIVE'&&wave&&
+    wave.scopeKey===state.scopeKey&&typeof wave.reportCode==='string'&&
+    Array.isArray(wave.fightGroups)&&wave.fightGroups.length>=1&&
+    wave.fightGroups.length<=8,'WAVE_CHECKPOINT_SHAPE');
+  const keys=[],seen=new Set();
+  for(const g of wave.fightGroups){
+    ok(g.scopeKey===wave.scopeKey&&g.reportCode===wave.reportCode&&
+      (g.reportRevision??null)===(wave.reportRevision??null)&&
+      Array.isArray(g.slots)&&g.slots.length>0,'WAVE_CHECKPOINT_GROUP_DRIFT');
+    const k=requestKey(g),entry=state.entries?.[k];
+    ok(entry&&entry.status==='READY'&&!seen.has(k),'WAVE_CHECKPOINT_NOT_READY');
+    seen.add(k);keys.push(k);
+    const actual=entry.slots.map(s=>JSON.stringify([
+      s.jobKey,s.rank,s.snapshotSha,s.totalDps,s.className,s.specName,
+      s.name??''])).sort();
+    const proposed=g.slots.map(s=>JSON.stringify([
+      s.jobKey,s.rank,s.snapshotSha,s.totalDps,s.className,s.specName,
+      s.name??''])).sort();
+    ok(JSON.stringify(actual)===JSON.stringify(proposed),
+      'WAVE_CHECKPOINT_SLOT_DRIFT');
+  }
+  return keys;
+};
+const waveAttempt=(state,wave,attemptId)=>{
+  ok(state?.schema===1&&wave&&Array.isArray(wave.fightGroups)&&
+    wave.fightGroups.length>=1&&wave.fightGroups.length<=8,
+    'WAVE_CHECKPOINT_SHAPE');
+  const keys=wave.fightGroups.map(requestKey);
+  ok(new Set(keys).size===keys.length,'WAVE_CHECKPOINT_DUPLICATE_FIGHT');
+  const canonical=keys.slice().sort();
+  for(const k of keys){
+    const a=state.entries?.[k]?.attempt;
+    ok(state.entries[k].status==='IN_FLIGHT'&&
+      a?.id===attemptId&&a.kind==='REPORT_WAVE'&&
+      JSON.stringify(a.waveKeys)===JSON.stringify(canonical),
+      'WAVE_CHECKPOINT_ATTEMPT_DRIFT');
+  }
+  return keys;
+};
+export function beginWaveFetch(state,wave,attemptId,atMs){
+  const keys=waveKeys(state,wave);
+  ok(typeof attemptId==='string'&&attemptId&&
+    Number.isSafeInteger(atMs)&&atMs>=0,'INVALID_ATTEMPT');
+  ok(!Object.values(state.entries).some(e=>
+    e.status==='IN_FLIGHT'||e.status==='NEEDS_REVIEW'||
+    (e.attempt&&e.observedPoints===null)),
+    'SCOPE_HAS_UNRESOLVED_ATTEMPT');
+  ok(!Object.values(state.entries).some(e=>e.attempt?.id===attemptId),
+    'DUPLICATE_ATTEMPT_ID');
+  const out=clone(state),canonical=keys.slice().sort();
+  for(const k of keys){
+    out.entries[k].status='IN_FLIGHT';
+    out.entries[k].attempt={id:attemptId,startedAtMs:atMs,
+      kind:'REPORT_WAVE',waveKeys:canonical};
+  }
+  out.version++;return out;
+}
+export function completeWaveFetch(state,wave,attemptId,joinedByFight,{
+  points=null,wallMs=null
+}={}){
+  const keys=waveAttempt(state,wave,attemptId);
+  ok(Array.isArray(joinedByFight)&&joinedByFight.length===keys.length,
+    'WAVE_CHECKPOINT_JOIN_COUNT');
+  // All proof checks complete in a PRIVATE clone. A single store.update()
+  // either commits every fight together, or throws without persistence.
+  let result=state;
+  for(let i=0;i<keys.length;i++){
+    result=completeFetch(result,keys[i],attemptId,
+      joinedByFight[i],{points,wallMs});
+  }
+  const out={...result,version:state.version+1};
+  return out;
+}
+export function uncertainWaveFailure(state,wave,attemptId,{
+  code,points=null,wallMs=null
+}={}){
+  const keys=waveAttempt(state,wave,attemptId);
+  let result=state;
+  for(const key of keys)
+    result=uncertainFailure(result,key,attemptId,{code,points,wallMs});
+  return {...result,version:state.version+1};
+}
+
 export function recoverCheckpoint(state){
   ok(state?.schema===1,'CHECKPOINT_INVALID');
   const out=clone(state);
@@ -204,13 +295,24 @@ export function checkpointStats(state){
   ok(state?.schema===1,'CHECKPOINT_INVALID');
   const counts={READY:0,IN_FLIGHT:0,COMPLETED:0,COMPLETED_PARTIAL:0,NEEDS_REVIEW:0};
   let witnessedPoints=0,pointsUnobserved=0,proofs=0,unresolved=0;
+  const billedAttempts=new Map();
   for(const e of Object.values(state.entries)){
     counts[e.status]=(counts[e.status]||0)+1;
     if(e.attempt){
-      if(e.observedPoints===null)pointsUnobserved++;
-      else witnessedPoints+=e.observedPoints;
+      const a=e.attempt;
+      const existing=billedAttempts.get(a.id);
+      if(existing){
+        ok(a.kind==='REPORT_WAVE'&&existing.kind==='REPORT_WAVE'&&
+          JSON.stringify(a.waveKeys)===JSON.stringify(existing.waveKeys)&&
+          e.observedPoints===existing.points,'CHECKPOINT_ATTEMPT_ACCOUNTING_DRIFT');
+      }else billedAttempts.set(a.id,{kind:a.kind??'SINGLE',
+        waveKeys:a.waveKeys??null,points:e.observedPoints});
     }
     if(e.result){proofs+=e.result.verified.length;unresolved+=e.result.unresolved.length;}
+  }
+  for(const a of billedAttempts.values()){
+    if(a.points===null)pointsUnobserved++;
+    else witnessedPoints+=a.points;
   }
   return {version:state.version,runStatus:state.status,counts,
     witnessedPoints,pointsUnobserved,pointsTotalConfirmed:pointsUnobserved===0?witnessedPoints:null,
