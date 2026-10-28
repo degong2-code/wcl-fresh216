@@ -120,7 +120,19 @@ export async function executeOneRankBatch({
      typeof transport!=='function'||typeof clock!=='function'||
      typeof shouldCancel!=='function'||!attemptId)
     throw Error('RANK_RUNNER_CONFIG_INVALID');
-  const q=makeRankBatchQuery(request);
+  // Bind paid query to the immutable request already registered in the
+  // durable checkpoint; never trust a caller-supplied resumed request body.
+  const persisted=store.read().rankRequests?.[request.key];
+  if(persisted?.status!=='READY')
+    throw Error('RANK_REQUEST_NOT_READY');
+  const source=persisted.source;
+  for(const field of ['scopeKey','jobKey','snapshotSha','encounterId',
+    'difficulty','className','specName','filter','firstPage','pageCount']){
+    if(request[field]!==source[field])throw Error('RANK_REQUEST_IDENTITY_DRIFT');
+  }
+  if(JSON.stringify(request.slots)!==JSON.stringify(source.slots))
+    throw Error('RANK_REQUEST_SLOT_DRIFT');
+  const q=makeRankBatchQuery(source);
   if(shouldCancel())return {status:'CANCELLED_BEFORE_REQUEST',attempted:false};
   const now=clock();
   if(!Number.isSafeInteger(now)||now<0)throw Error('RANK_CLOCK_INVALID');
@@ -153,7 +165,7 @@ export async function executeOneRankBatch({
     const old=Object.values(store.read().rankRequests??{})
       .filter(e=>e.source?.jobKey===request.jobKey&&e.status==='COMPLETED')
       .flatMap(e=>e.result?.verified??[]);
-    const decoded=decodeRankBatch(request,response?.httpStatus,response?.body,old);
+    const decoded=decodeRankBatch(source,response?.httpStatus,response?.body,old);
     points=decoded.observedPoints;
     outcome=decoded.status==='OK'?{result:decoded.result}:
       {code:decoded.status};
