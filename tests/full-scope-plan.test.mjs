@@ -181,3 +181,14 @@ test('one report revision cannot map one fightID to conflicting encounters',()=>
   assert.throws(()=>planReportWaves({groups:[g,contradiction]}),
     /WAVE_FIGHT_ENCOUNTER_CONFLICT/);
 });
+
+test('WCL currentRequest JSON string retains one point witness for whole wave',()=>{
+ const wave=planReportWaves({groups:planFull216(fullSlots()).groups.slice(0,1)}).waves[0];
+ const report={code:wave.reportCode,revision:5,
+   o0:{data:[{fightID:wave.fightGroups[0].fightId}]},
+   b0:{data:[{fightID:wave.fightGroups[0].fightId}]}};
+ const out=decodeRankingsWave(wave,200,{data:{
+   rateLimitData:{currentRequest:'{"total":3.25}'},reportData:{report}
+ }});
+ assert.equal(out.status,'OK');assert.equal(out.observedPoints,3.25);
+});
