@@ -72,7 +72,8 @@ export function decodeRankBatch(source,httpStatus,body,previous=[]){
       const k=ident(r);
       if(k){const a=right.get(k)||[];a.push({page:number,row:r});right.set(k,a);}
     }
-    pg.push({page:number,status:'OK',rowCount:rows.length,newVerifiedRanks:[]});
+    pg.push({page:number,status:'OK',rowCount:rows.length,
+      hasMorePages:obj.hasMorePages??null,newVerifiedRanks:[]});
     if(rows.length<100||obj.hasMorePages===false){terminal=true;break;}
   }
   if(pg.length===0)return reject('RANK_NO_PAGES_OBSERVED');
