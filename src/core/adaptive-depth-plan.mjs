@@ -59,7 +59,8 @@ export function planAdaptive216(slots,{pageEvidence=[],economics=null,batchPages
     const pages=evidence.get(k)??[],last=pages.at(-1);
     let reason='REPORT_FALLBACK',nextPages=[],economy=null;
     if(!j.namedPending)reason=j.anonymousPending?'ANONYMOUS_REPORT':'ALREADY_VERIFIED';
-    else if(last&&(last.status==='UNAVAILABLE'||last.rowCount<100))
+    else if(last&&(last.status==='UNAVAILABLE'||last.rowCount<100||
+      last.hasMorePages===false))
       reason='WCL_PAGINATION_ENDED';
     else if(!j.singleton)reason='REPORT_ALREADY_SHARED';
     else if(!last){
