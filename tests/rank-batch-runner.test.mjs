@@ -162,3 +162,21 @@ test('bad 504 response records incident and no made-up point charge',async()=>{
  assert.equal(checkpointStats(store.read()).pointsUnobserved,1);
  assert.equal(committedProofs(store.read()).length,0);
 });
+
+test('resumed paid query cannot change checkpointed boss, spec or actor slots',async()=>{
+ const rows=slots(),store=mem(registerRankBatch(
+   newCheckpoint(scopeKey,'r1'),batch(rows)));
+ const valid=readyRankBatches(store.read())[0];
+ let calls=0;
+ await assert.rejects(()=>executeOneRankBatch({store,
+   request:{...valid,encounterId:9999},attemptId:'BAD-1',clock:()=>100,
+   transport:async()=>{calls++;return body(rows);}}),
+   /RANK_REQUEST_IDENTITY_DRIFT/);
+ const altered=structuredClone(valid);
+ altered.slots[0].name='OtherActor';
+ await assert.rejects(()=>executeOneRankBatch({store,
+   request:altered,attemptId:'BAD-2',clock:()=>100,
+   transport:async()=>{calls++;return body(rows);}}),
+   /RANK_REQUEST_SLOT_DRIFT/);
+ assert.equal(calls,0);assert.equal(store.updates,0);
+});
