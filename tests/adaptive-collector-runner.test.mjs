@@ -117,8 +117,13 @@ test('shared fights choose one 4-fight Report wave and persist 108 actor proofs'
  assert.equal(checkpointStats(store.read()).witnessedPoints,17.5);
  const second=prepareAdaptiveNext({slots,state:store.read()});
  assert.equal(second.kind,'REPORT_WAVE');assert.equal(second.resumed,true);
- assert.notEqual(second.wave.waveId,
-   prepareAdaptiveNext({slots,state:newCheckpoint(scopeKey,'empty')}).wave.waveId);
+ const original=prepareAdaptiveNext({slots,
+   state:newCheckpoint(scopeKey,'empty')}).wave;
+ assert.notDeepEqual(second.wave.fightGroups.map(g=>g.fightId),
+   original.fightGroups.map(g=>g.fightId));
+ assert.equal(second.wave.fightGroups.some(g=>
+   original.fightGroups.some(old=>
+     g.reportCode===old.reportCode&&g.fightId===old.fightId)),false);
 });
 test('observed rank points alone never fabricates a Report cost calibration',()=>{
  const state={schema:1,entries:{},rankRequests:{
