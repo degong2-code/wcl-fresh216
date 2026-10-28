@@ -21,6 +21,36 @@
 - De-duplicate page requests across specs/bosses where the actual current API scope and access policy allow; don't assume queries can be shared across distinct specs just because page index matches.
 - Treat all cached current PROOF values as **already stored numeric witnesses**, not automatic proof of canonical actor identity. Never re-fetch 2,721 already name-matched or 4,326 historically stored values merely to satisfy an ID-only criterion.
 
+## 2026-10-28 P0 offline cutoff finding — leaderboard best-parse limitation
+
+This is an **aggregate-only finding** from the already source-attested **44 private G413 snapshots and saved PROOF**. It is NOT another 44-hash audit; no identities, report codes, raw ranking rows, workbook, or credentials were copied to this repository. No new WCL/Sheets operations were performed.
+
+| Existing stored evidence | Aggregate |
+| --- | ---: |
+| TotalDPS top-100 source slots | 4,400 |
+| Direct same-fight/name BossDPS values | 2,721 |
+| Other non-null saved BossDPS values | 1,605 |
+| Other saved BossDPS **below** their own job's cached BossDPS rank-100 cutoff | **1,460** |
+| Other saved BossDPS **above** the same cutoff | **145** (40/44 jobs) |
+| Above-cutoff values present in BossDPS page 1 by same report+fight+normalized name | **0** |
+| Above-cutoff values with same name elsewhere in BossDPS page 1 but different report/fight | 23 (possible namesakes; not actor proof) |
+| Below-cutoff values with same name elsewhere in BossDPS page 1 but different report/fight | 17 |
+| Above-cutoff within 5% of cutoff | 92 |
+| Missing slots: anonymous/blank vs named | 70 vs 4 |
+
+**Why the original page-2/3 hypothesis needs a qualification:** Warcraft Logs distinguishes a character's **ranking (best metric-specific score)** from their **parses (all individual fight results)**. The best TotalDPS report/fight and the best BossDPS report/fight may differ even for the same actor. An encounter BossDPS ranking page does **not promise to list every other eligible BossDPS parse of that actor**; more leaderboard pages may therefore never expose the BossDPS for the **specific** fight selected by TotalDPS rank 1-100.
+
+Under an identical, complete, unchanged and descending BossDPS leaderboard, **a saved BossDPS above the 100th-place amount cannot first appear on page 2 or 3**. The 145 cases are therefore **not evidence that pagination depth alone explains every missed direct match**. Their exact root causes (leaderboard eligibility, best-parse selection, archival timing, metric/partition/scope differences or stored source provenance) remain unverified. Likewise, 1,460 below-cutoff cases are **potential** new-page matches, *not measured page-200/300 recovery*. Do not classify a specific named null by cutoff without a trustworthy same-fight BossDPS.
+
+**Revised smallest path:**
+1. Reuse existing TotalDPS top100, official BossDPS page1 and already stored same-fight PROOF. Never re-fetch or reassign a different fight's BossDPS.
+2. Treat BossDPS page 2/3 as **conditional discovery**, not a proven complete replacement for per-fight Report sources; inspect and stop according to *actual newly matched same-report+fight+unique-name slots per observed points and elapsed time*. Do not assume 100 rows per future page.
+3. Keep a **bounded, measured official `report.rankings(fightIDs, playerMetric: bossdps)` fallback** for economically worthwhile **named** TotalDPS fights absent from leaderboards. It is not an unrestricted Report chase; the report-level response remains subject to identity/metric/revision checks. Do not substitute unverified `table(DamageDone)` for official BossDPS.
+4. Anonymous remains excluded by default. Source TotalDPS ranks remain fixed; unresolved BossDPS and dependent U:Y are null. Neither saved numeric concordance nor matching names on **different** fights prove same-actor parity.
+5. Do **not** introduce a speculative page adapter, permanent retry loops, a new validation gate, or more ID bridges before a separately approved **bounded live page/Report ROI observation**. The four prior paid approvals are exhausted.
+
+Sources (public documentation, not new authenticated queries): [WCL rankings vs parses](https://www.warcraftlogs.com/help/ranks/); [Encounter.characterRankings page/metric/partition/filter](https://classic.warcraftlogs.com/v2-api-docs/warcraft/encounter.doc.html); [Report.rankings fightIDs and playerMetric](https://www.warcraftlogs.com/v2-api-docs/warcraft/report.doc.html).
+
 ### Remaining technical questions: do NOT invent answers
 
 1. Does the **current retail Warcraft Logs GraphQL** `characterRankings` query accept the needed BossDPS metric/filter and return **100 records per page** for the chosen encounter/spec/difficulty/date scope? Confirm response shape and pagination against documentation/schema or permitted cached evidence; a live query requires **new explicit user consent**.
