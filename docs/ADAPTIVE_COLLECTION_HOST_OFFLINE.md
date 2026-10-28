@@ -143,3 +143,19 @@ export Full216 slots until every 100-row job is committed. Runtime
 requires explicit owner approval, WCL transport and private persistent
 volume. No new live WCL calls, actor data publishing, Sheets or GAS
 changes were made in this offline development stage.
+
+
+## Latest-period actual WCL cost/shape calibration (Oct22–27)
+
+The new owner-approved eight-alias TotalDPS source pilot was run
+successfully on GitHub Actions:
+[LIVE_FRESH_COHORT_20261022_27_8ALIAS_PILOT.md](LIVE_FRESH_COHORT_20261022_27_8ALIAS_PILOT.md).
+It observed 8/8 valid top100 sets, 1 GraphQL call, WCL
+`currentRequest.total=8.01`, elapsed 954ms. The sample covers
+the first eight specs of Heroic Nek'zali only; do not generalize
+8.01 to every batch or claim a full production benchmark.
+
+**Privacy boundary:** the public Actions pilot intentionally saved
+no original character/report/fight rows. So no persisted Oct22–27
+source jobs are counted yet (0/216). The 32-request complete source
+collector is code-tested, not activated in a persistent host.
