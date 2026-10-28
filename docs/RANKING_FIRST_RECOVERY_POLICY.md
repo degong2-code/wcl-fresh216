@@ -156,10 +156,37 @@ Report does not imply a saved Report request. Cost calibration must be
 supplied from observed WCL request totals, not from hardcoded tariffs.
 Unknown cost, poor marginal yield, a short page, or WCL pagination
 unavailability routes residual named + Anonymous slots to Report candidates.
-Page candidates and grouped Report waves are **not operationally authorized**
-and there is no new paid runner or durable wave journal.
+Page candidates and grouped Report waves remain **non-operational**. A
+transport-injected offline Report-wave runner now reuses the existing durable
+checkpoint, but it has no authorized WCL client or live dispatch configuration.
 
 Existing VERIFIED same-fight BossDPS proofs are reused, and no guessed
 BossDPS value or Anonymous exclusion is introduced. Synthetic 216×100
 regressions passed on the development branch; this does not constitute a
 measured live 216-job execution.
+
+
+## 2026-10-28 atomic grouped Report checkpoint — OFFLINE PASS
+
+Selected the bounded multi-fight Report wave over separate per-fight WCL
+requests, while keeping one shared checkpoint state (schema 1). Four
+report/fights in one query share one atomic IN_FLIGHT marker and one
+committed result transition. Same-fight proof validation runs for every
+member before any proofs are durably written. A 504/transport uncertainty,
+partial GraphQL response, changed revision or crash leaves **the whole
+wave** in NEEDS_REVIEW; automatic replay remains forbidden.
+
+WCL `currentRequest.total` is counted **once per shared attempt ID**
+rather than four times. Both single-fight and wave requests still use
+the existing point admission policy, and no real WCL call or Sheets write
+was performed. Added nine synthetic Report-wave regression tests, including
+durable JSON checkpoint restart, cost de-duplication, Anonymous actor
+proof, partial ambiguity, invalid proof and replay refusal.
+
+Code: `src/core/report-wave-runner.mjs`,
+`src/core/checkpoint.mjs`; design:
+[ADAPTIVE_DEPTH_216_OFFLINE.md](ADAPTIVE_DEPTH_216_OFFLINE.md).
+
+This completes the offline **operation boundary**, not the 216-job
+production host, WCL credential binding or measured page-vs-Report
+economics. Historical 75 installed GAS tests remain unrun.
