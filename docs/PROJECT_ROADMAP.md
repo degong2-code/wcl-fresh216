@@ -264,3 +264,14 @@ a theoretical HTTP count alone, and do not reopen the old 44-row G413 audit.
 - Rank300→1000 added 27 exact matches but still left **52 named + 4 anonymous** unresolved.
 - Three corrected GraphQL requests reported 11.01 total points each, 33.03 summed, with 2.35 s summed GraphQL elapsed.
 - Architecture decision strengthened: ranking depth is cheap/useful discovery, but **not a complete substitute** for bounded official same-fight Report rankings. Use adaptive marginal depth, then Report fallback for named residuals.
+
+
+## 2026-10-28 completion-depth + Anonymous LIVE proof
+
+- New specs: Frost DK, Retribution, Shadow; Heroic Nek'zali; Oct 22–28 KST; latest/default partition.
+- No project rank cap. WCL returned 100-row pages through page20, then page21 returned an error-shaped JSON object.
+- Ranking exact same-fight recovery through page20: Frost 91/100, Ret 87/100, Shadow 81/100 = **259/300**.
+- Rank1000→2000 added only **12** actors, confirming diminishing, job-specific marginal yield.
+- Grouped same-fight Report fallback recovered every residual named actor plus all **4/4 Anonymous** after restoring installed `Player (n)` report-local actor-ref semantics.
+- Final result **300/300**, 20 GraphQL requests, 234.06 summed reported request totals, 22.509 s summed GraphQL elapsed.
+- Implementation priority is now concrete: **adaptive ranking discovery → grouped Report completion**, not deeper fixed ranking thresholds. Anonymous is no longer default-exclude when exact report-local crosswalk is uniquely verifiable; retain fail-closed null on ambiguity.

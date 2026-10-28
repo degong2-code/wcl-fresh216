@@ -129,3 +129,16 @@ Three corrected GraphQL requests reported 11.01 total points each (33.03 summed)
 **Policy consequence:** a shorter date window improves ranking-depth recall, and rank300→1000 has measurable value (+27/300), but even rank1000 does not replace same-fight Report recovery. Permanent depth should therefore be **adaptive/marginal**, not a fixed 300 or 1000 threshold. Named residuals continue to the bounded official Report rankings path; anonymous stays null.
 
 Sanitized receipt: [LIVE_NEKZALI_DATE_20261022_28_RANK1000.md](LIVE_NEKZALI_DATE_20261022_28_RANK1000.md).
+
+
+## LIVE completion-depth + Anonymous result — 2026-10-28
+
+Owner-approved Heroic Nek'zali (Oct 22–28 KST) completion-depth experiment used **Frost DK / Retribution / Shadow**, not the previous three specs. BossDPS rankings had no project-defined rank cap: 10-page batches continued until WCL stopped returning a normal rankings shape. Page20 returned 100 rows; page21 returned an `error` object, so practical ranking discovery stopped at the WCL endpoint boundary.
+
+Ranking alone recovered **259/300 (86.3%)** through page20: Frost 91, Ret 87, Shadow 81. Rank1000→2000 added only 12 exact same-fight slots total.
+
+Grouped official same-fight Report fallback then recovered **37 named + 4 Anonymous**, producing **300/300**. Anonymous recovery succeeded after matching the installed collector's existing rule: use exact TotalDPS + class/spec within the same report/fight, then crosswalk overall→boss by positive actor id or stable report-local temporary label such as `Player (n)`. Never use the literal `Anonymous` as identity.
+
+Successful final run: 20 GraphQL requests, reported request-total sum **234.06**, 22.509 s summed GraphQL elapsed. Full sanitized receipt: [LIVE_NEKZALI_COMPLETION_DEPTH_20261028.md](LIVE_NEKZALI_COMPLETION_DEPTH_20261028.md).
+
+**Active policy:** adaptive ranking-first discovery is an optimization, not the completion mechanism. Stop ranking on measured low marginal value or WCL pagination unavailability; then use bounded grouped same-fight Report rankings for all residual named and Anonymous slots. Preserve null for genuinely ambiguous future cases rather than guessing.
