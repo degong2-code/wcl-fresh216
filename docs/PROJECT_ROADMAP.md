@@ -275,3 +275,19 @@ a theoretical HTTP count alone, and do not reopen the old 44-row G413 audit.
 - Grouped same-fight Report fallback recovered every residual named actor plus all **4/4 Anonymous** after restoring installed `Player (n)` report-local actor-ref semantics.
 - Final result **300/300**, 20 GraphQL requests, 234.06 summed reported request totals, 22.509 s summed GraphQL elapsed.
 - Implementation priority is now concrete: **adaptive ranking discovery → grouped Report completion**, not deeper fixed ranking thresholds. Anonymous is no longer default-exclude when exact report-local crosswalk is uniquely verifiable; retain fail-closed null on ambiguity.
+
+
+## 2026-10-28 adaptive-depth Full216 OFFLINE implementation
+
+- Added `src/core/adaptive-depth-plan.mjs` atop existing
+  `planFull216` and globally grouped Report fallback.
+- Rank page continuation is driven by recent *verified* new same-fight
+  matches versus externally measured per-page and per-fight point estimates,
+  counting only Report fights that can actually become unnecessary.
+- No fixed rank 1000/2000 cutoff. Anonymous and unresolved named slots
+  remain in fallback. No WCL HTTP or Sheets writes.
+- Added eight synthetic full216 regression tests. The module is
+  `readyForAutomaticDispatch:false` because a shared atomic paid-operation
+  checkpoint is still required for multi-fight Report waves.
+- Next: validate a measured calibration and operation-level handoff,
+  then conduct selected-scope end-to-end pilot before Sheets/GAS activation.
