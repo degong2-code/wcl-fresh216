@@ -22,6 +22,14 @@ export const COMPLETE_CORRECTION_APPROVAL=
   'OWNER_APPROVED_20261028_NEKZALI_COMPLETION_DEPTH_PAGE21_CORRECTION_ALL_REQUIRED_CALLS';
 export const COMPLETE_CORRECTION_ONCE_REF=
   'refs/heads/wcl-fresh216-approved-nekzali-20261022-28-completion-depth-page21-correction-consumed';
+export const COMPLETE_CORRECTION2_REQUEST=
+  'experiments/approved-nekzali-20261022-28-completion-depth-page21-error-object.json';
+export const COMPLETE_CORRECTION2_ID=
+  'FRESH216_NEKZALI_20261022_28_COMPLETION_DEPTH_PAGE21_ERROR_OBJECT_20261028';
+export const COMPLETE_CORRECTION2_APPROVAL=
+  'OWNER_APPROVED_20261028_NEKZALI_COMPLETION_DEPTH_PAGE21_ERROR_OBJECT_ALL_REQUIRED_CALLS';
+export const COMPLETE_CORRECTION2_ONCE_REF=
+  'refs/heads/wcl-fresh216-approved-nekzali-20261022-28-completion-depth-page21-error-object-consumed';
 export const COMPLETE_TARGET=Object.freeze({
   encounterId:3470,difficulty:4,
   startMs:1792594800000,endMs:1793199600000,
@@ -66,6 +74,10 @@ const rate=(body)=>{
 };
 const rankingRows=(obj,label,{allowUnavailable=false}={})=>{
   if(obj==null&&allowUnavailable)return null;
+  if(allowUnavailable&&obj&&typeof obj==='object'&&!Array.isArray(obj)){
+    const keys=Object.keys(obj).sort();
+    if(keys.length===1&&keys[0]==='error')return null;
+  }
   if(!obj||typeof obj!=='object'||!Array.isArray(obj.rankings))
     throw Error('COMPLETE_'+label+'_SHAPE');
   const rows=obj.rankings;
@@ -77,7 +89,7 @@ const rankingRows=(obj,label,{allowUnavailable=false}={})=>{
   }
   return rows;
 };
-export function validateCompletionRequest(request,{correction=false}={}){
+export function validateCompletionRequest(request,{correction=0}={}){
   const keys=['request_id','approval','encounter_id','difficulty',
     'partition_mode','date_start_kst','date_end_kst','filter','specs',
     'total_dps_pages','boss_dps_mode','ranking_batch_pages',
@@ -85,8 +97,10 @@ export function validateCompletionRequest(request,{correction=false}={}){
   if(!request||typeof request!=='object'||Array.isArray(request)||
      Object.keys(request).sort().join('|')!==keys.slice().sort().join('|'))
     throw Error('COMPLETE_REQUEST_FIELDS_INVALID');
-  const expectedId=correction?COMPLETE_CORRECTION_ID:COMPLETE_ID;
-  const expectedApproval=correction?COMPLETE_CORRECTION_APPROVAL:COMPLETE_APPROVAL;
+  const expectedId=correction===2?COMPLETE_CORRECTION2_ID:
+    correction===1?COMPLETE_CORRECTION_ID:COMPLETE_ID;
+  const expectedApproval=correction===2?COMPLETE_CORRECTION2_APPROVAL:
+    correction===1?COMPLETE_CORRECTION_APPROVAL:COMPLETE_APPROVAL;
   if(request.request_id!==expectedId||request.approval!==expectedApproval||
      request.encounter_id!==3470||request.difficulty!==4||
      request.partition_mode!=='LATEST_DEFAULT'||

@@ -2,7 +2,8 @@
 import {Buffer} from 'node:buffer';
 import {
   COMPLETE_REQUEST,COMPLETE_ONCE_REF,COMPLETE_CORRECTION_REQUEST,
-  COMPLETE_CORRECTION_ONCE_REF,COMPLETE_TARGET,validateCompletionRequest,
+  COMPLETE_CORRECTION_ONCE_REF,COMPLETE_CORRECTION2_REQUEST,
+  COMPLETE_CORRECTION2_ONCE_REF,COMPLETE_TARGET,validateCompletionRequest,
   buildRankingBatchQuery,createRankingState,initCompletionState,applyRankingBatch,
   rankingProgress,unresolvedFightGroups,buildReportBatchQuery,applyReportBatch,
   finalCompletionSummary
@@ -22,14 +23,19 @@ export function preflightCompletion(env,request,changedFiles){
      !/^[a-f0-9]{40}$/i.test(env?.GITHUB_SHA||''))
     throw Error('COMPLETE_ACTION_SCOPE_DENIED');
   const diff=changedFiles.trim();
-  const correction=diff==='A\t'+COMPLETE_CORRECTION_REQUEST;
-  if(diff!=='A\t'+COMPLETE_REQUEST&&!correction)
+  const correction=diff==='A\t'+COMPLETE_CORRECTION2_REQUEST?2:
+    diff==='A\t'+COMPLETE_CORRECTION_REQUEST?1:0;
+  if(diff!=='A\t'+COMPLETE_REQUEST&&correction===0)
     throw Error('COMPLETE_NOT_EXCLUSIVE_REQUEST_ADDITION');
   validateCompletionRequest(request,{correction});
   for(const k of ['GITHUB_TOKEN','WCL_CLIENT_ID','WCL_CLIENT_SECRET'])
     if(typeof env?.[k]!=='string'||!env[k])throw Error('COMPLETE_REQUIRED_SECRET_MISSING');
-  return {onceRef:correction?COMPLETE_CORRECTION_ONCE_REF:COMPLETE_ONCE_REF,
-    requestPath:correction?COMPLETE_CORRECTION_REQUEST:COMPLETE_REQUEST};
+  return {
+    onceRef:correction===2?COMPLETE_CORRECTION2_ONCE_REF:
+      correction===1?COMPLETE_CORRECTION_ONCE_REF:COMPLETE_ONCE_REF,
+    requestPath:correction===2?COMPLETE_CORRECTION2_REQUEST:
+      correction===1?COMPLETE_CORRECTION_REQUEST:COMPLETE_REQUEST
+  };
 }
 const json=async r=>r?.json?await r.json().catch(()=>null):null;
 const wclPost=async(fetchImpl,token,query,variables,clock)=>{
@@ -139,7 +145,8 @@ export async function main(){
       '-r',process.env.GITHUB_SHA],{encoding:'utf8',timeout:10000});
     const normalized=diff.trim();
     const requestPath=normalized==='A\t'+COMPLETE_REQUEST?COMPLETE_REQUEST:
-      normalized==='A\t'+COMPLETE_CORRECTION_REQUEST?COMPLETE_CORRECTION_REQUEST:null;
+      normalized==='A\t'+COMPLETE_CORRECTION_REQUEST?COMPLETE_CORRECTION_REQUEST:
+      normalized==='A\t'+COMPLETE_CORRECTION2_REQUEST?COMPLETE_CORRECTION2_REQUEST:null;
     if(!requestPath){
       process.stdout.write('COMPLETE_NOT_REQUEST_ADDITION_NO_HTTP\n');return;
     }

@@ -3,7 +3,8 @@ import assert from 'node:assert/strict';
 import {
  COMPLETE_REQUEST,COMPLETE_ID,COMPLETE_APPROVAL,COMPLETE_ONCE_REF,
  COMPLETE_CORRECTION_REQUEST,COMPLETE_CORRECTION_ID,COMPLETE_CORRECTION_APPROVAL,
- COMPLETE_CORRECTION_ONCE_REF,COMPLETE_TARGET,
+ COMPLETE_CORRECTION_ONCE_REF,COMPLETE_CORRECTION2_REQUEST,COMPLETE_CORRECTION2_ID,
+ COMPLETE_CORRECTION2_APPROVAL,COMPLETE_CORRECTION2_ONCE_REF,COMPLETE_TARGET,
  validateCompletionRequest,buildRankingBatchQuery,createRankingState,initCompletionState,
  applyRankingBatch,rankingProgress,buildReportBatchQuery,applyReportBatch,finalCompletionSummary
 } from '../src/core/approved-completion-depth-trial.mjs';
@@ -108,4 +109,27 @@ test('correction manifest uses a new irreversible ref',()=>{
  const q=preflightCompletion(env(),correction,
   'A\t'+COMPLETE_CORRECTION_REQUEST+'\n');
  assert.equal(q.onceRef,COMPLETE_CORRECTION_ONCE_REF);
+});
+
+test('page21 {error:...} object is treated as WCL pagination unavailable',()=>{
+ const spec=COMPLETE_TARGET.specs[0];
+ const first=rankBody(spec,1,true,{matchPages:1});
+ const d1=createRankingState(spec,first,1,{includeTotal:true});
+ const st=initCompletionState(spec,d1.overall);applyRankingBatch(st,d1.pages);
+ const second=rankBody(spec,11,false,{matchPages:0});
+ const d2=createRankingState(spec,second,11);applyRankingBatch(st,d2.pages);
+ const third=rankBody(spec,21,false,{matchPages:0});
+ third.data.worldData.encounter.b21={error:'synthetic page limit'};
+ const d3=createRankingState(spec,third,21);
+ const p=applyRankingBatch(st,d3.pages);
+ assert.equal(p.rankingUnavailable,true);
+ assert.equal(p.unavailablePage,21);
+ assert.equal(p.lastPage,20);
+});
+test('page21 error-object correction uses a third immutable consumed ref',()=>{
+ const correction={...request(),request_id:COMPLETE_CORRECTION2_ID,
+   approval:COMPLETE_CORRECTION2_APPROVAL};
+ const q=preflightCompletion(env(),correction,
+   'A\t'+COMPLETE_CORRECTION2_REQUEST+'\n');
+ assert.equal(q.onceRef,COMPLETE_CORRECTION2_ONCE_REF);
 });
