@@ -90,6 +90,9 @@ jobs:
           if [[ "$diff" == $'A\texperiments/approved-nekzali-20261022-28-boss1000-latest-partition.json' ]]; then
             echo "enabled=true" >> "$GITHUB_OUTPUT"
           fi
+          if [[ "$diff" == $'A\texperiments/approved-nekzali-20261022-28-completion-depth.json' ]]; then
+            echo "enabled=true" >> "$GITHUB_OUTPUT"
+          fi
 
   approved-one-time-wcl-relay:
     needs: offline
@@ -184,7 +187,7 @@ jobs:
       needs.offline.result == 'success' &&
       needs.offline.outputs.approved_measurement_addition == 'true'
     runs-on: ubuntu-latest
-    timeout-minutes: 6
+    timeout-minutes: 12
     permissions:
       contents: write
     steps:
