@@ -1,0 +1,22 @@
+{
+  "request_id": "FRESH216_NEKZALI_20261022_28_COMPLETION_DEPTH_PAGE21_ERROR_OBJECT_20261028",
+  "approval": "OWNER_APPROVED_20261028_NEKZALI_COMPLETION_DEPTH_PAGE21_ERROR_OBJECT_ALL_REQUIRED_CALLS",
+  "encounter_id": 3470,
+  "difficulty": 4,
+  "partition_mode": "LATEST_DEFAULT",
+  "date_start_kst": "2026-10-22",
+  "date_end_kst": "2026-10-28",
+  "filter": "date.1792594800000.1793199600000",
+  "specs": [
+    "frost_dk",
+    "retribution",
+    "shadow"
+  ],
+  "total_dps_pages": [
+    1
+  ],
+  "boss_dps_mode": "UNTIL_NAMED_COMPLETE_OR_LEADERBOARD_END",
+  "ranking_batch_pages": 10,
+  "report_fallback": "ALL_RESIDUAL_NAMED_AND_ANONYMOUS",
+  "report_alias_cap": 4
+}
