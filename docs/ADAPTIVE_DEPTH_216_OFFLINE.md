@@ -82,3 +82,17 @@ actual batched Report cost savings. The historical 75 GAS tests remain
 unrun in bootstrap CI. A future host must supply measured per-page
 and per-fight economics and durable paid-request checkpoints before
 activation.
+
+## Atomic Report-wave checkpoint added 2026-10-28
+
+The existing schema-1 checkpoint now supports multiple fights under a single
+attempt ID. All member entries become IN_FLIGHT in one durable update, all
+verified or unresolved actor results commit in one durable update, and uncertain
+HTTP/GraphQL responses mark the entire wave NEEDS_REVIEW without auto-retry.
+The same WCL request-total point cost is carried by all wave members for
+provenance but counted **once per attempt ID** in checkpointStats. No new
+journal, schema migration, WCL transport, token or worker was introduced.
+The new `src/core/report-wave-runner.mjs` accepts a caller-injected transport
+and existing atomic JsonCheckpointStore; no live execution is enabled by the
+plan itself. Synthetic 4-fight regressions cover restart, invalid/partial
+responses, actor ambiguity, budget admission and replay refusal.
