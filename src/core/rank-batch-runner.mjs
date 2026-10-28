@@ -85,7 +85,7 @@ export function decodeRankBatch(source,httpStatus,body,previous=[]){
   }
   const verified=[];
   for(const s of source.slots){
-    if(allPrior.has(s.rank)||!Number.isSafeInteger(s.reportRevision))continue;
+    if(allPrior.has(s.rank))continue;
     const k=ident({report:{code:s.reportCode,fightID:s.fightId},name:s.name});
     if(!k||left.get(k)!==1)continue;
     const matches=right.get(k)||[];
@@ -93,7 +93,7 @@ export function decodeRankBatch(source,httpStatus,body,previous=[]){
     const {page,row}=matches[0],value=safe(row.amount);
     if(safe(row.startTime)!==s.startTime||value===null||
        value>s.totalDps+.005||
-       row.reportRevision!=null&&
+       s.reportRevision!=null&&row.reportRevision!=null&&
         String(row.reportRevision)!==String(s.reportRevision)||
        row.className!=null&&norm(row.className)!==norm(s.className)||
        row.specName!=null&&norm(row.specName)!==norm(s.specName))continue;
