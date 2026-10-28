@@ -151,6 +151,11 @@ if(process.argv[1]?.endsWith('/run-actions-approved-measurement.mjs')){
   ){
     const mod=await import('./run-actions-completion-depth.mjs');
     await mod.main();
+  }else if(
+    diffDelegated.trim()==='A\texperiments/approved-nekzali-page21-shape-probe.json'
+  ){
+    const mod=await import('./run-actions-page21-shape-probe.mjs');
+    await mod.main();
   }else{
 
   try{
