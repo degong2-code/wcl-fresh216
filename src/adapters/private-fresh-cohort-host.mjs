@@ -86,6 +86,20 @@ export function openPrivateCohortStore({
   assertState(store.read(),scopeKey,sourceCommit);
   return store;
 }
+/**
+ * A process-wide lease prevents two collectors from interleaving paid
+ * operations between the per-transition locks. A killed process leaves
+ * this lease in place for manual review; never silently clear it.
+ */
+export async function withPrivateCohortOwnerLease(privateDir,operation){
+  need(typeof operation==='function','PRIVATE_HOST_LEASE_CALLBACK_REQUIRED');
+  const lease=path.join(fs.realpathSync(privateDir),'.collector-owner-lock');
+  try{fs.mkdirSync(lease,{mode:0o700});}
+  catch{fail('PRIVATE_HOST_OWNER_LOCKED_REVIEW_REQUIRED');}
+  try{return await operation();}
+  finally{fs.rmdirSync(lease);}
+}
+
 /** Obtain OAuth before starting a charged source-request checkpoint. */
 export async function makePrivateWclTransport({
   clientId,clientSecret,fetchImpl=fetch,timeoutMs=45000
