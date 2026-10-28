@@ -9,7 +9,7 @@ const copy=x=>structuredClone(x);
 const digest=x=>createHash('sha256').update(JSON.stringify(x)).digest('hex');
 const positive=x=>Number.isSafeInteger(x)&&x>0;
 const validText=x=>typeof x==='string'&&x.length>0&&x.length<=128;
-const DATE_FILTER='date.1792594800000.1793199600000';
+const DATE_FILTER='date.1792594800000.1793113200000';
 // Frozen WCL 8-boss/27-spec job roster from the user's imported original
 // Apps Script Code.js. Names and IDs are metadata, never private actor rows.
 export const FRESH_HEROIC_BOSSES=Object.freeze([
@@ -43,7 +43,7 @@ export function makeFreshDatedHeroicManifest(scopeKey){
     specs:copy(FRESH_DPS_SPECS)};
 }
 
-const START=1792594800000,END=1793199600000;
+const START=1792594800000,END=1793113200000;
 const rowCode=r=>r?.report?.code??r?.reportCode??r?.reportID;
 const rowFight=r=>r?.report?.fightID??r?.report?.fightId??r?.fightID??r?.fightId;
 const pointCost=body=>{
