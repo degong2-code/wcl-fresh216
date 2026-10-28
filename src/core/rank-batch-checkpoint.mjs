@@ -59,7 +59,8 @@ function source(b){
     }))};
 }
 const terminal=e=>e.result?.pages?.some(p=>
-  p.status==='UNAVAILABLE'||p.status==='OK'&&p.rowCount<100);
+  p.status==='UNAVAILABLE'||p.status==='OK'&&
+  (p.rowCount<100||p.hasMorePages===false));
 export function registerRankBatch(state,batch){
   ok(state?.schema===1&&state.status==='ACTIVE'&&
     batch?.scopeKey===state.scopeKey,'RANK_REGISTER_STATE_INVALID');
@@ -140,7 +141,7 @@ export function completeRankBatch(state,k,attemptId,result,{
       p.rowCount==null&&p.newVerifiedRanks.length===0,
       'RANK_RESULT_ROW_COUNT');
     if(i<result.pages.length-1)
-      ok(p.status==='OK'&&p.rowCount===100,
+      ok(p.status==='OK'&&p.rowCount===100&&p.hasMorePages!==false,
         'RANK_RESULT_AFTER_TERMINAL');
     seenPages.add(p.page);
     for(const rank of p.newVerifiedRanks){
