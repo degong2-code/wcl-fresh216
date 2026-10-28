@@ -253,3 +253,14 @@ a theoretical HTTP count alone, and do not reopen the old 44-row G413 audit.
 - Observed request totals were **4.01 points each, 12.03 summed**, with 831 ms summed GraphQL elapsed. This proves page2/3 are inexpensive and materially useful on this sample, but **rank300 is not an acceptable hard stop for EXACT-100**.
 - Updated priority: ranking-first with measured marginal-depth continuation, then bounded official same-fight Report fallback for named residuals; Anonymous remains default-null. Do not build a complex universal ID system or discard a large named residual merely to eliminate Report queries.
 - Current-global pilot is not the historical 2026-10-08..12 date-filtered scope. Compare production-equivalent scope before fixing a permanent page-depth threshold.
+
+
+## 2026-10-28 dated BossDPS rank1000 LIVE pilot
+
+- Scope: Heroic Nek'zali, Oct 22–28 KST, Balance/Enhancement/Survival, TotalDPS page1 fixed, BossDPS pages1–10.
+- A stale forced `partition:1` attempt produced zero rows. Corrected execution omitted partition and used WCL's latest/default partition behavior.
+- Corrected exact same-fight recovery: Balance 60%, Enhancement 92%, Survival 92%; aggregate **244/300 = 81.3%** through rank1000.
+- Cumulative rank100/rank200/rank300/rank1000: **54.0% / 67.3% / 72.3% / 81.3%**.
+- Rank300→1000 added 27 exact matches but still left **52 named + 4 anonymous** unresolved.
+- Three corrected GraphQL requests reported 11.01 total points each, 33.03 summed, with 2.35 s summed GraphQL elapsed.
+- Architecture decision strengthened: ranking depth is cheap/useful discovery, but **not a complete substitute** for bounded official same-fight Report rankings. Use adaptive marginal depth, then Report fallback for named residuals.

@@ -110,3 +110,22 @@ No duplicate-key, timestamp/revision or BossDPS>TotalDPS conflict was observed. 
 **Policy consequence:** page-depth recovery is cheap and valuable, but a fixed rank-300 stop is **not sufficient** for current-global EXACT-100. Keep ranking expansion first, then bounded official same-fight Report `rankings(... playerMetric: bossdps)` fallback for named unresolved actors. Do not exclude 31.7% merely to avoid the fallback. The optimal stop depth should be based on measured marginal same-fight recovery per observed points/time, not an assumed rank count.
 
 This live result does **not** measure the historic 2026-10-08..12 date-filtered production cohort; that shorter scope can have different recovery. Full sanitized receipt: [LIVE_NEKZALI_RANK_DEPTH_20261028.md](LIVE_NEKZALI_RANK_DEPTH_20261028.md).
+
+
+## LIVE production-like date-window depth result — 2026-10-28
+
+A second owner-approved live measurement used Heroic Nek'zali with a **2026-10-22..28 KST date filter** and BossDPS pages 1–10. The first attempt forced stale `partition:1` and returned zero ranking rows; the corrected run omitted partition so WCL selected the latest default partition.
+
+Corrected exact same-report/fight/unique-name/startTime recovery:
+- Balance: **60/100**
+- Enhancement: **92/100**
+- Survival: **92/100**
+- Aggregate cumulative: **162 → 202 → 217 → 223 → 226 → 232 → 235 → 237 → 240 → 244 / 300** from BossDPS page1 through page10.
+- Final rank1000 coverage: **81.3%**, leaving **56 unresolved = 52 named + 4 anonymous**.
+- Top30 through rank1000: Balance 19/30, Enhancement 28/30, Survival 27/30.
+
+Three corrected GraphQL requests reported 11.01 total points each (33.03 summed) and 2,350 ms summed GraphQL elapsed. All BossDPS pages 1–10 returned 100 rows.
+
+**Policy consequence:** a shorter date window improves ranking-depth recall, and rank300→1000 has measurable value (+27/300), but even rank1000 does not replace same-fight Report recovery. Permanent depth should therefore be **adaptive/marginal**, not a fixed 300 or 1000 threshold. Named residuals continue to the bounded official Report rankings path; anonymous stays null.
+
+Sanitized receipt: [LIVE_NEKZALI_DATE_20261022_28_RANK1000.md](LIVE_NEKZALI_DATE_20261022_28_RANK1000.md).
