@@ -1,0 +1,12 @@
+{
+  "request_id": "FRESH216_NEKZALI_PAGE21_SHAPE_20261028",
+  "approval": "OWNER_APPROVED_20261028_PAGE21_SHAPE_PROBE",
+  "encounter_id": 3470,
+  "difficulty": 4,
+  "spec": "frost_dk",
+  "filter": "date.1792594800000.1793199600000",
+  "pages": [
+    20,
+    21
+  ]
+}
