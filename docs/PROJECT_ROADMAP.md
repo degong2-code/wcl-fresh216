@@ -325,6 +325,20 @@ a theoretical HTTP count alone, and do not reopen the old 44-row G413 audit.
 - Added [G3_COMMITTED_SNAPSHOT_ADAPTER_OFFLINE.md](G3_COMMITTED_SNAPSHOT_ADAPTER_OFFLINE.md) and pure `src/core/g3-snapshot-adapter.mjs`, backed by 216×100 synthetic snapshot integrity tests.
 - Reads only caller-supplied G3/G4.13 **COMMITTED** envelope+RAW A:T data. Validates original SHA-256 envelope and per-metric rank digests, run/row/job scope, top100 figures, date, 8×27 cohort, and report/fight IDs; does NOT import user data in CI.
 - Historical G3 is **2026-10-08..12, partition 1**, not the newer 2026-10-22..28 latest partition. Mismatched periods are rejected; never relabel historical slots as current.
-- G3 does not attest reportRevision: keep it null; adaptive planner sends those jobs to official same-fight Report fallback rather than waste ranking calls unable to produce fully attested proofs.
+- G3 does not attest reportRevision: keep it null. Owner-approved direct ranking proof is still possible when unique report/fight/nonmasked name and exact startTime are jointly verified; ambiguous slots remain for Report fallback.
 - Checksums verify internal source consistency, **not independent installed-sheet authenticity**. Actual 216 committed envelopes were not retrieved and full216 live coverage remains untested.
 - Next: private authoritative snapshot export/provenance and a fresh-period source contract, then persistent live host, measured grouped Report costs and selected-scope benchmark.
+
+## 2026-10-28 privately validated uploaded actual source (44 of 216)
+
+- Inspected existing uploaded `WCL_FRESH216_uploaded_original.xlsx` privately.
+- G4.13 COMMITTED snapshots 44; matching RAW rows 44; envelope SHA
+  44/44, overall SHA 44/44, boss SHA 44/44, RAW KPIs 44/44, date/
+  run/row identity 44/44. These are exactly 4,400 top100 source slots,
+  not an independently complete 216-job source.
+- Added `allowPartial:true` source-audit mode, never to bypass the
+  216-job execution preflight. Actual source rows remain outside GitHub.
+- Corrected overstrict mandatory reportRevision for ranking proofs:
+  unique same report/fight/name plus exact timestamp is owner-approved,
+  with mismatch and duplicate candidates fail-closed. Original G3
+  snapshots still concern Oct8–12 partition1, not Oct22–28 latest.
