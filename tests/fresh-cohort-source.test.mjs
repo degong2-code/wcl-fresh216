@@ -128,7 +128,7 @@ test('all 216 source jobs can be captured, validated and exported using same che
  assert.equal(outcome.slots[0].reportRevision,null);
  assert.equal(outcome.slots[0].filter,FILTER);
  assert.equal(outcome.slots.filter(s=>s.name==='Anonymous').length,216);
- assert.equal(checkpointStats(store.read()).witnessedPoints,216.32);
+ assert.ok(Math.abs(checkpointStats(store.read()).witnessedPoints-216.32)<1e-8);
 });
 test('bad row time, short top100 and absent point witness fail closed',()=>{
  const m=manifest(),b=planFreshCohortBatches(m).batches[0],q=buildFreshCohortQuery(b);
@@ -205,7 +205,7 @@ test('charged source IN_FLIGHT blocks another report attempt in same scope',()=>
  const b=nextFreshCohortBatch(state,m).batch;
  const started=beginFreshCohortBatch(state,b,'SOURCE',100);
  const s={scopeKey:m.scopeKey,jobKey:'TestBoss0|Class0|Spec0',
-   rank:1,snapshotSha:'a'.repeat(64),totalDps:500,
+   rank:1,snapshotSha:'a'.repeat(64),status:'PENDING',totalDps:500,
    className:'Class0',specName:'Spec0',name:'Actor1',
    reportCode:'TEST_REPORT',fightId:5,
    encounterId:3470,difficulty:4,reportRevision:null};
