@@ -106,3 +106,15 @@ points are tracked separately.
 
 **No WCL HTTP, Secrets, Sheets or GAS operations occurred in this
 offline-only change.**
+
+
+## Historical source importer checkpoint
+
+The historical G3/G4.13 source importer has now been implemented and
+passed synthetic 216-job/21,600-row integrity regression:
+[G3_COMMITTED_SNAPSHOT_ADAPTER_OFFLINE.md](G3_COMMITTED_SNAPSHOT_ADAPTER_OFFLINE.md).
+It does **not** assert live Spreadsheet source authenticity. Original
+G3 source is Oct 8–12/partition 1 and has no attested report revision;
+the importer retains this instead of manufacturing new-period data or
+allowing unprovable ranking shortcuts. Obtain the private actual export
+and producer scope attestation before live execution.
