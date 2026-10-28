@@ -51,34 +51,36 @@ Under an identical, complete, unchanged and descending BossDPS leaderboard, **a 
 
 Sources (public documentation, not new authenticated queries): [WCL rankings vs parses](https://www.warcraftlogs.com/help/ranks/); [Encounter.characterRankings page/metric/partition/filter](https://classic.warcraftlogs.com/v2-api-docs/warcraft/encounter.doc.html); [Report.rankings fightIDs and playerMetric](https://www.warcraftlogs.com/v2-api-docs/warcraft/report.doc.html).
 
-### Remaining technical questions: do NOT invent answers
+### Current measured facts and remaining questions
 
-1. Does the **current retail Warcraft Logs GraphQL** `characterRankings` query accept the needed BossDPS metric/filter and return **100 records per page** for the chosen encounter/spec/difficulty/date scope? Confirm response shape and pagination against documentation/schema or permitted cached evidence; a live query requires **new explicit user consent**.
-2. Is the BossDPS ranking value on page 2/3 semantically the same as the BossDPS required for the TotalDPS-ranked actor (identical encounter, report, fight, timeframe, kill, difficulty, spec, data revision and metric)? Do not silently assume.
-3. How many of the previous report-recovered slots have a BossDPS below the cached first-page BossDPS rank-100 threshold? **First run this as a read-only offline histogram using the existing 44 committed sample snapshots**; this can reveal likely payoff, but *cannot establish exact rank-200/300 recall* without those pages.
-4. Real additional API **points by category**, GraphQL aliases, wall time, rate-limit waits and incremental recovery per page are **unmeasured**; one page is not guaranteed cheaper than several grouped reports. Do not optimize HTTP count in place of cost/time.
-5. Currently known archived evidence: 44 private snapshots (4,400 TotalDPS ranks), 2,721 direct name joins, 1,605 other stored BossDPS values, **4,326 saved / 74 null**; top30 complete 27/44 and top100 complete 16/44. 43-job G421 historic `69 missing / 67 anonymous identityless` is a **different scope**; no false arithmetic between 69 and 74.
+1. **Current-global page size was observed:** in the approved 2026-10-28 Heroic Nek'zali trial, BossDPS pages 1, 2 and 3 each returned 100 rows for Balance, Enhancement and Survival. This does **not** prove that every encounter/spec/date-filter scope always has 100 rows/page.
+2. **Exact same-fight semantics:** only rows with the same report, fight, unique non-anonymous normalized name and identical startTime were joined. Different fights for the same apparent player are not substitutes.
+3. **Archived cutoff study is complete:** among 1,605 historical non-direct stored values, 1,460 were below the same-job cached Boss rank100 cutoff and 145 above it. That was a prospective bound, not page-depth recall.
+4. **Current-global page-depth cost is now measured:** three batched GraphQL requests (Total page1 + Boss pages1–3) cost 4.01 reported total points each, sum 12.03, with 831 ms summed request elapsed. The cost/yield of a production-equivalent date-filtered scope and the residual grouped Report fallback remain unmeasured.
+5. **Current-global rank300 was insufficient:** exact recovery was 205/300 (68.3%), leaving 95 unresolved, 93 of them named. Page2 added 37 exact matches and page3 added 20. Do not adopt rank300 as a fixed completeness boundary.
+6. Archived evidence remains: 44 private snapshots (4,400 TotalDPS ranks), 2,721 direct name joins, 1,605 other stored BossDPS values, 4,326 saved / 74 null. The 43-job G421 69-missing/67-anonymous scope is distinct.
 
-## Preferred next executable *offline* work
+## Current next executable development
 
-One bounded, reusable offline evaluation — **without any API request** — using already authorized private snapshots:
-- For each of the 44 jobs, classify BossDPS recovery sources (first-page direct, already saved proof outside first-page, null/anonymous/ambiguous).
-- Compare report-recovered BossDPS numeric values to the 100th BossDPS ranking cutoff in the same job; aggregate how many logically lie outside page 1, how many are ambiguous/unknown; measure prospective benefit and uncertainty of page 2/3. This is **an offline bound**, not a fake full-page reconstruction.
-- Define a tiny ranking-page adapter contract + minimal unit tests only if the observed payoff or current installed source supports it. Prefer replacing/disabling report-heavy paths over building more G4.x diagnostic layers.
-- At a later explicitly approved small live pilot, observe actual page size, payload, marginal matches, official BossDPS semantics, point cost and total elapsed time. Compare on equivalent scope with legacy grouped Report recovery. Choose the cheaper *verified* option.
+- Preserve already verified page1/cached same-fight values.
+- Integrate measured ranking-depth recovery into the 216-job plan without creating another heavyweight runtime: page2/page3 (and any deeper page) is justified only by observed marginal same-fight recovery per points/time.
+- For named residuals, retain bounded official same-fight `report.rankings(fightIDs, playerMetric: bossdps)` fallback; do not replace it with arbitrary table damage or estimates.
+- Before choosing a permanent page-depth stop rule for the historical production cohort, measure the same strategy under the actual date-filter/partition scope. Current-global 68.3% is evidence about the present global leaderboard only.
+- Keep Anonymous default-null and preserve fixed TotalDPS top100 denominators.
 
 ## Stop rules and environment
 
-- All **four of four** historically authorized WCL GraphQL calls have been consumed. "진행", BOOT, context handoff or normal CI **do not authorize a fifth call**. No relays/marker reset.
-- No GAS runtime changes, trigger edits, OAuth/secret handling, Google Sheets writes, PR merge or main deployment without explicit approval.
-- Actual installed TEST GAS export (36 files/35 JS) privately redacted one real WCL `client_secret`; **do not upload any ZIP/raw source, Sheet/PROOF, IDs or tokens to the public repo**.
-- Baseline last observed TEST G4.13/G4.15: STOPPED, cursor 43 (historical observation, *not* current live check); G4.25 disabled.
+- The **historical 4/4** WCL GraphQL approvals from 2026-10-27 remain consumed and their immutable refs must never be reset. Separately, the owner approved the 2026-10-28 current Nek'zali depth study; exactly **3 additional GraphQL requests** executed successfully in run 40634406776. Its consumed ref `wcl-fresh216-approved-nekzali-current-20261028-consumed` now blocks replay of that exact experiment.
+- Normal CI, BOOT or handoff must not open a new paid experiment. A new live scope requires the existing fixed allowlist/manifest gate and clear owner authorization for that scope.
+- No GAS runtime changes, trigger edits, Google Sheets writes, PR merge or main deployment without explicit approval.
+- Actual installed TEST GAS export (36 files/35 JS) privately redacted one real WCL `client_secret`; do not upload any ZIP/raw source, Sheet/PROOF, IDs or tokens to the public repo.
+- Baseline last observed TEST G4.13/G4.15: STOPPED, cursor 43 (historical observation, not current live check); G4.25 disabled.
 - Product source of truth: `degong2-code/wcl-fresh216` branch `work/collector-architecture`, Draft PR #2. Private continuity: `degong2-code/ai-project-lab` branch `work/wcl-fresh216-source-review`.
-- Progress proof is **one finished 216-job selected-scope execution** with measured time, WCL points and truthful unresolved-share reporting, followed by correct A:Y Google Sheets output — not passing ever more synthetic gates.
+- Progress proof remains one finished 216-job selected-scope execution with measured time, WCL points and truthful unresolved-share reporting, followed by correct A:Y Google Sheets output.
 
-**Status 2026-10-28:** policy adopted and implementation strategy proposed. Ranking page 2/3 recovery, its ROI and official metrics have NOT been executed or shown effective. No operational change.
+**Status 2026-10-28:** ranking page2/page3 live ROI is now measured for three current-global Heroic Nek'zali specs. It is cheap and materially useful, but rank300 alone is insufficient; the active design is ranking-first plus bounded same-fight Report fallback.
 
-## Offline execution bridge after cutoff study (2026-10-28, no LIVE permission)
+## Historical offline execution bridge after cutoff study (completed before LIVE pilot)
 
 The new pure module \`src/core/boss-page-recovery.mjs\` implements the **missing normalized page boundary only**, not another report collector or runtime. Its entry points make an official-shaped **BossDPS-only page 2 or 3** GraphQL document (no network), decode an *injected* response and observed \`currentRequest.total\` (unknown cost remains null), and compare cached page 1..N to exactly 100 immutable TotalDPS rows, preserving any previously saved BossDPS proof. They refuse different report/fight, ambiguous/masked names, conflicting timestamps or known revisions, and implausible BossDPS. A page-3 candidate is explicitly **not authorization to dispatch**; there is no automatic retry, token, request scheduler, durable write, or Google Sheets I/O.
 
