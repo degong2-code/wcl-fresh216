@@ -18,9 +18,15 @@ export function planAdaptive216(slots,{pageEvidence=[],economics=null,batchPages
     const k=jk(s);
     if(!jobs.has(k))jobs.set(k,{scopeKey:s.scopeKey,jobKey:s.jobKey,
       snapshotSha:s.snapshotSha,ranks:new Map(),namedPending:0,
-      anonymousPending:0,singleton:0});
+      anonymousPending:0,singleton:0,rankEligible:0});
     const j=jobs.get(k);j.ranks.set(s.rank,s);
-    if(s.status==='PENDING')named(s.name)?j.namedPending++:j.anonymousPending++;
+    if(s.status==='PENDING'){
+      if(named(s.name)){
+        j.namedPending++;
+        if(Number.isSafeInteger(s.reportRevision)&&s.reportRevision>=0)
+          j.rankEligible++;
+      }else j.anonymousPending++;
+    }
   }
   for(const g of full.groups)if(g.slots.length===1&&named(g.slots[0].name))
     jobs.get(jk({scopeKey:g.scopeKey,jobKey:g.slots[0].jobKey})).singleton++;
@@ -62,6 +68,7 @@ export function planAdaptive216(slots,{pageEvidence=[],economics=null,batchPages
     else if(last&&(last.status==='UNAVAILABLE'||last.rowCount<100||
       last.hasMorePages===false))
       reason='WCL_PAGINATION_ENDED';
+    else if(!j.rankEligible)reason='RANK_PROOF_REVISION_UNAVAILABLE';
     else if(!j.singleton)reason='REPORT_ALREADY_SHARED';
     else if(!last){
       reason='FIRST_PAGE_CANDIDATE';
