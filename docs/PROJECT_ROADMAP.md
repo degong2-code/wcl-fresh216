@@ -286,8 +286,25 @@ a theoretical HTTP count alone, and do not reopen the old 44-row G413 audit.
   counting only Report fights that can actually become unnecessary.
 - No fixed rank 1000/2000 cutoff. Anonymous and unresolved named slots
   remain in fallback. No WCL HTTP or Sheets writes.
-- Added eight synthetic full216 regression tests. The module is
-  `readyForAutomaticDispatch:false` because a shared atomic paid-operation
-  checkpoint is still required for multi-fight Report waves.
-- Next: validate a measured calibration and operation-level handoff,
-  then conduct selected-scope end-to-end pilot before Sheets/GAS activation.
+- Added eight synthetic full216 regression tests. The planner remains
+  `readyForAutomaticDispatch:false`; its selected-scope WCL host is not yet installed.
+- Next: share the existing atomic checkpoint with grouped Report waves,
+  then calibrate measured costs and conduct a selected-scope pilot.
+
+
+## 2026-10-28 shared checkpoint extension for multi-fight Reports — OFFLINE PASS
+
+- Extended existing schema-1 checkpoint with
+  `beginWaveFetch / completeWaveFetch / uncertainWaveFailure` for one
+  WCL request that includes up to 8 fight groups; common plan typically
+  groups 4. No second journal/store.
+- Before HTTP: atomically mark **all** member fights IN_FLIGHT under
+  one attempt ID. On success: validate actor proofs for all fights and
+  commit the wave once. Any uncertain response or restart leaves the
+  entire wave NEEDS_REVIEW, never auto-retry.
+- Count `currentRequest.total` once per shared attempt ID, even though
+  each member points to that same request for audit.
+- Added transport-injected `executeOneReportWave`, nine synthetic
+  atomic/regression tests, and preserved the single-fight runner.
+- **No live WCL or Sheets/GAS calls**. Remaining: production host
+  wiring, calibrated admission, end-to-end 216 selected-scope trial.
