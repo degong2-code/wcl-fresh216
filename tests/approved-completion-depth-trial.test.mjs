@@ -4,7 +4,9 @@ import {
  COMPLETE_REQUEST,COMPLETE_ID,COMPLETE_APPROVAL,COMPLETE_ONCE_REF,
  COMPLETE_CORRECTION_REQUEST,COMPLETE_CORRECTION_ID,COMPLETE_CORRECTION_APPROVAL,
  COMPLETE_CORRECTION_ONCE_REF,COMPLETE_CORRECTION2_REQUEST,COMPLETE_CORRECTION2_ID,
- COMPLETE_CORRECTION2_APPROVAL,COMPLETE_CORRECTION2_ONCE_REF,COMPLETE_TARGET,
+ COMPLETE_CORRECTION2_APPROVAL,COMPLETE_CORRECTION2_ONCE_REF,
+ COMPLETE_CORRECTION3_REQUEST,COMPLETE_CORRECTION3_ID,COMPLETE_CORRECTION3_APPROVAL,
+ COMPLETE_CORRECTION3_ONCE_REF,COMPLETE_TARGET,
  validateCompletionRequest,buildRankingBatchQuery,createRankingState,initCompletionState,
  applyRankingBatch,rankingProgress,buildReportBatchQuery,applyReportBatch,finalCompletionSummary
 } from '../src/core/approved-completion-depth-trial.mjs';
@@ -132,4 +134,31 @@ test('page21 error-object correction uses a third immutable consumed ref',()=>{
  const q=preflightCompletion(env(),correction,
    'A\t'+COMPLETE_CORRECTION2_REQUEST+'\n');
  assert.equal(q.onceRef,COMPLETE_CORRECTION2_ONCE_REF);
+});
+
+test('anonymous report-local Player (n) labels recover without numeric id',()=>{
+ const spec=COMPLETE_TARGET.specs[0];
+ const overall=Array.from({length:100},(_,i)=>row(i,2000-i,i===0?'Anonymous':'P'+i));
+ const st=initCompletionState(spec,overall);
+ st.values=Array.from({length:100},(_,i)=>i===0?null:1000);
+ const g={code:'R0',fightId:1,indexes:[0]};
+ const reportData={r0:{
+   overall:{data:[{fightID:1,encounter:{id:3470},difficulty:4,
+     roles:{dps:{characters:[{name:'Player (1)',class:spec.className,
+       spec:spec.specName,amount:overall[0].amount}]}}}]},
+   boss:{data:[{fightID:1,encounter:{id:3470},difficulty:4,
+     roles:{dps:{characters:[{name:'Player (1)',class:spec.className,
+       spec:spec.specName,amount:overall[0].amount-500}]}}}]}
+ }};
+ const b={data:{rateLimitData:{currentRequest:{total:1}},reportData}};
+ const a=applyReportBatch(st,[g],b);
+ assert.equal(a.anonymousRecovered,1);
+ assert.equal(st.values[0],1500);
+});
+test('anonymous Player-label correction uses a fourth immutable ref',()=>{
+ const correction={...request(),request_id:COMPLETE_CORRECTION3_ID,
+   approval:COMPLETE_CORRECTION3_APPROVAL};
+ const q=preflightCompletion(env(),correction,
+   'A\t'+COMPLETE_CORRECTION3_REQUEST+'\n');
+ assert.equal(q.onceRef,COMPLETE_CORRECTION3_ONCE_REF);
 });

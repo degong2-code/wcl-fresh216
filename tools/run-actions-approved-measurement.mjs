@@ -148,7 +148,8 @@ if(process.argv[1]?.endsWith('/run-actions-approved-measurement.mjs')){
   if(
     diffDelegated.trim()==='A\texperiments/approved-nekzali-20261022-28-completion-depth.json' ||
     diffDelegated.trim()==='A\texperiments/approved-nekzali-20261022-28-completion-depth-page21-correction.json' ||
-    diffDelegated.trim()==='A\texperiments/approved-nekzali-20261022-28-completion-depth-page21-error-object.json'
+    diffDelegated.trim()==='A\texperiments/approved-nekzali-20261022-28-completion-depth-page21-error-object.json' ||
+    diffDelegated.trim()==='A\texperiments/approved-nekzali-20261022-28-completion-depth-anonymous-player-label.json'
   ){
     const mod=await import('./run-actions-completion-depth.mjs');
     await mod.main();

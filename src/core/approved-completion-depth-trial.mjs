@@ -30,6 +30,14 @@ export const COMPLETE_CORRECTION2_APPROVAL=
   'OWNER_APPROVED_20261028_NEKZALI_COMPLETION_DEPTH_PAGE21_ERROR_OBJECT_ALL_REQUIRED_CALLS';
 export const COMPLETE_CORRECTION2_ONCE_REF=
   'refs/heads/wcl-fresh216-approved-nekzali-20261022-28-completion-depth-page21-error-object-consumed';
+export const COMPLETE_CORRECTION3_REQUEST=
+  'experiments/approved-nekzali-20261022-28-completion-depth-anonymous-player-label.json';
+export const COMPLETE_CORRECTION3_ID=
+  'FRESH216_NEKZALI_20261022_28_COMPLETION_DEPTH_ANONYMOUS_PLAYER_LABEL_20261028';
+export const COMPLETE_CORRECTION3_APPROVAL=
+  'OWNER_APPROVED_20261028_NEKZALI_COMPLETION_DEPTH_ANONYMOUS_PLAYER_LABEL_ALL_REQUIRED_CALLS';
+export const COMPLETE_CORRECTION3_ONCE_REF=
+  'refs/heads/wcl-fresh216-approved-nekzali-20261022-28-completion-depth-anonymous-player-label-consumed';
 export const COMPLETE_TARGET=Object.freeze({
   encounterId:3470,difficulty:4,
   startMs:1792594800000,endMs:1793199600000,
@@ -97,9 +105,11 @@ export function validateCompletionRequest(request,{correction=0}={}){
   if(!request||typeof request!=='object'||Array.isArray(request)||
      Object.keys(request).sort().join('|')!==keys.slice().sort().join('|'))
     throw Error('COMPLETE_REQUEST_FIELDS_INVALID');
-  const expectedId=correction===2?COMPLETE_CORRECTION2_ID:
+  const expectedId=correction===3?COMPLETE_CORRECTION3_ID:
+    correction===2?COMPLETE_CORRECTION2_ID:
     correction===1?COMPLETE_CORRECTION_ID:COMPLETE_ID;
-  const expectedApproval=correction===2?COMPLETE_CORRECTION2_APPROVAL:
+  const expectedApproval=correction===3?COMPLETE_CORRECTION3_APPROVAL:
+    correction===2?COMPLETE_CORRECTION2_APPROVAL:
     correction===1?COMPLETE_CORRECTION_APPROVAL:COMPLETE_APPROVAL;
   if(request.request_id!==expectedId||request.approval!==expectedApproval||
      request.encounter_id!==3470||request.difficulty!==4||
@@ -233,7 +243,10 @@ export function buildReportBatchQuery(groups){
 const actorRef=r=>{
   const id=Number(r?.id);
   if(Number.isSafeInteger(id)&&id>0)return 'id:'+id;
-  const n=norm(r?.name);return n&&!maskedName(n)?'name:'+n:null;
+  // Report-local temporary labels such as "Player (1)" are stable within
+  // the same report/fight and are valid for overall<->boss crosswalk.
+  // Only the literal "anonymous" remains unusable as a fallback actor ref.
+  const n=norm(r?.name);return n&&n!=='anonymous'?'name:'+n:null;
 };
 const fightChars=(metric,fid)=>{
   const data=metric?.data;
