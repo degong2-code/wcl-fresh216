@@ -81,7 +81,12 @@ jobs:
         run: |
           set -euo pipefail
           diff="$(git diff-tree --no-commit-id --name-status -r "$GITHUB_SHA")"
-          if [[ "$diff" == 
+          if [[ "$diff" == $'A\texperiments/approved-nekzali-current-20261028.json' ]]; then
+            echo "enabled=true" >> "$GITHUB_OUTPUT"
+          fi
+          if [[ "$diff" == $'A\texperiments/approved-nekzali-20261022-28-boss1000.json' ]]; then
+            echo "enabled=true" >> "$GITHUB_OUTPUT"
+          fi
 
   approved-one-time-wcl-relay:
     needs: offline
