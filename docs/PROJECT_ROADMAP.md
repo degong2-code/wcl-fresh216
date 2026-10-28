@@ -243,3 +243,13 @@ a theoretical HTTP count alone, and do not reopen the old 44-row G413 audit.
   path (no Sheets writes/restarts), accepting potentially charged points.
   User-login OAuth/PKCE to spend User points is a *separate* optional decision.
   No live requests without explicit approval.
+
+
+## 2026-10-28 ranking-depth LIVE pilot — measured decision
+
+- Common approved GitHub Actions measurement lane was implemented behind offline-PASS + exact add-only manifest + immutable consumed-ref gating. Code-only CI proved the paid job SKIPPED before activation.
+- Approved current-global Heroic Nek'zali trial executed exactly 3 WCL GraphQL requests for Balance/Enhancement/Survival. TotalDPS page1 and BossDPS pages1–3 returned 100 rows/page.
+- Exact same-fight recovery improved **148/300 on page1 → 185/300 through page2 → 205/300 through page3 (68.3%)**. Page2 added 37 and page3 added 20; 95 remained unresolved (93 named).
+- Observed request totals were **4.01 points each, 12.03 summed**, with 831 ms summed GraphQL elapsed. This proves page2/3 are inexpensive and materially useful on this sample, but **rank300 is not an acceptable hard stop for EXACT-100**.
+- Updated priority: ranking-first with measured marginal-depth continuation, then bounded official same-fight Report fallback for named residuals; Anonymous remains default-null. Do not build a complex universal ID system or discard a large named residual merely to eliminate Report queries.
+- Current-global pilot is not the historical 2026-10-08..12 date-filtered scope. Compare production-equivalent scope before fixing a permanent page-depth threshold.

@@ -90,3 +90,21 @@ The new pure module \`src/core/boss-page-recovery.mjs\` implements the **missing
 5. Record per-page new **same-fight** matches, observed point classes, HTTP cost, wall time, unresolved counts, and completed top30/top100 jobs. Do not extrapolate 44 archived snapshots into 216-job live throughput. Maintain independent boss-ranked RAW KPI values alongside TotalDPS-linked U:Y.
 
 The offline synthetic tests in \`tests/boss-page-recovery.test.mjs\` demonstrate query scope, one-to-one matching, null and cached-proof preservation, guarded failure, and no auto dispatch. They do **not** verify WCL's real pagination length, official response shape, cross-version identity or actual time/points. Historic 75 tests are not rerun by this patch. Production approval is still separately required for LIVE query, GAS/Sheets edit or merge.
+
+
+## LIVE current-global depth result — 2026-10-28
+
+The owner approved a fresh current Heroic Nek'zali measurement and the common GitHub Actions lane executed it successfully in run [40634406776](https://github.com/degong2-code/wcl-fresh216/actions/runs/40634406776). Three specializations were queried independently; each request batched TotalDPS page 1 with BossDPS pages 1–3. All three Boss pages returned 100 rows.
+
+Exact same-report/fight/unique-name/startTime recovery was:
+
+- Balance: **29 → 38 → 47 / 100**
+- Enhancement: **56 → 70 → 78 / 100**
+- Survival: **63 → 77 → 80 / 100**
+- Aggregate: **148 → 185 → 205 / 300 = 68.3%**, leaving **95 unresolved**, of which **93 were named** and 2 anonymous.
+
+No duplicate-key, timestamp/revision or BossDPS>TotalDPS conflict was observed. Page 2 added 37 exact matches and page 3 added 20. Three WCL GraphQL requests reported total costs 4.01 each (sum **12.03**) and 831 ms summed request elapsed.
+
+**Policy consequence:** page-depth recovery is cheap and valuable, but a fixed rank-300 stop is **not sufficient** for current-global EXACT-100. Keep ranking expansion first, then bounded official same-fight Report `rankings(... playerMetric: bossdps)` fallback for named unresolved actors. Do not exclude 31.7% merely to avoid the fallback. The optimal stop depth should be based on measured marginal same-fight recovery per observed points/time, not an assumed rank count.
+
+This live result does **not** measure the historic 2026-10-08..12 date-filtered production cohort; that shorter scope can have different recovery. Full sanitized receipt: [LIVE_NEKZALI_RANK_DEPTH_20261028.md](LIVE_NEKZALI_RANK_DEPTH_20261028.md).

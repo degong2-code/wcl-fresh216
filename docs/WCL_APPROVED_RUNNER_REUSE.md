@@ -1,6 +1,6 @@
 # Fresh216 — common approved WCL runner: reuse proven GitHub Actions
 
-**2026-10-28. Status: reviewed design, NOT operational/activated.** No WCL request or OAuth exchange, no read of GitHub Secrets, no Sheets/GAS write and no merge/main change was made for this document.
+**2026-10-28. Status: common bounded measurement lane IMPLEMENTED and first approved measurement CONSUMED.** Implementation commit `6e15579560087ecd3ed5ad0f0e98a3895296b881` passed offline CI with the paid job skipped; activation commit `b168e403b9856370163028e162b60064e4ac7aa4` then ran exactly the approved current Nek'zali experiment. No Sheets/GAS write, PR merge or main change occurred.
 
 ## Verified execution facts
 
@@ -32,4 +32,4 @@ Keep TotalDPS top100 intact. Count only **identical report+fight+unique non-anon
 
 The official GraphQL field `rateLimitData.currentRequest` is a **JSON scalar**, so use `rateLimitData{currentRequest}`, then read `body.data.rateLimitData.currentRequest.total`. Do **not** query `currentRequest{total}`: that was an invalid selection in the failed, **uncommitted and unexecuted** prototype. Cost and 100-rows-per-page are unknown until measured. Distinguish single HTTP requests from WCL metering; impose explicit operational bounds even though in-chat approval did not set a count ceiling.
 
-**No fresh Nek'zali live run has taken place.** This document alone must never enable the paid job, spend API points, publish private raw results, write to Sheets, alter GAS, merge a PR or deploy. A long-running 216-job collector belongs on a private durable single-owner host, not disposable GitHub Actions; see [RUNTIME_HOST_DECISION.md](RUNTIME_HOST_DECISION.md).
+**The fresh Nek'zali live run has now completed once.** See [LIVE_NEKZALI_RANK_DEPTH_20261028.md](LIVE_NEKZALI_RANK_DEPTH_20261028.md). The immutable consumed ref prevents replay. Future experiments require a new fixed allowlisted definition and a new explicit activation manifest; this document alone must never spend points, publish private raw results, write to Sheets, alter GAS, merge a PR or deploy. A long-running 216-job collector belongs on a private durable single-owner host, not disposable GitHub Actions; see [RUNTIME_HOST_DECISION.md](RUNTIME_HOST_DECISION.md).
