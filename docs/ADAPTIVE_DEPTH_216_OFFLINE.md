@@ -63,11 +63,11 @@ credited as avoiding the Report. Named and Anonymous matches still
 require exact same-fight overall/boss actor proof; the planner does not
 synthesize BossDPS.
 
-`reportWaveCandidates` group up to four fights by report. They remain
-information-only: the existing checkpoint/runner currently protects
-one-fight requests. A multi-fight Report wave requires a single durable
-wave-level `IN_FLIGHT` operation before any live dispatch. This
-planner does not create a duplicate journal or bypass that gate.
+`reportWaveCandidates` group up to four fights by report. The
+shared checkpoint now protects these as one atomic multi-fight operation,
+through `executeOneReportWave`. The planner still returns candidates,
+not a live WCL dispatch: the host must supply an authorized transport,
+measured admission policy and persistent atomic store.
 
 ### Evidence and remaining limits
 
@@ -76,12 +76,12 @@ KST, Frost DK/Retribution/Shadow recovered 259/300 by ranking through
 page20, then all 41 residual named + Anonymous slots using official
 same-fight Report rankings (final 300/300).
 
-This code-only step tests 8 synthetic full-216 scenarios; it does not
-measure an actual 216-job completion time, production WCL points, or
-actual batched Report cost savings. The historical 75 GAS tests remain
-unrun in bootstrap CI. A future host must supply measured per-page
-and per-fight economics and durable paid-request checkpoints before
-activation.
+The planner's 8 synthetic full-216 scenarios and the separate 9
+atomic Report-wave regression scenarios passed. This does not
+measure a full live 216-job completion time, production WCL points or
+actual batched Report savings. The historical 75 GAS tests remain unrun
+in bootstrap CI. A future host must supply measured page/fight
+economics, credentials, and selected-scope authorization before activation.
 
 ## Atomic Report-wave checkpoint added 2026-10-28
 
