@@ -198,3 +198,12 @@ test('hasMorePages=false terminates a full 100-row page with no extra paid rank'
  assert.throws(()=>store.update(s=>registerRankBatch(s,batch(rows,2))),
    /RANK_REQUEST_SEQUENCE_OR_SNAPSHOT_DRIFT/);
 });
+
+test('revisionless source recovers unique name/fight with exact startTime',()=>{
+ const rows=slots().map(s=>({...s,reportRevision:null}));
+ const d=decodeRankBatch(batch(rows),200,body(rows,0).body);
+ assert.equal(d.status,'OK');
+ assert.equal(d.result.verified.length,50);
+ assert.equal(d.result.verified[0].proof.reportRevision,null);
+ assert.equal(d.result.verified[0].proof.sourceStartTime,start);
+});
