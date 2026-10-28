@@ -93,6 +93,9 @@ jobs:
           if [[ "$diff" == $'A\texperiments/approved-nekzali-20261022-28-completion-depth.json' ]]; then
             echo "enabled=true" >> "$GITHUB_OUTPUT"
           fi
+          if [[ "$diff" == $'A\texperiments/approved-nekzali-20261022-28-completion-depth-page21-correction.json' ]]; then
+            echo "enabled=true" >> "$GITHUB_OUTPUT"
+          fi
 
   approved-one-time-wcl-relay:
     needs: offline

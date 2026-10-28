@@ -1,7 +1,9 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import {
- COMPLETE_REQUEST,COMPLETE_ID,COMPLETE_APPROVAL,COMPLETE_ONCE_REF,COMPLETE_TARGET,
+ COMPLETE_REQUEST,COMPLETE_ID,COMPLETE_APPROVAL,COMPLETE_ONCE_REF,
+ COMPLETE_CORRECTION_REQUEST,COMPLETE_CORRECTION_ID,COMPLETE_CORRECTION_APPROVAL,
+ COMPLETE_CORRECTION_ONCE_REF,COMPLETE_TARGET,
  validateCompletionRequest,buildRankingBatchQuery,createRankingState,initCompletionState,
  applyRankingBatch,rankingProgress,buildReportBatchQuery,applyReportBatch,finalCompletionSummary
 } from '../src/core/approved-completion-depth-trial.mjs';
@@ -84,4 +86,24 @@ test('exclusive manifest and consumed ref are enforced',async()=>{
   changedFiles:change,fetchImpl:async(url,opts)=>{calls.push({url,opts});return {status:422};}});
  assert.equal(out.status,'ALREADY_CONSUMED');assert.equal(calls.length,1);
  assert.equal(JSON.parse(calls[0].opts.body).ref,COMPLETE_ONCE_REF);
+});
+
+test('null page after a full prior page is a safe pagination-unavailable stop',()=>{
+ const spec=COMPLETE_TARGET.specs[0];
+ const b=rankBody(spec,1,true,{matchPages:1});
+ const dec=createRankingState(spec,b,1,{includeTotal:true});
+ const st=initCompletionState(spec,dec.overall);applyRankingBatch(st,dec.pages);
+ const qbody=rankBody(spec,11,false,{matchPages:0});
+ qbody.data.worldData.encounter.b21=null;
+ const dec2=createRankingState(spec,qbody,11);
+ const p=applyRankingBatch(st,dec2.pages);
+ assert.equal(p.rankingUnavailable,true);assert.equal(p.unavailablePage,21);
+ assert.equal(p.rankingDone,true);assert.equal(p.lastPage,20);
+});
+test('correction manifest uses a new irreversible ref',()=>{
+ const correction={...request(),request_id:COMPLETE_CORRECTION_ID,
+  approval:COMPLETE_CORRECTION_APPROVAL};
+ const q=preflightCompletion(env(),correction,
+  'A\t'+COMPLETE_CORRECTION_REQUEST+'\n');
+ assert.equal(q.onceRef,COMPLETE_CORRECTION_ONCE_REF);
 });

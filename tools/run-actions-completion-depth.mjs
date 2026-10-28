@@ -1,7 +1,8 @@
 #!/usr/bin/env node
 import {Buffer} from 'node:buffer';
 import {
-  COMPLETE_REQUEST,COMPLETE_ONCE_REF,COMPLETE_TARGET,validateCompletionRequest,
+  COMPLETE_REQUEST,COMPLETE_ONCE_REF,COMPLETE_CORRECTION_REQUEST,
+  COMPLETE_CORRECTION_ONCE_REF,COMPLETE_TARGET,validateCompletionRequest,
   buildRankingBatchQuery,createRankingState,initCompletionState,applyRankingBatch,
   rankingProgress,unresolvedFightGroups,buildReportBatchQuery,applyReportBatch,
   finalCompletionSummary
@@ -20,12 +21,15 @@ export function preflightCompletion(env,request,changedFiles){
      env?.GITHUB_REF!==BRANCH||env?.GITHUB_REPOSITORY!==REPO||
      !/^[a-f0-9]{40}$/i.test(env?.GITHUB_SHA||''))
     throw Error('COMPLETE_ACTION_SCOPE_DENIED');
-  if(changedFiles.trim()!=='A\t'+COMPLETE_REQUEST)
+  const diff=changedFiles.trim();
+  const correction=diff==='A\t'+COMPLETE_CORRECTION_REQUEST;
+  if(diff!=='A\t'+COMPLETE_REQUEST&&!correction)
     throw Error('COMPLETE_NOT_EXCLUSIVE_REQUEST_ADDITION');
-  validateCompletionRequest(request);
+  validateCompletionRequest(request,{correction});
   for(const k of ['GITHUB_TOKEN','WCL_CLIENT_ID','WCL_CLIENT_SECRET'])
     if(typeof env?.[k]!=='string'||!env[k])throw Error('COMPLETE_REQUIRED_SECRET_MISSING');
-  return true;
+  return {onceRef:correction?COMPLETE_CORRECTION_ONCE_REF:COMPLETE_ONCE_REF,
+    requestPath:correction?COMPLETE_CORRECTION_REQUEST:COMPLETE_REQUEST};
 }
 const json=async r=>r?.json?await r.json().catch(()=>null):null;
 const wclPost=async(fetchImpl,token,query,variables,clock)=>{
@@ -43,14 +47,14 @@ const wclPost=async(fetchImpl,token,query,variables,clock)=>{
 export async function runCompletionExperiment({
  env=process.env,request,changedFiles,fetchImpl=fetch,clock=Date.now,log=()=>{}
 }={}){
-  preflightCompletion(env,request,changedFiles);
+  const admitted=preflightCompletion(env,request,changedFiles);
   const ghHeaders={Authorization:'Bearer '+env.GITHUB_TOKEN,
     Accept:'application/vnd.github+json','Content-Type':'application/json',
     'X-GitHub-Api-Version':'2022-11-28'};
   let reserve;
   try{reserve=await fetchImpl(REFS,{method:'POST',headers:ghHeaders,redirect:'error',
     signal:AbortSignal.timeout(15000),
-    body:JSON.stringify({ref:COMPLETE_ONCE_REF,sha:env.GITHUB_SHA})});}
+    body:JSON.stringify({ref:admitted.onceRef,sha:env.GITHUB_SHA})});}
   catch{throw Error('COMPLETE_RESERVATION_UNCERTAIN_NO_RETRY');}
   if(reserve?.status===422)return {status:'ALREADY_CONSUMED',graphqlRequests:0};
   if(reserve?.status!==201)throw Error('COMPLETE_RESERVATION_DENIED');
@@ -133,10 +137,13 @@ export async function main(){
   try{
     const diff=execFileSync('git',['diff-tree','--no-commit-id','--name-status',
       '-r',process.env.GITHUB_SHA],{encoding:'utf8',timeout:10000});
-    if(diff.trim()!=='A\t'+COMPLETE_REQUEST){
+    const normalized=diff.trim();
+    const requestPath=normalized==='A\t'+COMPLETE_REQUEST?COMPLETE_REQUEST:
+      normalized==='A\t'+COMPLETE_CORRECTION_REQUEST?COMPLETE_CORRECTION_REQUEST:null;
+    if(!requestPath){
       process.stdout.write('COMPLETE_NOT_REQUEST_ADDITION_NO_HTTP\n');return;
     }
-    const request=JSON.parse(fs.readFileSync(COMPLETE_REQUEST,'utf8'));
+    const request=JSON.parse(fs.readFileSync(requestPath,'utf8'));
     const r=await runCompletionExperiment({env:process.env,request,changedFiles:diff,
       log:v=>process.stdout.write('REDACTED_COMPLETION_DEPTH '+JSON.stringify(v)+'\n')});
     if(r.status==='ALREADY_CONSUMED')process.exitCode=2;

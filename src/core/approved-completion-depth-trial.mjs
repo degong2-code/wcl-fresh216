@@ -14,6 +14,14 @@ export const COMPLETE_ID='FRESH216_NEKZALI_20261022_28_COMPLETION_DEPTH_20261028
 export const COMPLETE_APPROVAL='OWNER_APPROVED_20261028_NEKZALI_COMPLETION_DEPTH_ALL_REQUIRED_CALLS';
 export const COMPLETE_ONCE_REF=
   'refs/heads/wcl-fresh216-approved-nekzali-20261022-28-completion-depth-consumed';
+export const COMPLETE_CORRECTION_REQUEST=
+  'experiments/approved-nekzali-20261022-28-completion-depth-page21-correction.json';
+export const COMPLETE_CORRECTION_ID=
+  'FRESH216_NEKZALI_20261022_28_COMPLETION_DEPTH_PAGE21_CORRECTION_20261028';
+export const COMPLETE_CORRECTION_APPROVAL=
+  'OWNER_APPROVED_20261028_NEKZALI_COMPLETION_DEPTH_PAGE21_CORRECTION_ALL_REQUIRED_CALLS';
+export const COMPLETE_CORRECTION_ONCE_REF=
+  'refs/heads/wcl-fresh216-approved-nekzali-20261022-28-completion-depth-page21-correction-consumed';
 export const COMPLETE_TARGET=Object.freeze({
   encounterId:3470,difficulty:4,
   startMs:1792594800000,endMs:1793199600000,
@@ -56,7 +64,8 @@ const rate=(body)=>{
   const total=num(c.total);
   return {total:total!==null&&total>=0?total:null,pointClasses};
 };
-const rankingRows=(obj,label)=>{
+const rankingRows=(obj,label,{allowUnavailable=false}={})=>{
+  if(obj==null&&allowUnavailable)return null;
   if(!obj||typeof obj!=='object'||!Array.isArray(obj.rankings))
     throw Error('COMPLETE_'+label+'_SHAPE');
   const rows=obj.rankings;
@@ -68,7 +77,7 @@ const rankingRows=(obj,label)=>{
   }
   return rows;
 };
-export function validateCompletionRequest(request){
+export function validateCompletionRequest(request,{correction=false}={}){
   const keys=['request_id','approval','encounter_id','difficulty',
     'partition_mode','date_start_kst','date_end_kst','filter','specs',
     'total_dps_pages','boss_dps_mode','ranking_batch_pages',
@@ -76,7 +85,9 @@ export function validateCompletionRequest(request){
   if(!request||typeof request!=='object'||Array.isArray(request)||
      Object.keys(request).sort().join('|')!==keys.slice().sort().join('|'))
     throw Error('COMPLETE_REQUEST_FIELDS_INVALID');
-  if(request.request_id!==COMPLETE_ID||request.approval!==COMPLETE_APPROVAL||
+  const expectedId=correction?COMPLETE_CORRECTION_ID:COMPLETE_ID;
+  const expectedApproval=correction?COMPLETE_CORRECTION_APPROVAL:COMPLETE_APPROVAL;
+  if(request.request_id!==expectedId||request.approval!==expectedApproval||
      request.encounter_id!==3470||request.difficulty!==4||
      request.partition_mode!=='LATEST_DEFAULT'||
      request.date_start_kst!=='2026-10-22'||request.date_end_kst!=='2026-10-28'||
@@ -124,7 +135,8 @@ export function createRankingState(spec,body,firstPage,{includeTotal=false}={}){
   }
   const pages=[];
   for(let p=firstPage;p<firstPage+COMPLETE_TARGET.rankingBatchPages;p++)
-    pages.push({page:p,rows:rankingRows(enc['b'+p],'BOSS_P'+p)});
+    pages.push({page:p,rows:rankingRows(enc['b'+p],'BOSS_P'+p,
+      {allowUnavailable:p>1})});
   return {spec,overall,pages,observed};
 }
 export function initCompletionState(spec,overall){
@@ -133,13 +145,16 @@ export function initCompletionState(spec,overall){
   overall.forEach(r=>{const k=rankIdentity(r);if(k)left.set(k,(left.get(k)||0)+1);});
   return {spec,overall,values:Array(100).fill(null),left,
     pageYields:[],pageSizes:[],ambiguous:0,timeConflict:0,implausible:0,
-    lastPage:0,leaderboardEnded:false};
+    lastPage:0,leaderboardEnded:false,rankingUnavailable:false,unavailablePage:null};
 }
 export function applyRankingBatch(state,pages){
   if(!state||!Array.isArray(pages)||pages.length!==10)
     throw Error('COMPLETE_BATCH_INVALID');
   for(const {page,rows} of pages){
     if(page!==state.lastPage+1)throw Error('COMPLETE_PAGE_SEQUENCE');
+    if(rows===null){
+      state.rankingUnavailable=true;state.unavailablePage=page;break;
+    }
     const byId=new Map();
     for(const r of rows){
       const k=rankIdentity(r);
@@ -173,7 +188,8 @@ export function rankingProgress(state){
   return {namedTotal,anonymousTotal,namedResolved,
     namedUnresolved:namedTotal-namedResolved,resolved:state.values.filter(v=>v!==null).length,
     lastPage:state.lastPage,leaderboardEnded:state.leaderboardEnded,
-    rankingDone:namedResolved===namedTotal||state.leaderboardEnded};
+    rankingUnavailable:state.rankingUnavailable,unavailablePage:state.unavailablePage,
+    rankingDone:namedResolved===namedTotal||state.leaderboardEnded||state.rankingUnavailable};
 }
 export function unresolvedFightGroups(state){
   const groups=new Map();
