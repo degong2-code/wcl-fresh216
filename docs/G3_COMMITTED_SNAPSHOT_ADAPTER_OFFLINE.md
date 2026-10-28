@@ -56,11 +56,12 @@ repository. The examples and tests are synthetic only.
    It does not overwrite TotalDPS, invent unobserved BossDPS or
    interpolate missing actor proofs.
 5. The historical G3 snapshots do **not** attest `reportRevision`.
-   This is intentionally `null` for all imported slots. The current
-   exact-proof contract requires a known revision for ranking-derived
-   proof, so the adaptive planner does not waste paid ranking calls on
-   revisionless source jobs and instead proposes same-fight Report
-   fallback, where the report revision can be verified live.
+   This remains `null`: we do not fabricate a revision. A named
+   actor can still acquire a ranking-derived proof only through the
+   owner-approved alternative: same report, fight, uniquely matching
+   nonmasked name **and exact source startTime**. A missing or mismatched
+   timestamp or ambiguous candidate stays unresolved and may be checked
+   through official same-fight Report rankings.
 6. Full216 schema verification is performed after conversion. The
    importer returns no raw player content in its `summary`.
 
@@ -81,9 +82,20 @@ owner-controlled provenance of the committed source export. The
 private review code is not independently certified as byte-identical
 to the currently installed source.
 
-The user's actual historical 216 committed envelope rows + RAW A:T
-rows were **not** fetched, imported or modified by this work. CI used
-synthetic 216×100 data only, with no credentials or WCL requests.
+The user's previously uploaded original workbook was privately inspected
+in this session. It contains **44 COMMITTED** G4.13 snapshots and 44
+corresponding RAW A:T rows, not all 216. Every observed snapshot
+passed independent envelope SHA-256, overall and Boss ranking digests,
+top1/top30/top100 and average RAW reconciliation, time scope and source
+identity: **44/44**. Original player rows and credentials were never
+uploaded to public GitHub. This validates the uploaded workbook copy,
+not the currently installed live Spreadsheet.
+
+`importCommittedG3Snapshots({...,allowPartial:true})` can now audit
+a subset without claiming completion; it explicitly returns
+`full216SourceComplete:false` and `full216DispatchEligible:false`.
+The default strict import still requires exactly 216 committed rows.
+CI uses synthetic 216×100 and partial-44 fixtures only.
 
 ## Next integration boundary
 
