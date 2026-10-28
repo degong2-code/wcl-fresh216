@@ -161,9 +161,10 @@ test('stale budget or foreign in-flight attempt blocks whole wave before HTTP',a
  assert.equal(store.updates,0);
  const first=readyFetches(store.read())[0].key;
  store.update(s=>beginFetch(s,first,'FOREIGN',100));
- const second=await executeOneReportWave({store,wave,attemptId:'W-2',
-   clock:()=>200,transport:async()=>{invoked++;return apiBody(wave);}});
- assert.equal(second.status,'NEEDS_REVIEW');assert.equal(invoked,0);
+ await assert.rejects(()=>executeOneReportWave({store,wave,attemptId:'W-2',
+   clock:()=>200,transport:async()=>{invoked++;return apiBody(wave);}}),
+   /WAVE_CHECKPOINT_NOT_READY/);
+ assert.equal(invoked,0);
 });
 test('incorrect wave membership and repeated attempt IDs cannot dispatch',()=>{
  const {state,wave}=setup(),wrong=structuredClone(wave);
