@@ -81,7 +81,7 @@ test('anonymous can be recovered by exact total amount + class/spec + actor id',
  assert.equal(finalCompletionSummary(st).finalComplete,true);
 });
 test('exclusive manifest and consumed ref are enforced',async()=>{
- assert.equal(preflightCompletion(env(),request(),change),true);
+ assert.equal(preflightCompletion(env(),request(),change).onceRef,COMPLETE_ONCE_REF);
  const calls=[];const out=await runCompletionExperiment({env:env(),request:request(),
   changedFiles:change,fetchImpl:async(url,opts)=>{calls.push({url,opts});return {status:422};}});
  assert.equal(out.status,'ALREADY_CONSUMED');assert.equal(calls.length,1);
@@ -93,10 +93,12 @@ test('null page after a full prior page is a safe pagination-unavailable stop',(
  const b=rankBody(spec,1,true,{matchPages:1});
  const dec=createRankingState(spec,b,1,{includeTotal:true});
  const st=initCompletionState(spec,dec.overall);applyRankingBatch(st,dec.pages);
- const qbody=rankBody(spec,11,false,{matchPages:0});
- qbody.data.worldData.encounter.b21=null;
- const dec2=createRankingState(spec,qbody,11);
- const p=applyRankingBatch(st,dec2.pages);
+ const b2=rankBody(spec,11,false,{matchPages:0});
+ const dec2=createRankingState(spec,b2,11);applyRankingBatch(st,dec2.pages);
+ const b3=rankBody(spec,21,false,{matchPages:0});
+ b3.data.worldData.encounter.b21=null;
+ const dec3=createRankingState(spec,b3,21);
+ const p=applyRankingBatch(st,dec3.pages);
  assert.equal(p.rankingUnavailable,true);assert.equal(p.unavailablePage,21);
  assert.equal(p.rankingDone,true);assert.equal(p.lastPage,20);
 });
