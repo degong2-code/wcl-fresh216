@@ -77,3 +77,16 @@ One bounded, reusable offline evaluation — **without any API request** — usi
 - Progress proof is **one finished 216-job selected-scope execution** with measured time, WCL points and truthful unresolved-share reporting, followed by correct A:Y Google Sheets output — not passing ever more synthetic gates.
 
 **Status 2026-10-28:** policy adopted and implementation strategy proposed. Ranking page 2/3 recovery, its ROI and official metrics have NOT been executed or shown effective. No operational change.
+
+## Offline execution bridge after cutoff study (2026-10-28, no LIVE permission)
+
+The new pure module \`src/core/boss-page-recovery.mjs\` implements the **missing normalized page boundary only**, not another report collector or runtime. Its entry points make an official-shaped **BossDPS-only page 2 or 3** GraphQL document (no network), decode an *injected* response and observed \`currentRequest.total\` (unknown cost remains null), and compare cached page 1..N to exactly 100 immutable TotalDPS rows, preserving any previously saved BossDPS proof. They refuse different report/fight, ambiguous/masked names, conflicting timestamps or known revisions, and implausible BossDPS. A page-3 candidate is explicitly **not authorization to dispatch**; there is no automatic retry, token, request scheduler, durable write, or Google Sheets I/O.
+
+**Minimal future operation sequence (not executed):** 
+1. Read one scope's certified TotalDPS 100, existing BossDPS page 1 and saved same-fight BossDPS. Distinguish already stored numeric evidence from newly verified actor provenance.
+2. Match cached rows; if there are no unresolved named actors, stop. Skip masked Anonymous without changing TotalDPS ranks or computing partial top-N KPI denominators.
+3. If needed, decide whether an **observed-cost-bound** request for BossDPS page 2 is worth issuing; record durable request intent before *any* future HTTP. Inspect actual page size and response identity. Repeat for page 3 only with meaningful observed marginal benefit. The current module merely emits candidates and has **no network/durable integration**.
+4. Group remaining named actors by original report/fight; reuse cached official per-fight BossDPS evidence before considering bounded \`report.rankings(fightIDs, playerMetric: bossdps)\` recovery. The existing single-fight durable runner is not yet wired to a ranking-page journal, so these paid operations remain BLOCKED.
+5. Record per-page new **same-fight** matches, observed point classes, HTTP cost, wall time, unresolved counts, and completed top30/top100 jobs. Do not extrapolate 44 archived snapshots into 216-job live throughput. Maintain independent boss-ranked RAW KPI values alongside TotalDPS-linked U:Y.
+
+The offline synthetic tests in \`tests/boss-page-recovery.test.mjs\` demonstrate query scope, one-to-one matching, null and cached-proof preservation, guarded failure, and no auto dispatch. They do **not** verify WCL's real pagination length, official response shape, cross-version identity or actual time/points. Historic 75 tests are not rerun by this patch. Production approval is still separately required for LIVE query, GAS/Sheets edit or merge.
