@@ -43,7 +43,7 @@ test('cross-spec same report/fight grouping avoids 216 unnecessary ranking strea
  assert.equal(p.pendingDistinctReportFights,800);
  assert.equal(p.rankingCandidates.length,0);
  assert.equal(p.reportNowGroups.length,800);
- assert.equal(p.reportWaveJournalRequired,true);
+ assert.equal(p.reportWaveJournalRequired,false);
 });
 test('only attributed exact proof counts toward marginal rank-page ROI',()=>{
  const rows=scope(),row=rows[0];
