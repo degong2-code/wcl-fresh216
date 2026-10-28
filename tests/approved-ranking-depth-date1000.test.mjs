@@ -44,7 +44,7 @@ test('date filter is exact 22-28 KST inclusive and query requests boss pages 1..
   assert.equal(q.variables.partition,1);
   assert.match(q.query,/metric:dps,page:1,filter:\$filter,partition:\$partition/);
   for(let p=1;p<=10;p++)
-    assert.match(q.query,new RegExp('metric:bossdps,page:'+p+',filter:\\\\$filter,partition:\\\\$partition'));
+    assert.match(q.query,new RegExp('metric:bossdps,page:'+p+',filter:\\$filter,partition:\\$partition'));
   assert.doesNotMatch(q.query,/currentRequest\{/);
 });
 test('ten pages recover a synthetic 100/100 cohort cumulatively',()=>{
