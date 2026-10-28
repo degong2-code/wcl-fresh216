@@ -45,7 +45,8 @@ test('bounded report waves reuse one Report body across four fights per wave',()
   assert.equal(waves.queryRankingsAliases,1600);
   assert.equal(waves.pendingRankReferences,21600);
   assert.equal(waves.theoreticalHttpCallsCoalesced,600);
-  assert.equal(waves.waveJournalRequired,true);
+  assert.equal(waves.waveJournalRequired,false);
+  assert.equal(waves.waveCheckpointCompatible,true);
   assert.equal(waves.currentCheckpointCompatible,false);
   assert.equal(waves.readyForLiveExecution,false);
   assert.equal(waves.observedWclPoints,null);
