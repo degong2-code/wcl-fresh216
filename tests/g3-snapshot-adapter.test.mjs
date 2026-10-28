@@ -77,9 +77,8 @@ test('imports exactly 216 committed G3 jobs and 21600 immutable source slots',()
  // as a source of the newer latest-partition Oct 22..28 cohort.
  const preview=prepareAdaptiveNext({slots:imported.slots,
    state:newCheckpoint(manifest.scopeKey,'private-historical')});
- assert.equal(preview.kind,'REPORT_WAVE');
- assert.equal(preview.nextPageCount,undefined);
- assert.equal(preview.wave.fightGroups[0].scopeKey,manifest.scopeKey);
+ assert.equal(preview.kind,'RANK_BATCH');
+ assert.equal(preview.request.filter,manifest.filter);
 });
 test('staged, corrupted digest and source scope mismatch are rejected',()=>{
  const stage=structuredClone(fixtures);stage[0].status='STAGED';
