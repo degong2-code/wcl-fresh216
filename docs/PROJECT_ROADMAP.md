@@ -1,6 +1,16 @@
 # Fresh216 — outcome-led execution roadmap
 Status: ARCHITECTURE / OFFLINE ONLY. This plan never authorizes WCL requests, Sheets writes, or collector restart.
 
+## 2026-10-28 owner policy — NEW P0 after audited source recovery
+
+**Read [RANKING_FIRST_RECOVERY_POLICY.md](RANKING_FIRST_RECOVERY_POLICY.md) before choosing another collector design.** The owner explicitly accepts unique report/fight/name with consistent available fight details as a same-actor match. Do **not** demand canonical actor ID for the existing direct path. Skip expensive Anonymous recovery by default; keep such TotalDPS-ranked slots in place and their BossDPS/U:Y unknown rather than reranking or estimating. Preserve legacy proof and original ranking metrics.
+
+**New priority:** use existing TotalDPS top100 + BossDPS top100 snapshots, then extend **BossDPS rankings only, page by page** as residual named TotalDPS ranks warrant. A rank-300 ceiling assumes an unverified 100 entries/page; page size and metric correctness must be confirmed. Report-level fallback is secondary, not default. Existing 2,721 direct matches and 4,326 stored PROOF values should not be re-fetched just to reconfirm identity. Source snapshot 44/44 and historical standalone tests 75/75 already audited: repeating them without a new defect is wasteful.
+
+**First next action (offline):** on the existing 44 private committed snapshots, compare the **1,605 non-direct stored BossDPS values** to that same job's BossDPS rank-100 cutoff, and partition the 74 null slots by Anonymous and other blockers. Report only aggregates, limitations and decision consequences; **do not claim rank200/300 recall or cost** from unavailable pages. Then design the smallest documented `characterRankings` page adapter and compare measured marginal points/elapsed time when a future **separate** live authorization exists.
+
+All four previous authorized WCL GraphQL queries are spent; ordinary CI may only be offline. This policy supersedes older report-first / canonical-ID gate recommendations below wherever they differ.
+
 ## Non-negotiable outcome
 
 For a selected difficulty, complete 8 encounter × 27 specialization = 216 jobs
