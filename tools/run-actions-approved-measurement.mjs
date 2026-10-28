@@ -145,7 +145,10 @@ if(process.argv[1]?.endsWith('/run-actions-approved-measurement.mjs')){
   const {execFileSync:execDelegated}=await import('node:child_process');
   const diffDelegated=execDelegated('git',['diff-tree','--no-commit-id','--name-status',
     '-r',process.env.GITHUB_SHA],{encoding:'utf8',timeout:10000});
-  if(
+  if(diffDelegated.trim()==='A\texperiments/approved-fresh216-oct22-27-nekzali-8alias-pilot.json'){
+    const mod=await import('./run-actions-fresh-cohort-pilot.mjs');
+    await mod.main();
+  }else if(
     diffDelegated.trim()==='A\texperiments/approved-nekzali-20261022-28-completion-depth.json' ||
     diffDelegated.trim()==='A\texperiments/approved-nekzali-20261022-28-completion-depth-page21-correction.json' ||
     diffDelegated.trim()==='A\texperiments/approved-nekzali-20261022-28-completion-depth-page21-error-object.json' ||
