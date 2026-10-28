@@ -60,6 +60,10 @@ export async function executePrivateCohortCli({
 }={}){
   const options=argsToObject(args),privateDir=env.FRESH216_PRIVATE_DIR;
   if(!privateDir)throw Error('PRIVATE_HOST_PRIVATE_DIR_NOT_SET');
+  // A normal GitHub Actions workspace is ephemeral, even in a private repo.
+  // Do not allow paid collection there without a separately audited host.
+  if(env.GITHUB_ACTIONS==='true')
+    throw Error('PRIVATE_HOST_ACTIONS_VOLUME_NOT_ATTESTED');
   const sourceCommit=privateSourceIdentity(repoRoot);
   const store=openPrivateCohortStore({
     privateDir,repoRoot,scopeKey:SCOPE,sourceCommit,
