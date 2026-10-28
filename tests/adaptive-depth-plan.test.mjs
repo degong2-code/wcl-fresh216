@@ -115,3 +115,13 @@ test('no observed cost never pretends economic savings or permits late ranking',
  assert.throws(()=>planAdaptive216(rows,{economics:{
   rankingPointsPerPage:0,reportPointsPerFight:4}}),/ADAPTIVE_ECONOMICS_INVALID/);
 });
+
+test('revisionless direct proof requires unique match and exact source startTime',()=>{
+ const rows=scope(),s=rows[0];
+ s.status='VERIFIED';s.reportRevision=null;s.startTime=1792600000000;
+ s.proof={...proof(s,1),reportRevision:null,sourceStartTime:s.startTime};
+ assert.equal(planAdaptive216(rows,{economics:money}).verifiedSlotsReused,1);
+ s.proof.sourceStartTime+=1;
+ assert.throws(()=>planAdaptive216(rows,{economics:money}),
+   /SCOPE_UNATTESTED_VERIFIED_SLOT/);
+});
