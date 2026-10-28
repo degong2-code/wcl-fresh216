@@ -10,6 +10,39 @@ const digest=x=>createHash('sha256').update(JSON.stringify(x)).digest('hex');
 const positive=x=>Number.isSafeInteger(x)&&x>0;
 const validText=x=>typeof x==='string'&&x.length>0&&x.length<=128;
 const DATE_FILTER='date.1792594800000.1793199600000';
+// Frozen WCL 8-boss/27-spec job roster from the user's imported original
+// Apps Script Code.js. Names and IDs are metadata, never private actor rows.
+export const FRESH_HEROIC_BOSSES=Object.freeze([
+  {name:'네크잘리',encounterId:3470},
+  {name:'파수꾼',encounterId:3445},
+  {name:'탐험가',encounterId:3455},
+  {name:'바쉬니크',encounterId:3497},
+  {name:'스조라크',encounterId:3420},
+  {name:'쌍곳니',encounterId:3421},
+  {name:'똬리',encounterId:3429},
+  {name:'울라텍',encounterId:3492}
+]);
+export const FRESH_DPS_SPECS=Object.freeze([
+  ['DeathKnight','Frost'],['DeathKnight','Unholy'],
+  ['DemonHunter','Havoc'],['DemonHunter','Devourer'],
+  ['Druid','Balance'],['Druid','Feral'],
+  ['Evoker','Devastation'],['Evoker','Augmentation'],
+  ['Hunter','BeastMastery'],['Hunter','Marksmanship'],['Hunter','Survival'],
+  ['Mage','Arcane'],['Mage','Fire'],['Mage','Frost'],
+  ['Monk','Windwalker'],['Paladin','Retribution'],['Priest','Shadow'],
+  ['Rogue','Assassination'],['Rogue','Outlaw'],['Rogue','Subtlety'],
+  ['Shaman','Elemental'],['Shaman','Enhancement'],
+  ['Warlock','Affliction'],['Warlock','Demonology'],
+  ['Warlock','Destruction'],['Warrior','Arms'],['Warrior','Fury']
+].map(([className,specName])=>Object.freeze({className,specName})));
+export function makeFreshDatedHeroicManifest(scopeKey){
+  need(typeof scopeKey==='string'&&scopeKey.length>0,
+    'FRESH_COHORT_SCOPE_KEY_INVALID');
+  return {scopeKey,difficulty:4,partitionMode:'LATEST_DEFAULT',
+    filter:DATE_FILTER,bosses:copy(FRESH_HEROIC_BOSSES),
+    specs:copy(FRESH_DPS_SPECS)};
+}
+
 const START=1792594800000,END=1793199600000;
 const rowCode=r=>r?.report?.code??r?.reportCode??r?.reportID;
 const rowFight=r=>r?.report?.fightID??r?.report?.fightId??r?.fightID??r?.fightId;
@@ -39,6 +72,9 @@ export function validateFreshCohortManifest(m){
       'FRESH_COHORT_SPEC_DUPLICATE_OR_INVALID');
     specs.add(s.className+'|'+s.specName);
   }
+  need(JSON.stringify(m.bosses)===JSON.stringify(FRESH_HEROIC_BOSSES)&&
+    JSON.stringify(m.specs)===JSON.stringify(FRESH_DPS_SPECS),
+    'FRESH_COHORT_ROSTER_NOT_ATTESTED');
   return digest({scopeKey:m.scopeKey,difficulty:4,
     partitionMode:'LATEST_DEFAULT',filter:DATE_FILTER,
     bosses:m.bosses,specs:m.specs});
