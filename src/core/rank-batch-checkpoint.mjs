@@ -55,7 +55,7 @@ function source(b){
       difficulty:s.difficulty,className:s.className,specName:s.specName,
       totalDps:s.totalDps,reportCode:s.reportCode,fightId:s.fightId,
       startTime:Number(s.startTime),name:s.name??'',
-      reportRevision:s.reportRevision??null,status:s.status
+      reportRevision:s.reportRevision??null
     }))};
 }
 const terminal=e=>e.result?.pages?.some(p=>
