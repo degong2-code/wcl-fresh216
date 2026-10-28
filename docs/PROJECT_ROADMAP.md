@@ -388,3 +388,28 @@ a theoretical HTTP count alone, and do not reopen the old 44-row G413 audit.
   WCL host with existing shared schema-1 sourceRequests checkpoint;
   measure all new-period 216 ranks before BossDPS recovery.
 - Full receipt: [LIVE_FRESH_COHORT_20261022_27_8ALIAS_PILOT.md](LIVE_FRESH_COHORT_20261022_27_8ALIAS_PILOT.md).
+
+
+## 2026-10-28 standalone private Linux source host — OFFLINE CI PASS
+
+- Implemented [PRIVATE_FRESH216_HOST_RUNBOOK.md](PRIVATE_FRESH216_HOST_RUNBOOK.md).
+  Reuses existing `src/core/fresh-cohort-source.mjs` and
+  `JsonCheckpointStore`; adds only a small private host adapter and
+  four-command CLI (init/status/collect/export).
+- Enforces an absolute private Linux directory outside every Git checkout,
+  mode 0700/0600, pinned clean source commit, one process owner lease,
+  one paid batch at a time, point admission and no retry after uncertain
+  GraphQL charge. Public Actions ephemeral execution explicitly blocked.
+- Source rows are written inside the private checkpoint; public output
+  includes only counts, points, timings, source commit and abstract scope.
+  The 216×100 export is private and gated on all 32 source batches.
+- Nine synthetic/mock host tests: private file modes, OAuth/GraphQL
+  isolation, 8×100 durable response, restart without replay, budget pause,
+  504 uncertain block, owner lock, and GitHub Actions rejection.
+- **IMPORTANT:** full private persistent VM/volume has NOT been
+  provisioned or operationally verified. No real WCL calls on this host.
+  Historical live 8-alias pilot 8.01 points/954ms remains the only
+  new-period live source API measurement, not a durable source receipt.
+- Next: owner-controlled persistent Linux host + secret injection +
+  secure backup, then bounded live 216 TotalDPS source capture, then
+  adaptive BossDPS/Report (no Sheets/GAS/main activation yet).
