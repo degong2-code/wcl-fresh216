@@ -18,7 +18,7 @@ import {
  runOneFreshCohortBatch
 } from '../src/core/fresh-cohort-source.mjs';
 
-const FILTER='date.1792594800000.1793199600000';
+const FILTER='date.1792594800000.1793113200000';
 function manifest(){
  return makeFreshDatedHeroicManifest('heroic:dated:oct22-28');
 }
