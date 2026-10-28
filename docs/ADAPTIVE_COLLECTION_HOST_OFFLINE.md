@@ -130,3 +130,16 @@ The G3 adapter supports audited partial import with a non-dispatchable
 flag; its strict full216 path remains unchanged. The owner-approved
 same report/fight/name/startTime unique identity rule is now recognized
 for ranking proof even when the historical producer omitted reportRevision.
+
+
+## 2026-10-28 new-period TotalDPS source boundary
+
+The missing fresh source has a dedicated **OFFLINE, transport-injected**
+capture path: [FRESH_COHORT_20261022_28_OFFLINE.md](FRESH_COHORT_20261022_28_OFFLINE.md).
+It reuses the common durable checkpoint's `sourceRequests` and point
+accounting, validates the actual imported 8×27 boss/spec roster, makes
+32 proposed grouped TotalDPS first-page requests, and refuses to
+export Full216 slots until every 100-row job is committed. Runtime
+requires explicit owner approval, WCL transport and private persistent
+volume. No new live WCL calls, actor data publishing, Sheets or GAS
+changes were made in this offline development stage.
