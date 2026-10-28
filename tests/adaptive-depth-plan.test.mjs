@@ -78,7 +78,7 @@ test('Anonymous is never dropped and its fight is Report-ready',()=>{
  assert.equal(p.reportNowGroups.length,1);
  assert.equal(p.reportNowGroups[0].slots[0].name,'Anonymous');
  assert.equal(p.reportDeferredGroups.length,21599);
- assert.equal(p.rankingCandidates.length,215);
+ assert.equal(p.rankingCandidates.length,216);
 });
 test('WCL terminal and short pages end ranking with no invented rank2000 cap',()=>{
  const rows=scope(),a=rows[0],b=rows[100];
