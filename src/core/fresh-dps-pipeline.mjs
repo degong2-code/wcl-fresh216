@@ -145,10 +145,10 @@ export function inspectFreshDpsPipeline(state,{includeOutputs=false,
         e.identity.reportRevision??null
       ]));
     const portfolio=planNamedRecoveryEconomics(recovery,{
-      spentReportFightKeys
+      spentReportFightKeys,observedCost:recoveryEconomics
     });
     result.recovery={
-      status:recoveryEconomics?'MEASURED_POLICY_PREVIEW':
+      status:recoveryEconomics?'COST_INPUT_POLICY_PREVIEW':
         'COST_INPUT_NEEDED_BEFORE_PAID_RECOVERY',
       namedPending:pendingNamed,maskedPending:pendingMasked,
       nextRankingJobs:recovery.rankingCandidates.length,
@@ -176,6 +176,12 @@ export function inspectFreshDpsPipeline(state,{includeOutputs=false,
         jobSlots:portfolio.reportPilot.jobSlots,
         graphqlAliases:portfolio.reportPilot.graphqlAliases,
         observedPoints:null,verifiedProofs:null
+      }:null,
+      costBreakEvenScenario:portfolio.comparison?{
+        minimumAvoidedSingletonFightGroups:
+          portfolio.comparison.minimumAvoidedSingletonFightGroupsForStrictBreakEven,
+        theoreticalOpportunityOnly:true,
+        actualIncrementalGainUnmeasured:true
       }:null,
       estimatedPointSavings:null,
       dispatchAuthorized:false
