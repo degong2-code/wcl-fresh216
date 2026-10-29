@@ -56,7 +56,8 @@ test('independent BossDPS leaderboard and Total-linked BossDPS never share rank 
   assert.equal(result.bossRankedDpsMetrics[0],180000);
   assert.equal(result.totalRankJoinedBossDpsMetrics[0],140000);
   assert.equal(result.nonBossShare[0],0.3);
-  assert.equal(result.totalRankJoinedBossDpsMetrics[1],180000);
+  assert.equal(result.totalRankJoinedBossDpsMetrics[1],
+    f.proofs.find(p=>p.rank===30).proof.bossDps);
   assert.equal(result.bossRankedDpsMetrics[1],f.bossPage.rankings[29].amount);
   assert.equal(result.bossRankingSnapshotSha,f.bossPage.bossRankingSha);
   assert.equal(result.nonBossShare[3],Math.round(1e6*
