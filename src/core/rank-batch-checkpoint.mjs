@@ -11,11 +11,11 @@ const token=s=>typeof s==='string'&&s.length>0;
 const key=b=>JSON.stringify([b.scopeKey,b.jobKey,b.snapshotSha,b.firstPage,b.pageCount]);
 const same=(a,b)=>JSON.stringify(a)===JSON.stringify(b);
 const pending=state=>[...Object.values(state.entries??{}),
-  ...Object.values(state.rankRequests??{}),...Object.values(state.sourceRequests??{})].some(e=>
+  ...Object.values(state.rankRequests??{}),...Object.values(state.sourceRequests??{}),...Object.values(state.bossPageRequests??{})].some(e=>
   e.status==='IN_FLIGHT'||e.status==='NEEDS_REVIEW'||
   (e.attempt&&e.observedPoints===null));
 const allAttempts=state=>[...Object.values(state.entries??{}),
-  ...Object.values(state.rankRequests??{}),...Object.values(state.sourceRequests??{})].filter(e=>e.attempt).map(e=>e.attempt.id);
+  ...Object.values(state.rankRequests??{}),...Object.values(state.sourceRequests??{}),...Object.values(state.bossPageRequests??{})].filter(e=>e.attempt).map(e=>e.attempt.id);
 
 function source(b){
   ok(b&&token(b.scopeKey)&&token(b.jobKey)&&
