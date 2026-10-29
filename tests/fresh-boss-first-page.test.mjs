@@ -16,7 +16,7 @@ function allSourceRows(){
   return planFreshCohortBatches(manifest).batches.flatMap(b=>
     b.jobs.flatMap(j=>Array.from({length:100},(_,i)=>({
       scopeKey,jobKey:j.jobKey,rank:i+1,snapshotSha:sha,
-      name:(i===99&&j===b.jobs[0])?'Anonymous':'Actor'+i,
+      name:(b.batchIndex===0&&i===99&&j===b.jobs[0])?'Anonymous':'Actor'+i,
       totalDps:100000-i*100,
       reportCode:'R'+b.batchIndex+'_'+j.specName+'_'+i,
       fightId:i+1,reportRevision:null,
