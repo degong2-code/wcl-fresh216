@@ -1,3 +1,5 @@
+> **2026-10-29 LIVE EXECUTION PATH UPDATE:** The private `ai-project-lab` GitHub Actions checkpoint path replaces the previous local-only host P0; see [PRIVATE_GITHUB_ACTIONS_RUNBOOK.md](PRIVATE_GITHUB_ACTIONS_RUNBOOK.md). Pinned collector runtime `7b1a075ad2663c8aa07734b7733cbe81bf9c6071`, successful private status Actions rerun, current durable TotalDPS 0/216 before the first authorized collection. Historical exploratory work below is not the next action. No change to EXACT100, BossDPS null-safe proof, or Sheets/GAS approval boundary.
+
 # Fresh216 — outcome-led execution roadmap
 Status: ARCHITECTURE / OFFLINE ONLY. This plan never authorizes WCL requests, Sheets writes, or collector restart.
 
