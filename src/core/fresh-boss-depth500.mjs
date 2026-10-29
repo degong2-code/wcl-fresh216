@@ -20,9 +20,9 @@ const slotKey=s=>JSON.stringify([s.jobKey,s.rank,s.snapshotSha]);
  * page3 match, named gaps and a full nonterminal third page.
  * Successful page3 is an ordering proxy, NOT a page4 success guarantee.
  */
-export function planFreshBossThrough500(state,{maxRequests=16}={}){
+export function planFreshBossThrough500(state,{maxRequests=16,includeZeroPage3=false}={}){
   ensure(Number.isSafeInteger(maxRequests)&&maxRequests>=1&&
-    maxRequests<=32,'DEPTH500_MAX_REQUESTS_INVALID');
+    maxRequests<=180,'DEPTH500_MAX_REQUESTS_INVALID');
   ensure(state?.schema===1&&state.status==='ACTIVE'&&
     state.scopeKey===SCOPE&&state.sourceCodeCommit===SOURCE,
     'DEPTH500_SOURCE_PIN_DRIFT');
@@ -38,6 +38,7 @@ export function planFreshBossThrough500(state,{maxRequests=16}={}){
     Array.isArray(e.result?.jobs)),'DEPTH500_BOSS_PAGE1_INCOMPLETE');
   const witnesses=committedRankingEvidence(state);
   ensure(witnesses.length===216,'DEPTH500_BOSS_EVIDENCE_INCOMPLETE');
+  ensure(typeof includeZeroPage3==='boolean','DEPTH500_ZERO_GAIN_CONFIG_INVALID');
   const proofKeys=new Set(committedProofs(state).map(slotKey));
   const byJob=new Map();
   for(const s of source.slots){
@@ -62,8 +63,11 @@ export function planFreshBossThrough500(state,{maxRequests=16}={}){
       last.hasMorePages===false){skipTerminal++;continue;}
     const named=rows.filter(s=>!proofKeys.has(slotKey(s))&&!masked(s.name));
     if(!named.length){skipNoNamed++;continue;}
-    if(!Array.isArray(last.newVerifiedRanks)||
-      last.newVerifiedRanks.length===0){skipNoPage3Gain++;continue;}
+    if(!Array.isArray(last.newVerifiedRanks))
+      throw Error('DEPTH500_PAGE3_GAIN_SHAPE_INVALID');
+    if(last.newVerifiedRanks.length===0&&!includeZeroPage3){
+      skipNoPage3Gain++;continue;
+    }
     const singles=named.filter(s=>[1,30,100].includes(s.rank)).length;
     const top30=named.filter(s=>s.rank<=30).length;
     const page3Gains=last.newVerifiedRanks.length;
@@ -84,7 +88,7 @@ export function planFreshBossThrough500(state,{maxRequests=16}={}){
   eligible.sort((a,b)=>b.priority-a.priority||
     b.page3Gains-a.page3Gains||a.jobKey.localeCompare(b.jobKey));
   return {status:'OFFLINE_DEPTH500_WAVE_NOT_AUTHORIZED',
-    eligibleJobs:eligible.length,eligibleNamed,
+    eligibleJobs:eligible.length,eligibleNamed,includeZeroPage3,
     skipNoPage3Gain,skipTerminal,skipNotAtPage3,skipNoNamed,
     selectedJobs:Math.min(maxRequests,eligible.length),
     plannedPageAliases:Math.min(maxRequests,eligible.length)*2,
