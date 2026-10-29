@@ -1,3 +1,5 @@
+> **2026-10-29 CURRENT PATH:** GitHub-hosted private Actions + private Git checkpoint is now the primary source-host model; this older local persistent Linux-volume runbook remains **optional fallback**. See [PRIVATE_GITHUB_ACTIONS_RUNBOOK.md](PRIVATE_GITHUB_ACTIONS_RUNBOOK.md). GitHub Actions itself remains ephemeral; only the Git **remote checkpoint** is persistent. Pinned runtime SHA `7b1a075ad2663c8aa07734b7733cbe81bf9c6071`. Status-only Actions verified twice; live durable source still 0/216 at this doc milestone.
+
 # Fresh216 private persistent source host — OFFLINE TESTED
 
 **Scope:** Heroic, all 8 validated encounters × 27 DPS specs, 2026-10-22..27
