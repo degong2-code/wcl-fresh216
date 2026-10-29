@@ -353,5 +353,8 @@ export function committedProofs(state){
   return [...Object.values(state.entries).flatMap(e=>
     e.result?clone(e.result.verified):[]),
     ...Object.values(state.rankRequests??{}).flatMap(e=>
-      e.result?.verified?clone(e.result.verified):[])];
+      e.result?.verified?clone(e.result.verified):[]),
+    ...Object.values(state.bossPageRequests??{}).flatMap(e=>
+      e.status==='COMPLETED'?clone(
+        e.result?.jobs?.flatMap(j=>j.verified)??[]):[])];
 }
