@@ -36,7 +36,7 @@ function fixture(){
       result:{jobs:entry.result.jobs.map(j=>({
         jobKey:j.jobKey,snapshotSha:j.snapshotSha,
         rankings:Array.from({length:100},()=>({amount:100})),
-        rankingsStatus:'EXACT100',
+        rankingsStatus:'EXACT100',verified:[],
         pages:[{page:1,status:'OK',rowCount:100,
           hasMorePages:true,newVerifiedRanks:[]}]
       }))}
