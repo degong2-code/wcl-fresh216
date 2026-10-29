@@ -127,7 +127,8 @@ export function buildFreshCohortQuery(batch){
 const allEntries=state=>[
   ...Object.values(state.entries??{}),
   ...Object.values(state.rankRequests??{}),
-  ...Object.values(state.sourceRequests??{})
+  ...Object.values(state.sourceRequests??{}),
+  ...Object.values(state.bossPageRequests??{})
 ];
 const unresolved=state=>allEntries(state).some(e=>
   e.status==='IN_FLIGHT'||e.status==='NEEDS_REVIEW'||
