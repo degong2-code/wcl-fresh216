@@ -1,5 +1,8 @@
 # WCL Fresh216
 
+> **2026-10-29 GitHub Actions execution update:** Private `ai-project-lab` Actions now owns source collection and its separate private Git checkpoint branch. [Private GitHub Actions runbook](docs/PRIVATE_GITHUB_ACTIONS_RUNBOOK.md) supersedes the older “GAS-only runtime / sanitized metadata only” description **for the explicitly approved Fresh216 raw source checkpoint**. This public repository still never stores raw rows or credentials. The collector remains experimental; Sheets/GAS deployment and PR merge have not occurred.
+
+
 A Warcraft Logs DPS and non-boss DPS evidence collector, targeting **8 raid encounters × 27 specializations (216 jobs)**.
 
 > **Migration in progress — NOT an installable release.** The existing Google Apps Script installation remains the execution baseline until full source parity, security review, and offline CI validation are completed. No live collector source has been promoted to this repository yet.
