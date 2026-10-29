@@ -7,6 +7,7 @@
 import {planFull216} from './full-scope-plan.mjs';
 import {makeFreshDatedHeroicManifest,planFreshCohortBatches}
   from './fresh-cohort-source.mjs';
+import {createHash} from 'node:crypto';
 import {decodeRankBatch} from './rank-batch-runner.mjs';
 
 const need=(condition,code)=>{if(!condition)throw Error(code);};
@@ -111,9 +112,20 @@ export function decodeFreshBossFirstPage(batch,httpStatus,body){
     const decoded=decodeRankBatch(request,200,projected);
     if(decoded.status!=='OK'||!decoded.result)
       return fail(decoded.status);
-    results.push({jobKey:job.jobKey,snapshotSha:job.snapshotSha,
+    // Preserve the OFFICIAL BossDPS leaderboard, even if the same-fight
+    // join yields zero rows. These rows are private checkpoint data only.
+    const rankings=structuredClone(encounter['b'+i].rankings);
+    const amounts=rankings.map(r=>Number(r.amount));
+    if(amounts.some((n,k)=>k>0&&n>amounts[k-1]))
+      return fail('FRESH_BOSS_RANKING_NOT_SORTED');
+    results.push({
+      jobKey:job.jobKey,snapshotSha:job.snapshotSha,
+      rankings,bossRankingSha:createHash('sha256')
+        .update(JSON.stringify(rankings)).digest('hex'),
+      rankingsStatus:rankings.length===100?'EXACT100':'PARTIAL',
       verified:decoded.result.verified,pages:decoded.result.pages,
-      terminal:decoded.terminal});
+      terminal:decoded.terminal
+    });
   }
   return {status:'OK',observedPoints:points,
     result:{jobs:results,verifiedCount:results.reduce((n,r)=>n+r.verified.length,0)}};
