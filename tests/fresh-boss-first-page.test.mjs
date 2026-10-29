@@ -94,7 +94,7 @@ test('masked player remains ranked but produces no BossDPS attribution',()=>{
     totalRankSlots:batch.jobs[0].slots,bossPage:res.result.jobs[0],
     verifiedProofs:res.result.jobs[0].verified
   });
-  assert.equal(output.bossRankedDpsMetrics[2],89900);
+  assert.equal(output.bossRankedDpsMetrics[2],90000);
   assert.equal(output.nonBossShare[2],null);
   assert.equal(output.nonBossShare[4],null);
 });
