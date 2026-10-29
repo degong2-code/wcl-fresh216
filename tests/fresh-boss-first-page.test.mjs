@@ -1,5 +1,7 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
+import {createHash} from 'node:crypto';
+import {summarizeFreshDpsJob} from '../src/core/fresh-dps-output-contract.mjs';
 import {
   makeFreshDatedHeroicManifest,planFreshCohortBatches
 } from '../src/core/fresh-cohort-source.mjs';
@@ -61,6 +63,21 @@ test('one response yields 8x100 exact BossDPS proofs and one request cost',()=>{
   assert.equal(res.observedPoints,8.01);
   assert.equal(res.result.jobs.length,8);
   assert.equal(res.result.verifiedCount,800);
+  const saved=res.result.jobs[0];
+  assert.equal(saved.rankingsStatus,'EXACT100');
+  assert.equal(saved.rankings.length,100);
+  assert.equal(saved.bossRankingSha,
+    createHash('sha256').update(JSON.stringify(saved.rankings))
+      .digest('hex'));
+  const output=summarizeFreshDpsJob({
+    totalRankSlots:batch.jobs[0].slots,bossPage:saved,
+    verifiedProofs:saved.verified
+  });
+  assert.equal(output.status,'EXACT100');
+  assert.equal(output.bossRankingStatus,'EXACT100');
+  assert.equal(output.bossRankedDpsMetrics[0],99900);
+  assert.equal(output.totalRankJoinedBossDpsMetrics[0],99900);
+  assert.equal(output.nonBossShare[0],0.001);
   const proof=res.result.jobs[0].verified[0].proof;
   assert.equal(proof.discovery.kind,'BOSSDPS_RANKING_PAGE');
   assert.equal(proof.discovery.page,1);
@@ -73,6 +90,13 @@ test('masked player remains ranked but produces no BossDPS attribution',()=>{
   assert.equal(res.status,'OK');
   assert.equal(res.result.verifiedCount,799);
   assert.equal(res.result.jobs[0].verified.some(v=>v.rank===100),false);
+  const output=summarizeFreshDpsJob({
+    totalRankSlots:batch.jobs[0].slots,bossPage:res.result.jobs[0],
+    verifiedProofs:res.result.jobs[0].verified
+  });
+  assert.equal(output.bossRankedDpsMetrics[2],89900);
+  assert.equal(output.nonBossShare[2],null);
+  assert.equal(output.nonBossShare[4],null);
 });
 test('all-or-nothing on missing alias, unobserved points and wrong date',()=>{
   const batch=planFreshBossFirstPages(allSourceRows()).batches[0];
