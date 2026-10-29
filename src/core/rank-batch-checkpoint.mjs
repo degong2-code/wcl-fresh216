@@ -61,6 +61,28 @@ function source(b){
 const terminal=e=>e.result?.pages?.some(p=>
   p.status==='UNAVAILABLE'||p.status==='OK'&&
   (p.rowCount<100||p.hasMorePages===false));
+/** Official saved Boss page1 is the preceding paid rank-page witness.
+ * This permits page2 without paying for/overwriting page1 a second time.
+ */
+const bossPage1=(state,b)=>{
+  const candidates=Object.values(state.bossPageRequests??{})
+    .filter(e=>e.status==='COMPLETED'&&e.result?.jobs);
+  const matches=candidates.flatMap(e=>e.result.jobs.map(j=>({entry:e,job:j})))
+    .filter(x=>x.job.jobKey===b.jobKey&&
+      x.job.snapshotSha===b.snapshotSha);
+  ok(matches.length<=1,'RANK_BOSS_PAGE1_DUPLICATE_WITNESS');
+  if(matches.length===0)return null;
+  const {entry,job}=matches[0];
+  const page=job.pages?.[0];
+  ok(entry.scopeKey===b.scopeKey&&
+    entry.sourceCommit===state.sourceCodeCommit&&
+    page?.page===1&&page.status==='OK'&&
+    Array.isArray(page.newVerifiedRanks)&&
+    page.rowCount===job.rankings?.length&&
+    job.rankingsStatus===(job.rankings.length===100?'EXACT100':'PARTIAL'),
+    'RANK_BOSS_PAGE1_WITNESS_INVALID');
+  return page;
+};
 export function registerRankBatch(state,batch){
   ok(state?.schema===1&&state.status==='ACTIVE'&&
     batch?.scopeKey===state.scopeKey,'RANK_REGISTER_STATE_INVALID');
@@ -79,7 +101,14 @@ export function registerRankBatch(state,batch){
       b.firstPage===last.source.firstPage+last.source.pageCount&&
       same(last.source.slots,b.slots),
       'RANK_REQUEST_SEQUENCE_OR_SNAPSHOT_DRIFT');
-  }else ok(b.firstPage===1,'RANK_REQUEST_FIRST_PAGE_REQUIRED');
+  }else{
+    const first=bossPage1(state,b);
+    if(first){
+      ok(b.firstPage===2&&first.rowCount===100&&
+        first.hasMorePages!==false,
+        'RANK_BOSS_PAGE1_TERMINAL_OR_NEXT_PAGE_DRIFT');
+    }else ok(b.firstPage===1,'RANK_REQUEST_FIRST_PAGE_REQUIRED');
+  }
   const out=clone(state);out.rankRequests??={};
   out.rankRequests[k]={key:k,source:b,status:'READY',
     attempt:null,observedPoints:null,wallMs:null,result:null,incident:null};
@@ -190,6 +219,17 @@ export function uncertainRankBatch(state,k,attemptId,{
 export function committedRankingEvidence(state){
   ok(state?.schema===1,'CHECKPOINT_INVALID');
   const groups=new Map();
+  // Reuse the 32 x official first-page witnesses already paid for.
+  // Each job gets one page=1 prefix before any optional deeper pages.
+  for(const e of Object.values(state.bossPageRequests??{})){
+    if(e.status!=='COMPLETED'||!e.result)continue;
+    for(const job of e.result.jobs??[]){
+      const k=JSON.stringify([e.scopeKey,job.jobKey,job.snapshotSha]);
+      ok(!groups.has(k),'RANK_BOSS_PAGE1_DUPLICATE_EVIDENCE');
+      groups.set(k,{scopeKey:e.scopeKey,jobKey:job.jobKey,
+        snapshotSha:job.snapshotSha,pages:clone(job.pages)});
+    }
+  }
   for(const e of Object.values(state.rankRequests??{})){
     if(e.status!=='COMPLETED'||!e.result)continue;
     const source=e.source,k=JSON.stringify([
@@ -198,6 +238,10 @@ export function committedRankingEvidence(state){
       jobKey:source.jobKey,snapshotSha:source.snapshotSha,pages:[]});
     groups.get(k).pages.push(...clone(e.result.pages));
   }
-  for(const g of groups.values())g.pages.sort((a,b)=>a.page-b.page);
+  for(const g of groups.values()){
+    g.pages.sort((a,b)=>a.page-b.page);
+    g.pages.forEach((p,i)=>ok(p.page===i+1,
+      'RANK_PAGE_WITNESS_GAP_OR_DUPLICATE'));
+  }
   return [...groups.values()];
 }
