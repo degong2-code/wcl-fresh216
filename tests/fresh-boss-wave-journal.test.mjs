@@ -96,7 +96,7 @@ test('first BossDPS wave is preview-only by default; source checkpoint unchanged
   assert.equal(store.read().bossPageRequests,undefined);
   assert.equal(store.read().sourceRequests[Object.keys(state.sourceRequests)[0]].status,
     'COMPLETED');
-  assert.equal(checkpointStats(store.read()).witnessedPoints,216.32);
+  assert(Math.abs(checkpointStats(store.read()).witnessedPoints-216.32)<1e-8);
 });
 test('one paid 8alias WCL response persists B independent ranks and C exact proofs once',async()=>{
   const {state,batch}=fresh(),store=memory(state);
@@ -120,7 +120,7 @@ test('one paid 8alias WCL response persists B independent ranks and C exact proo
   assert.equal(store.count,3);
   assert.deepEqual(store.history.map(s=>s.bossPageRequests['page1:0'].status),
     ['READY','IN_FLIGHT','COMPLETED']);
-  assert.equal(checkpointStats(store.read()).witnessedPoints,224.33);
+  assert(Math.abs(checkpointStats(store.read()).witnessedPoints-224.33)<1e-8);
   assert.equal(checkpointStats(store.read()).verifiedSlotEvidence,800);
   const saved=store.read().bossPageRequests['page1:0'];
   assert.equal(saved.result.jobs.length,8);
