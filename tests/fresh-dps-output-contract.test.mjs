@@ -92,7 +92,11 @@ test('partial independent BossDPS rankings do not fabricate 100th rank or means'
     verifiedProofs:f.proofs
   });
   assert.equal(v.bossRankingStatus,'PARTIAL');
-  assert.deepEqual(v.bossRankedDpsMetrics,[null,null,null,null,null]);
+  assert.deepEqual(v.bossRankedDpsMetrics,[
+    180000,f.bossPage.rankings[29].amount,null,
+    f.bossPage.rankings.slice(0,30).reduce((n,r)=>n+r.amount,0)/30,
+    null
+  ]);
   assert.equal(v.totalRankJoinedBossDpsMetrics[0],140000);
 });
 test('null boss leaderboard does not erase verified source-linked BossDPS',()=>{
