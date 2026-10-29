@@ -103,14 +103,14 @@ export function beginFetch(state,key,attemptId,atMs){
   // is IN_FLIGHT, or after any uncertain/unreconciled result. This protects
   // the budget even for direct callers bypassing the bounded sweep.
   const hasUnsafeAttempt=[...Object.values(state.entries),
-    ...Object.values(state.rankRequests??{}),...Object.values(state.sourceRequests??{})].some(e=>
+    ...Object.values(state.rankRequests??{}),...Object.values(state.sourceRequests??{}),...Object.values(state.bossPageRequests??{})].some(e=>
     e.status==='IN_FLIGHT'||e.status==='NEEDS_REVIEW'||
     (e.attempt && e.observedPoints===null));
   ok(!hasUnsafeAttempt,'SCOPE_HAS_UNRESOLVED_ATTEMPT');
   ok(typeof attemptId==='string'&&attemptId.length>0&&Number.isSafeInteger(atMs)&&atMs>=0,
     'INVALID_ATTEMPT');
   // Unique within this run, including completed/failed attempts.
-  ok(![...Object.values(state.entries),...Object.values(state.rankRequests??{}),...Object.values(state.sourceRequests??{})]
+  ok(![...Object.values(state.entries),...Object.values(state.rankRequests??{}),...Object.values(state.sourceRequests??{}),...Object.values(state.bossPageRequests??{})]
     .some(e=>e.attempt?.id===attemptId),'DUPLICATE_ATTEMPT_ID');
   const out=clone(state);
   const target=out.entries[key];
@@ -227,7 +227,7 @@ export function beginWaveFetch(state,wave,attemptId,atMs){
   const keys=waveKeys(state,wave);
   ok(typeof attemptId==='string'&&attemptId&&
     Number.isSafeInteger(atMs)&&atMs>=0,'INVALID_ATTEMPT');
-  ok(![...Object.values(state.entries),...Object.values(state.rankRequests??{}),...Object.values(state.sourceRequests??{})].some(e=>
+  ok(![...Object.values(state.entries),...Object.values(state.rankRequests??{}),...Object.values(state.sourceRequests??{}),...Object.values(state.bossPageRequests??{})].some(e=>
     e.status==='IN_FLIGHT'||e.status==='NEEDS_REVIEW'||
     (e.attempt&&e.observedPoints===null)),
     'SCOPE_HAS_UNRESOLVED_ATTEMPT');
@@ -272,7 +272,7 @@ export function recoverCheckpoint(state){
   ok(state?.schema===1,'CHECKPOINT_INVALID');
   const out=clone(state);
   let changed=false;
-  for(const e of [...Object.values(out.entries),...Object.values(out.rankRequests??{}),...Object.values(out.sourceRequests??{})]){
+  for(const e of [...Object.values(out.entries),...Object.values(out.rankRequests??{}),...Object.values(out.sourceRequests??{}),...Object.values(out.bossPageRequests??{})]){
     if(e.status==='IN_FLIGHT'){
       e.status='NEEDS_REVIEW';
       e.incident={code:'INTERRUPTED_IN_FLIGHT',automaticRetry:false};
@@ -328,6 +328,16 @@ export function checkpointStats(state){
       billedAttempts.set(e.attempt.id,{kind:'TOTAL_COHORT_BATCH',
         points:e.observedPoints});
     }
+  }
+  for(const e of Object.values(state.bossPageRequests??{})){
+    counts[e.status]=(counts[e.status]||0)+1;
+    if(e.attempt){
+      ok(!billedAttempts.has(e.attempt.id),'CHECKPOINT_DUPLICATE_BOSS_ATTEMPT');
+      billedAttempts.set(e.attempt.id,{kind:'BOSS_PAGE_WAVE',
+        points:e.observedPoints});
+    }
+    if(e.result?.jobs)proofs+=e.result.jobs.reduce(
+      (n,j)=>n+(j.verified?.length??0),0);
   }
   for(const a of billedAttempts.values()){
     if(a.points===null)pointsUnobserved++;
