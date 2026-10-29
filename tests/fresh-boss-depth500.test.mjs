@@ -84,3 +84,26 @@ test('previous page4-5 completion and disputed attempt cannot be silently replay
   assert.throws(()=>planFreshBossThrough500(state,{maxRequests:0}),
     /DEPTH500_MAX_REQUESTS_INVALID/);
 });
+
+test('explicit zero-gain inclusion is last-ranked and still excludes completed page5 jobs',()=>{
+  const s=fixture();
+  const defaultPlan=planFreshBossThrough500(s,{maxRequests:180});
+  assert.equal(defaultPlan.eligibleJobs,144);
+  const full=planFreshBossThrough500(s,{
+    maxRequests:180,includeZeroPage3:true
+  });
+  assert.equal(full.eligibleJobs,216);
+  assert.equal(full.selectedJobs,180);
+  assert(full.requests.slice(0,144).every(x=>x.page3Gains===2));
+  assert(full.requests.slice(144).every(x=>x.page3Gains===0));
+  const first=Object.values(s.rankRequests)[1];
+  first.result.pages.push({page:4,status:'OK',rowCount:100,
+    hasMorePages:true,newVerifiedRanks:[33]});
+  first.result.pages.push({page:5,status:'OK',rowCount:100,
+    hasMorePages:true,newVerifiedRanks:[]});
+  const next=planFreshBossThrough500(s,{
+    maxRequests:180,includeZeroPage3:true
+  });
+  assert.equal(next.eligibleJobs,215);
+  assert(!next.requests.some(x=>x.jobKey===first.source.jobKey));
+});
