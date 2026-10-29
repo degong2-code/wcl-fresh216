@@ -118,13 +118,16 @@ test('already-paid first 8 specs are reused without rank-page1 replay',async()=>
   assert.equal(evidence.length,8);
   assert(evidence.every(e=>e.pages.length===1&&e.pages[0].page===1));
   const job=plan.batches[0].jobs[0];
-  const page2={...job,firstPage:2,pageCount:2};
+  const sourceJob={...job,scopeKey:scope,
+    encounterId:plan.batches[0].encounterId,difficulty:4,
+    filter:'date.1792594800000.1793113200000'};
+  const page2={...sourceJob,firstPage:2,pageCount:2};
   const registered=registerRankBatch(s,page2);
   assert.equal(Object.values(registered.rankRequests).length,1);
   assert.equal(Object.values(registered.rankRequests)[0].source.firstPage,2);
-  assert.throws(()=>registerRankBatch(s,{...job,firstPage:1,pageCount:1}),
+  assert.throws(()=>registerRankBatch(s,{...sourceJob,firstPage:1,pageCount:1}),
     /RANK_BOSS_PAGE1_TERMINAL_OR_NEXT_PAGE_DRIFT/);
-  assert.throws(()=>registerRankBatch(s,{...job,firstPage:3,pageCount:1}),
+  assert.throws(()=>registerRankBatch(s,{...sourceJob,firstPage:3,pageCount:1}),
     /RANK_BOSS_PAGE1_TERMINAL_OR_NEXT_PAGE_DRIFT/);
 });
 test('bounded two-wave continuation resumes from index1 and persists index2 only',async()=>{
