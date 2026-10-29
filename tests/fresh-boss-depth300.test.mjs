@@ -41,6 +41,8 @@ function completedSource(){
         id:'boss-'+batch.batchIndex,startedAtMs:13},
       result:{jobs:e.result.jobs.map(j=>({
         jobKey:j.jobKey,snapshotSha:j.snapshotSha,
+        rankings:Array.from({length:100},(_,i)=>({amount:200000-i*100})),
+        rankingsStatus:'EXACT100',
         pages:[{page:1,status:'OK',rowCount:100,
           hasMorePages:true,newVerifiedRanks:[]}],
         verified:[]
