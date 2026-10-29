@@ -2,7 +2,7 @@ import {randomUUID} from 'node:crypto';
 import {
   beginRankBatch,completeRankBatch,uncertainRankBatch
 } from './rank-batch-checkpoint.mjs';
-import {checkpointStats} from './checkpoint.mjs';
+import {checkpointStats,committedProofs} from './checkpoint.mjs';
 import {evaluateRequestAdmission} from './request-admission.mjs';
 
 const safe=v=>Number.isFinite(Number(v))?Number(v):null;
@@ -163,9 +163,10 @@ export async function executeOneRankBatch({
   let outcome,points=null;
   try{
     const response=await transport(q);
-    const old=Object.values(store.read().rankRequests??{})
-      .filter(e=>e.source?.jobKey===request.jobKey&&e.status==='COMPLETED')
-      .flatMap(e=>e.result?.verified??[]);
+    // Include official Boss page1 and already-committed same-fight proofs.
+    // An older page or Report win must never be billed as a new page gain.
+    const old=committedProofs(store.read()).filter(e=>
+      e.jobKey===request.jobKey&&e.snapshotSha===request.snapshotSha);
     const decoded=decodeRankBatch(source,response?.httpStatus,response?.body,old);
     points=decoded.observedPoints;
     outcome=decoded.status==='OK'?{result:decoded.result}:
