@@ -35,7 +35,12 @@ export async function runFreshBossThrough300({
   for(const candidate of plan.requests.slice(0,maxRequests)){
     // The same durable rank-request entry must be used for every retry-safe
     // resume. A READY entry may be resumed, an attempted one NEVER replayed.
-    store.update(s=>registerRankBatch(s,candidate));
+    const alreadyReady=readyRankBatches(store.read()).some(r=>
+      r.jobKey===candidate.jobKey&&
+      r.snapshotSha===candidate.snapshotSha&&
+      r.firstPage===candidate.firstPage&&
+      r.pageCount===candidate.pageCount);
+    if(!alreadyReady)store.update(s=>registerRankBatch(s,candidate));
     const request=readyRankBatches(store.read()).find(r=>
       r.jobKey===candidate.jobKey&&
       r.snapshotSha===candidate.snapshotSha&&
