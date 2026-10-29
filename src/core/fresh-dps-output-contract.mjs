@@ -50,11 +50,20 @@ function officialBossRankedMetrics(page,jobKey,snapshotSha){
 function withExactProofs(slots,proofRows){
   need(Array.isArray(proofRows),'DPS_PROOFS_INVALID');
   const index=new Map(slots.map(s=>[s.rank,s]));
+  const identityCount=new Map();
+  for(const s of slots){
+    if(masked(s.name))continue;
+    const key=JSON.stringify([s.reportCode,s.fightId,norm(s.name)]);
+    identityCount.set(key,(identityCount.get(key)??0)+1);
+  }
   const attached=new Map();
   for(const row of proofRows){
     const s=index.get(row?.rank),p=row?.proof;
     need(s&&row.jobKey===s.jobKey&&row.snapshotSha===s.snapshotSha&&
       !attached.has(row.rank),'DPS_PROOF_RANK_OR_SNAPSHOT_DRIFT');
+    need(!masked(s.name)&&identityCount.get(JSON.stringify([
+      s.reportCode,s.fightId,norm(s.name)]))===1,
+      'DPS_MASKED_OR_COLLIDING_ACTOR');
     need(p?.proofType==='EXACT_SAME_FIGHT_ACTOR'&&
       typeof p.actorRef==='string'&&p.actorRef.length>0&&
       number(p.bossDps)&&p.bossDps>=0&&p.bossDps<=s.totalDps&&
