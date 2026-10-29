@@ -1,3 +1,4 @@
+import {planFreshNamedCPilot} from '../src/core/fresh-c-pilot.mjs';
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import {planNamedRecoveryEconomics}
@@ -96,4 +97,11 @@ test('rejects invalid cost, duplicate spent keys and malformed limit',()=>{
   assert.throws(()=>planNamedRecoveryEconomics(sample(),{
     pilotFights:9
   }),/C_RECOVERY_PLAN_INVALID/);
+});
+
+test('paid C pilot requires full persisted A and B source, never plans from an empty checkpoint',()=>{
+  assert.throws(()=>planFreshNamedCPilot({
+    schema:1,status:'ACTIVE',scopeKey:'heroic:synthetic',
+    sourceRequests:{},bossPageRequests:{},entries:{},rankRequests:{}
+  }),/FRESH_DPS|SCOPE|CHECKPOINT|C_PILOT/);
 });
