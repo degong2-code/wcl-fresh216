@@ -94,9 +94,14 @@ export function planAdaptive216(slots,{pageEvidence=[],economics=null,batchPages
       pendingAnonymous:j.anonymousPending,verifiedReused:100-j.namedPending-j.anonymousPending,
       lastObservedPage:last?.page??0,nextPages,reason,economy});
   }
+  // Owner policy: masked/Anonymous actors stay in the immutable TotalDPS
+  // cohort, but NEVER cause or join a paid Report fallback request.
+  // A shared fight can contain both named and masked rank references.
+  const namedGroups=full.groups.map(g=>({...g,
+    slots:g.slots.filter(s=>named(s.name))})).filter(g=>g.slots.length);
   const reportKeys=new Set();
-  const forced=g=>g.slots.some(s=>!named(s.name)||!candidate.has(jk({scopeKey:g.scopeKey,jobKey:s.jobKey})));
-  for(const g of full.groups)if(forced(g))reportKeys.add(fk(g));
+  const forced=g=>g.slots.some(s=>!candidate.has(jk({scopeKey:g.scopeKey,jobKey:s.jobKey})));
+  for(const g of namedGroups)if(forced(g))reportKeys.add(fk(g));
   // If ALL a job's pending named slots are already covered by mandatory
   // Report fetches, suppress its redundant page request.
   let changed=true;
@@ -104,20 +109,22 @@ export function planAdaptive216(slots,{pageEvidence=[],economics=null,batchPages
     changed=false;
     for(const d of decisions){
       const k=jk(d);if(!candidate.has(k))continue;
-      const related=full.groups.filter(g=>g.scopeKey===d.scopeKey&&
+      const related=namedGroups.filter(g=>g.scopeKey===d.scopeKey&&
         g.slots.some(s=>s.jobKey===d.jobKey));
       if(related.every(g=>reportKeys.has(fk(g)))){
         candidate.delete(k);d.nextPages=[];d.reason='COVERED_BY_REPORT';changed=true;
       }
     }
-    if(changed)for(const g of full.groups)if(forced(g))reportKeys.add(fk(g));
+    if(changed)for(const g of namedGroups)if(forced(g))reportKeys.add(fk(g));
   }
   const reportNow=[],reportDeferred=[];
-  for(const g of full.groups)(reportKeys.has(fk(g))?reportNow:reportDeferred).push(g);
+  for(const g of namedGroups)(reportKeys.has(fk(g))?reportNow:reportDeferred).push(g);
   const waves=planReportWaves({groups:reportNow});
   return {scopeKey:full.scopeKey,jobs:216,rankSlots:21600,
     verifiedSlotsReused:full.verifiedSlotsSkipped,pendingRankSlots:full.pendingRankSlots,
     pendingDistinctReportFights:full.pendingDistinctReportFights,
+    eligibleNamedReportFights:namedGroups.length,
+    anonymousRanksExcludedFromReport:decisions.reduce((n,d)=>n+d.pendingAnonymous,0),
     rankingCandidates:decisions.filter(d=>d.nextPages.length),jobDecisions:decisions,
     reportNowGroups:reportNow,reportDeferredGroups:reportDeferred,
     reportWaveCandidates:waves.waves,reportWaveJournalRequired:waves.waveJournalRequired,
