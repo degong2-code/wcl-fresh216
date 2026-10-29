@@ -95,7 +95,7 @@ test('source-only inspection keeps B/C separate and no paid operations',()=>{
     o.totalDpsMetrics.every(Number.isFinite)&&
     o.bossRankedDpsMetrics.every(v=>v===null)));
 });
-test('already-paid first 8 specs are reused without rank-page1 replay',()=>{
+test('already-paid first 8 specs are reused without rank-page1 replay',async()=>{
   const s=firstDone();
   const preview=inspectFreshDpsPipeline(s,{includeOutputs:true});
   assert.equal(preview.summary.bossPage1BatchesCompleted,1);
