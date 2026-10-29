@@ -40,9 +40,14 @@ function officialBossRankedMetrics(page,jobKey,snapshotSha){
     amounts.every(v=>Number.isFinite(v)&&v>=0)&&
     amounts.every((v,i)=>i===0||v<=amounts[i-1]),
     'DPS_BOSS_RANKING_AMOUNT_OR_ORDER_INVALID');
-  return {status:page.rankingsStatus,
-    rankedMetrics:amounts.length===100?five(amounts):
-      [null,null,null,null,null],
+  // A short official leaderboard can still prove rank1 / rank30 and
+  // top30, but never rank100 or top100. No extrapolation.
+  const rankedMetrics=[
+    amounts[0]??null,amounts[29]??null,amounts[99]??null,
+    amounts.length>=30?avg(amounts.slice(0,30)):null,
+    amounts.length===100?avg(amounts):null
+  ];
+  return {status:page.rankingsStatus,rankedMetrics,
     rankingSha:page.bossRankingSha,rankingRows:amounts.length};
 }
 
