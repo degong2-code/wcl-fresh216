@@ -45,9 +45,7 @@ export function inspectFreshDpsPipeline(state,{includeOutputs=false,
   for(const batch of plan.batches){
     const e=entries['page1:'+batch.batchIndex];
     if(!e){
-      need(nextBatch===null,
-        'FRESH_DPS_BOSS_CHECKPOINT_GAP');
-      nextBatch=batch;
+      if(nextBatch===null)nextBatch=batch;
       continue;
     }
     need(e.batchIndex===batch.batchIndex&&
