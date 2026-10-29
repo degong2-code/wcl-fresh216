@@ -14,6 +14,7 @@ import {summarizeFreshDpsJob} from './fresh-dps-output-contract.mjs';
 import {committedProofs,checkpointStats} from './checkpoint.mjs';
 import {committedRankingEvidence} from './rank-batch-checkpoint.mjs';
 import {planAdaptive216} from './adaptive-depth-plan.mjs';
+import {planNamedRecoveryEconomics} from './fresh-c-recovery-economics.mjs';
 
 const need=(v,c)=>{if(!v)throw Error(c);};
 const slotId=s=>JSON.stringify([s.jobKey,s.rank,s.snapshotSha]);
@@ -137,6 +138,15 @@ export function inspectFreshDpsPipeline(state,{includeOutputs=false,
       pageEvidence:committedRankingEvidence(state),
       economics:recoveryEconomics
     });
+    const spentReportFightKeys=Object.values(state.entries??{})
+      .filter(e=>e.attempt).map(e=>JSON.stringify([
+        e.identity.scopeKey,e.identity.reportCode,e.identity.fightId,
+        e.identity.encounterId,e.identity.difficulty,
+        e.identity.reportRevision??null
+      ]));
+    const portfolio=planNamedRecoveryEconomics(recovery,{
+      spentReportFightKeys
+    });
     result.recovery={
       status:recoveryEconomics?'MEASURED_POLICY_PREVIEW':
         'COST_INPUT_NEEDED_BEFORE_PAID_RECOVERY',
@@ -144,6 +154,30 @@ export function inspectFreshDpsPipeline(state,{includeOutputs=false,
       nextRankingJobs:recovery.rankingCandidates.length,
       reportFightsCurrentlyProposed:recovery.reportNowGroups.length,
       reportFightsDeferred:recovery.reportDeferredGroups.length,
+      reportWaveCountAtFourFights:portfolio.reportWavesAtChosenGrouping,
+      reportQueryAliasesForTwoMetrics:
+        portfolio.reportQueryAliasesForTwoMetrics,
+      reportFightGroupsAlreadyAttempted:
+        portfolio.alreadyAttemptedFightGroupsNotToReplay,
+      multiReferenceFightGroups:portfolio.multiReferenceFightGroups,
+      referencesCoalescedWithinFights:
+        portfolio.referencesCoalescedWithinFights,
+      rankingPage2EligibleJobs:portfolio.rankingPage2EligibleJobs,
+      rankPilot:portfolio.rankPilot?{
+        namedPending:portfolio.rankPilot.namedPending,
+        singletonFightUpperBound:
+          portfolio.rankPilot.singletonFightUpperBound,
+        nextPage:portfolio.rankPilot.nextPage,
+        observedIncrementalPage2Points:null,
+        observedIncrementalPage2Matches:null
+      }:null,
+      reportPilot:portfolio.reportPilot?{
+        fightGroups:portfolio.reportPilot.fightGroups,
+        jobSlots:portfolio.reportPilot.jobSlots,
+        graphqlAliases:portfolio.reportPilot.graphqlAliases,
+        observedPoints:null,verifiedProofs:null
+      }:null,
+      estimatedPointSavings:null,
       dispatchAuthorized:false
     };
   }
