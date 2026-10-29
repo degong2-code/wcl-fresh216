@@ -1,0 +1,67 @@
+# ONE-TIME owner-approved 2026-10-27 comparison ONLY.
+# Default-branch workflow_dispatch is the sole trigger. No CI, PR, push,
+# schedule, production collector, Sheets or automatic retries.
+#
+# The app code below is IMMUTABLY pinned to the offline-verified commit,
+# not a movable PR head. A GitHub atomic ref marker blocks cross-run replay.
+# Current-public-report mode uses PUBLIC report URL/code/Fight ID inputs.
+# OAuth client credentials remain Secrets, never dispatch inputs or logs.
+# No legacy rank slot, snapshot SHA or private fixture is required.
+name: WCL one-time rankings vs table probe
+
+on:
+  workflow_dispatch:
+    inputs:
+      public_report_url:
+        description: 'Current PUBLIC WCL report URL containing #fight=N'
+        required: true
+        type: string
+      report_code:
+        description: 'Current public WCL report code (from the URL)'
+        required: true
+        type: string
+      fight_id:
+        description: 'Fight ID from the current public WCL report'
+        required: true
+        type: string
+
+concurrency:
+  group: wcl-fresh216-one-time-owner-approved-two-query
+  cancel-in-progress: false
+
+permissions: {}
+
+jobs:
+  exactly-once-wcl-probe:
+    if: >-
+      github.event_name == 'workflow_dispatch' &&
+      github.ref == 'refs/heads/main' &&
+      github.repository == 'degong2-code/wcl-fresh216'
+    runs-on: ubuntu-latest
+    timeout-minutes: 8
+    permissions:
+      contents: write  # only for atomic one-time consumed ref creation
+    steps:
+      - name: Checkout offline-verified immutable probe code
+        uses: actions/checkout@v4
+        with:
+          ref: 77e60b6ae7e4dcb90f334bc1cda9f7d0d256e2f3
+          persist-credentials: false
+      - name: Use Node.js 22
+        uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+      - name: Run the at-most-two-query approved experiment
+        env:
+          GITHUB_TOKEN: ${{ github.token }}
+          WCL_CLIENT_ID: ${{ secrets.WCL_CLIENT_ID }}
+          WCL_CLIENT_SECRET: ${{ secrets.WCL_CLIENT_SECRET }}
+          WCL_PROBE_PUBLIC_REPORT_URL: ${{ inputs.public_report_url }}
+          WCL_PROBE_PUBLIC_REPORT_CODE: ${{ inputs.report_code }}
+          WCL_PROBE_PUBLIC_FIGHT_ID: ${{ inputs.fight_id }}
+          WCL_PROBE_DISPATCH_PURPOSE: OWNER_APPROVED_20261027_MAX_TWO
+          WCL_PROBE_MODE: FRESH_PUBLIC_REPORT_ONLY
+        shell: bash
+        run: |
+          set -euo pipefail
+          node tools/run-actions-wcl-two-query-probe.mjs

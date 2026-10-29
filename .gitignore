@@ -17,12 +17,18 @@ coverage/
 .cache/
 *.log
 *.zip
+*.xlsx
+*.xls
+*.ods
+*.csv
 
 # Never track private WCL/Google datasets
 private/
 raw/
 proof/
 checkpoints/
+*.checkpoint.json
+*.checkpoint.json.lock/
 receipts-live/
 data/live/
 artifacts/live/

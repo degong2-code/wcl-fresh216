@@ -1,0 +1,21 @@
+{
+  "request_id": "FRESH216_NEKZALI_CURRENT_RANK_DEPTH_20261028",
+  "approval": "OWNER_APPROVED_20261028_FRESH_NEKZALI_ALL_REQUIRED_WCL_CALLS",
+  "encounter_id": 3470,
+  "difficulty": 4,
+  "current_global": true,
+  "specs": [
+    "balance",
+    "enhancement",
+    "survival"
+  ],
+  "total_dps_pages": [
+    1
+  ],
+  "boss_dps_pages": [
+    1,
+    2,
+    3
+  ],
+  "max_graphql": 3
+}

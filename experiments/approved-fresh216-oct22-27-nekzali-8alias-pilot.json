@@ -1,0 +1,16 @@
+{
+  "request_id": "FRESH216_OCT22_27_NEKZALI_8_ALIAS_SOURCE_PILOT_20261028",
+  "approval": "OWNER_APPROVED_20261028_WCL_FRESH216_OCT22_27_CALIBRATION",
+  "date_start_kst": "2026-10-22",
+  "date_end_kst": "2026-10-27",
+  "filter": "date.1792594800000.1793113200000",
+  "partition_mode": "LATEST_DEFAULT",
+  "difficulty": 4,
+  "encounter_id": 3470,
+  "batch_index": 0,
+  "total_dps_pages": [
+    1
+  ],
+  "max_graphql": 1,
+  "raw_rows_publication": "FORBIDDEN"
+}

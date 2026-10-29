@@ -33,3 +33,30 @@ Treat the downloaded files as sensitive until reviewed. Do not `git add` them. T
 - Do not publish `.clasp.json`, `.clasprc.json`, secret tokens or complete private report/actor evidence.
 
 This step is not yet complete; full installed source access has not been provided through the GitHub connection.
+
+## Offline fingerprint handshake (read-only, no private source upload)
+
+After exporting the installed TEST Apps Script project into a private
+local folder or ZIP, run the standard-library helper:
+
+    python tools/audit_installed_source_export.py --export "C:\path\to\private-test-export.zip"
+
+The export must contain one appsscript.json and one or more .gs/.js
+sources. The helper rejects credentials files, ZIP path traversal and
+oversized input. It reads source only: no external requests, source
+execution, Apps Script changes, Sheets writes or runtime deployment.
+
+Only an aggregate JSON receipt is printed, with file/module counts and
+boolean SHA-256 matches to migration/source-manifest.json. The helper
+never prints private paths, source text, report IDs, names or tokens.
+Do not add raw exports or .clasp.json to any GitHub repository.
+
+Four matching historical hashes establish byte continuity for those
+four historical source files only. They do NOT prove the exported
+snapshot is the currently installed TEST source, that other files
+match, or that the operational collector has passed its 75 historical
+tests. Installed-source provenance and the entire export require
+independent review before any promotion.
+
+The helper's six synthetic offline checks are in public GitHub CI,
+but private exported source is never uploaded to that CI.

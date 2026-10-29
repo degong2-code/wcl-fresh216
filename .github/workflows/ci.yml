@@ -1,9 +1,9 @@
 name: Offline checks (no WCL access)
 on:
   push:
-    branches: [main]
+    branches: [main, 'work/collector-architecture']
   pull_request:
-    branches: [main]
+    branches: [main, 'work/bootstrap']
   workflow_dispatch:
 
 permissions:
@@ -11,12 +11,22 @@ permissions:
 
 jobs:
   offline:
+    outputs:
+      wcl_request_addition: ${{ steps.wcl_request_gate.outputs.enabled }}
+      identity_request_addition: ${{ steps.identity_request_gate.outputs.enabled }}
+      typed_roster_request_addition: ${{ steps.typed_roster_request_gate.outputs.enabled }}
+      approved_measurement_addition: ${{ steps.approved_measurement_gate.outputs.enabled }}
+    # One test per development SHA: push tests the isolated development branch.
+    # PR synchronize events for that branch retain a skipped record, not another
+    # paid runner/test job. Other PRs targeting main/bootstrap remain checked.
+    if: ${{ github.event_name != 'pull_request' || github.event.pull_request.head.ref != 'work/collector-architecture' }}
     runs-on: ubuntu-latest
     timeout-minutes: 5
     steps:
       - uses: actions/checkout@v4
         with:
           persist-credentials: false
+          fetch-depth: 2
       - uses: actions/setup-node@v4
         with:
           node-version: '22'
@@ -31,3 +41,182 @@ jobs:
           if [ -f migration/source-manifest.json ]; then
             node -e "const m=require('./migration/source-manifest.json');console.log('**Installed-source parity:** '+(m.installed_source_verified?'VERIFIED':'NOT VERIFIED')+'; **source imported:** '+m.source_imported)" >> "$GITHUB_STEP_SUMMARY"
           fi
+      - name: Detect exclusive one-time WCL request file addition
+        id: wcl_request_gate
+        if: github.event_name == 'push'
+        shell: bash
+        run: |
+          set -euo pipefail
+          diff="$(git diff-tree --no-commit-id --name-status -r "$GITHUB_SHA")"
+          if [[ "$diff" == $'A\texperiments/wcl-one-time-public-report-20261027.json' ]]; then
+            echo "enabled=true" >> "$GITHUB_OUTPUT"
+          fi
+
+      - name: Detect exclusive one-time identity request file addition
+        id: identity_request_gate
+        if: github.event_name == 'push'
+        shell: bash
+        run: |
+          set -euo pipefail
+          diff="$(git diff-tree --no-commit-id --name-status -r "$GITHUB_SHA")"
+          if [[ "$diff" == $'A\texperiments/wcl-one-query-identity-20261027.json' ]]; then
+            echo "enabled=true" >> "$GITHUB_OUTPUT"
+          fi
+
+      - name: Detect owner-approved typed-roster exclusive request addition
+        id: typed_roster_request_gate
+        if: github.event_name == 'push'
+        shell: bash
+        run: |
+          set -euo pipefail
+          diff="$(git diff-tree --no-commit-id --name-status -r "$GITHUB_SHA")"
+          if [[ "$diff" == $'A\texperiments/wcl-one-query-typed-roster-20261027.json' ]]; then
+            echo "enabled=true" >> "$GITHUB_OUTPUT"
+          fi
+
+      - name: Detect approved bounded measurement request addition
+        id: approved_measurement_gate
+        if: github.event_name == 'push'
+        shell: bash
+        run: |
+          set -euo pipefail
+          diff="$(git diff-tree --no-commit-id --name-status -r "$GITHUB_SHA")"
+          if [[ "$diff" == $'A\texperiments/approved-nekzali-current-20261028.json' ]]; then
+            echo "enabled=true" >> "$GITHUB_OUTPUT"
+          fi
+          if [[ "$diff" == $'A\texperiments/approved-nekzali-20261022-28-boss1000.json' ]]; then
+            echo "enabled=true" >> "$GITHUB_OUTPUT"
+          fi
+          if [[ "$diff" == $'A\texperiments/approved-nekzali-20261022-28-boss1000-latest-partition.json' ]]; then
+            echo "enabled=true" >> "$GITHUB_OUTPUT"
+          fi
+          if [[ "$diff" == $'A\texperiments/approved-nekzali-20261022-28-completion-depth.json' ]]; then
+            echo "enabled=true" >> "$GITHUB_OUTPUT"
+          fi
+          if [[ "$diff" == $'A\texperiments/approved-nekzali-20261022-28-completion-depth-page21-correction.json' ]]; then
+            echo "enabled=true" >> "$GITHUB_OUTPUT"
+          fi
+          if [[ "$diff" == $'A\texperiments/approved-nekzali-page21-shape-probe.json' ]]; then
+            echo "enabled=true" >> "$GITHUB_OUTPUT"
+          fi
+          if [[ "$diff" == $'A\texperiments/approved-nekzali-20261022-28-completion-depth-page21-error-object.json' ]]; then
+            echo "enabled=true" >> "$GITHUB_OUTPUT"
+          fi
+          if [[ "$diff" == $'A\texperiments/approved-nekzali-20261022-28-completion-depth-anonymous-player-label.json' ]]; then
+            echo "enabled=true" >> "$GITHUB_OUTPUT"
+          fi
+
+          if [[ "$diff" == $'A\texperiments/approved-fresh216-oct22-27-nekzali-8alias-pilot.json' ]]; then
+            echo "enabled=true" >> "$GITHUB_OUTPUT"
+          fi
+
+  approved-one-time-wcl-relay:
+    needs: offline
+    if: >-
+      github.event_name == 'push' &&
+      github.ref == 'refs/heads/work/collector-architecture' &&
+      github.repository == 'degong2-code/wcl-fresh216' &&
+      needs.offline.result == 'success' &&
+      needs.offline.outputs.wcl_request_addition == 'true'
+    runs-on: ubuntu-latest
+    timeout-minutes: 3
+    # Only this isolated, conditional job may create a GitHub dispatch.
+    # The offline test job never receives Actions:write or WCL Secrets.
+    permissions:
+      contents: read
+      actions: write
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+          fetch-depth: 2
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+      - name: Validate approved request and dispatch main one-time probe
+        env:
+          GITHUB_TOKEN: ${{ github.token }}
+        run: node tools/dispatch-approved-wcl-once.mjs
+
+  approved-one-time-wcl-identity:
+    needs: offline
+    if: >-
+      github.event_name == 'push' &&
+      github.ref == 'refs/heads/work/collector-architecture' &&
+      github.repository == 'degong2-code/wcl-fresh216' &&
+      needs.offline.result == 'success' &&
+      needs.offline.outputs.identity_request_addition == 'true'
+    runs-on: ubuntu-latest
+    timeout-minutes: 4
+    # Only this dedicated job receives WCL credentials.
+    permissions:
+      contents: write
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+          fetch-depth: 2
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+      - name: Execute owner-approved single WCL identity request
+        env:
+          GITHUB_TOKEN: ${{ github.token }}
+          WCL_CLIENT_ID: ${{ secrets.WCL_CLIENT_ID }}
+          WCL_CLIENT_SECRET: ${{ secrets.WCL_CLIENT_SECRET }}
+        run: node tools/run-actions-wcl-one-query-identity.mjs
+
+  approved-one-time-wcl-typed-roster:
+    needs: offline
+    if: >-
+      github.event_name == 'push' &&
+      github.ref == 'refs/heads/work/collector-architecture' &&
+      github.repository == 'degong2-code/wcl-fresh216' &&
+      needs.offline.result == 'success' &&
+      needs.offline.outputs.typed_roster_request_addition == 'true'
+    runs-on: ubuntu-latest
+    timeout-minutes: 4
+    # Dedicated owner-authorized 1-query job; ordinary push code never starts it.
+    permissions:
+      contents: write
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+          fetch-depth: 2
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+      - name: Run irreversible one-request typed Fight/report identity probe
+        env:
+          GITHUB_TOKEN: ${{ github.token }}
+          WCL_CLIENT_ID: ${{ secrets.WCL_CLIENT_ID }}
+          WCL_CLIENT_SECRET: ${{ secrets.WCL_CLIENT_SECRET }}
+        run: node tools/run-actions-wcl-typed-roster-once.mjs
+
+  approved-wcl-measurement:
+    needs: offline
+    if: >-
+      github.event_name == 'push' &&
+      github.ref == 'refs/heads/work/collector-architecture' &&
+      github.repository == 'degong2-code/wcl-fresh216' &&
+      needs.offline.result == 'success' &&
+      needs.offline.outputs.approved_measurement_addition == 'true'
+    runs-on: ubuntu-latest
+    timeout-minutes: 12
+    permissions:
+      contents: write
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+          fetch-depth: 2
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+      - name: Execute bounded owner-approved ranking-depth measurement
+        env:
+          GITHUB_TOKEN: ${{ github.token }}
+          WCL_CLIENT_ID: ${{ secrets.WCL_CLIENT_ID }}
+          WCL_CLIENT_SECRET: ${{ secrets.WCL_CLIENT_SECRET }}
+        run: node tools/run-actions-approved-measurement.mjs
