@@ -73,12 +73,27 @@ test('zero recent same-fight recoveries stops further paid ranking candidates',(
  assert.deepEqual(d.nextPages,[]);
  assert.equal(p.reportNowGroups.filter(g=>g.slots[0].jobKey===row.jobKey).length,100);
 });
-test('Anonymous is never dropped and its fight is Report-ready',()=>{
+test('Anonymous remains in EXACT100 cohort but is not a paid Report candidate',()=>{
  const p=planAdaptive216(scope({anonymous:true}),{economics:money});
- assert.equal(p.reportNowGroups.length,1);
- assert.equal(p.reportNowGroups[0].slots[0].name,'Anonymous');
+ assert.equal(p.pendingRankSlots,21600);
+ assert.equal(p.anonymousRanksExcludedFromReport,1);
+ assert.equal(p.eligibleNamedReportFights,21599);
+ assert.equal(p.reportNowGroups.length,0);
  assert.equal(p.reportDeferredGroups.length,21599);
  assert.equal(p.rankingCandidates.length,216);
+ assert(p.reportDeferredGroups.every(g=>
+   g.slots.every(s=>s.name!=='Anonymous')));
+});
+test('shared Report fight excludes only masked actor, retains named proof candidates',()=>{
+ const p=planAdaptive216(scope({shared:true,anonymous:true}),{economics:money});
+ assert.equal(p.pendingRankSlots,21600);
+ assert.equal(p.anonymousRanksExcludedFromReport,1);
+ assert.equal(p.eligibleNamedReportFights,800);
+ assert.equal(p.reportNowGroups.length,800);
+ assert.equal(p.reportNowGroups.reduce((n,g)=>n+g.slots.length,0),21599);
+ assert(p.reportNowGroups.every(g=>
+   g.slots.every(s=>s.name!=='Anonymous')));
+ assert.equal(p.rankingCandidates.length,0);
 });
 test('WCL terminal and short pages end ranking with no invented rank2000 cap',()=>{
  const rows=scope(),a=rows[0],b=rows[100];
