@@ -103,5 +103,5 @@ test('paid C pilot requires full persisted A and B source, never plans from an e
   assert.throws(()=>planFreshNamedCPilot({
     schema:1,status:'ACTIVE',scopeKey:'heroic:synthetic',
     sourceRequests:{},bossPageRequests:{},entries:{},rankRequests:{}
-  }),/FRESH_DPS|SCOPE|CHECKPOINT|C_PILOT/);
+  }),/FRESH_DPS|FRESH_COHORT|SCOPE|CHECKPOINT|C_PILOT/);
 });
