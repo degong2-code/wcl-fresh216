@@ -1,0 +1,24 @@
+{
+  "schema": 1,
+  "status": "FINAL",
+  "kind": "damage_table",
+  "requestSha256": "f559dfda066d69cb3f7c4b07b3ca0fb651cf385c67f4ec7fe9c2615703b681b6",
+  "httpStatus": 200,
+  "elapsedMs": 631,
+  "cost": 1,
+  "quota": {
+    "spent": 8,
+    "limit": 3600,
+    "reset": 3590
+  },
+  "evidenceDigest": "3b26d44cfcf50db99457a70ba38375ccc17b0fd52b8f717e91ef4023ab84236f",
+  "verification": "VALID",
+  "shape": {
+    "topKeys": [
+      "data"
+    ],
+    "entries": null,
+    "containsBossDpsAsExplicitField": false
+  },
+  "noPrivateDataPublished": true
+}
