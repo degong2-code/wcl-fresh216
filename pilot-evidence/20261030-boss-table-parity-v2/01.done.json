@@ -1,0 +1,33 @@
+{
+  "schema": 1,
+  "status": "FINAL",
+  "kind": "public_target_filtered_damage",
+  "querySha256": "81e01ab023844c1074d1939c98c6a516083c5f6ec9371d76c08c9a753145e07d",
+  "httpStatus": 200,
+  "observedPoints": 1,
+  "quota": {
+    "spent": 62,
+    "limit": 3600,
+    "reset": 2570
+  },
+  "elapsedMs": 165,
+  "bodySha256": "6e2950e49b60f12be799f18cd4f3a6c4e87c8eb99197399aba23d44dafde1987",
+  "verification": "VALID",
+  "summary": {
+    "bossTargetCount": 1,
+    "perTargetRows": [
+      25
+    ],
+    "rosterSize": 17,
+    "compared": 17,
+    "exact0005": 17,
+    "within001": 17,
+    "within1": 17,
+    "medianAbsDps": 3.637978807091713e-11,
+    "maxAbsDps": 4.874891601502895e-10,
+    "numericFormula": "sum(table.targetID=BossActorID.totalDamage)/(fight.endTime-fight.startTime)*1000",
+    "proofLevel": "PUBLIC_TEST_ONLY_NOT_AUTHORITATIVE_C"
+  },
+  "privateDataAccess": false,
+  "rawActorDataPersisted": false
+}
