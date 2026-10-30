@@ -77,7 +77,7 @@ jobs:
         uses: actions/checkout@v4
         with:
           repository: degong2-code/ai-project-lab
-          ref: a0aa92eb28cf32f9bd53ac3330d2b02117630d2b
+          ref: 708e7c5ff27ad1481f3f35fce84e655c2e87ec24
           token: ${{ secrets.FRESH216_PRIVATE_READ_TOKEN }}
           persist-credentials: false
           path: evidence/code
@@ -205,7 +205,12 @@ jobs:
              r.boss1000Cache?.sourceJobsScanned !== 216 ||
              r.boss1000Cache?.verifiedNewProofs !== 0 ||
              r.boss1000Cache?.additionalWclCalls !== 0 ||
-             r.boss1000Cache?.sheetsWrites !== 0)
+             r.boss1000Cache?.sheetsWrites !== 0 ||
+             r.recoveryFetchPlanReadOnly?.distinctFightGroups !== 302 ||
+             r.recoveryFetchPlanReadOnly?.pendingRankSlots !== 348 ||
+             r.recoveryFetchPlanReadOnly?.aliasesTotal !== 604 ||
+             r.recoveryFetchPlanReadOnly?.authorizedPaidQueries !== 0 ||
+             r.recoveryFetchPlanReadOnly?.additionalWclCalls !== 0)
 
             throw Error('PRIVATE_INVENTORY_OUTPUT_POLICY_DRIFT');
           const safe = {
@@ -227,7 +232,11 @@ jobs:
             boss1000OverlappingFights:r.boss1000Cache.overlappingFightGroups,
             boss1000NamedCandidates:r.boss1000Cache.uniquelyMatchedNamedCandidates,
             boss1000MaskedCandidates:r.boss1000Cache.uniquelyMatchedMaskedCandidates,
-            boss1000Ambiguous:r.boss1000Cache.ambiguousCandidates
+            boss1000Ambiguous:r.boss1000Cache.ambiguousCandidates,
+            distinctReports:r.recoveryFetchPlanReadOnly.distinctReports,
+            oneFightPerCall:r.recoveryFetchPlanReadOnly.oneFightPerCall,
+            groupedCalls4:r.recoveryFetchPlanReadOnly.maxFourFightsPerReportCall,
+            groupedCalls8:r.recoveryFetchPlanReadOnly.maxEightFightsPerReportCall
           };
           // Aggregate-only stdout. No report/actor identifiers, no raw archives.
           console.log(JSON.stringify(safe));
@@ -245,6 +254,10 @@ jobs:
             safe.boss1000OverlappingFights +
             '; named/masked preview candidates: ' +
             safe.boss1000NamedCandidates + '/' + safe.boss1000MaskedCandidates +
-            '\n');
+            '\n' +
+            'Read-only query plan (not executed): ' + safe.distinctReports +
+            ' Reports, ' + safe.oneFightPerCall + ' unbatched calls, ' +
+            safe.groupedCalls4 + '/' + safe.groupedCalls8 +
+            ' grouped calls (4/8 fight cap)\n');
           NODE
       # Do not upload artifacts, print private response bodies, or write private Git.
