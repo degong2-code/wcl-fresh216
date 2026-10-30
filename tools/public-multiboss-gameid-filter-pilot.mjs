@@ -48,7 +48,7 @@ const summaryFirst=body=>{
   'MULTI_PUBLIC_FIGHT');
  const fight=fights[0],present=new Set(fight.enemyNPCs?.map(x=>x.id));
  const ids=report.masterData?.actors?.filter(x=>x.type==='NPC'&&
-  String(x.subType).toLowerCase()==='boss'&&present.has(x.id)).map(x=>x.id);
+  String(x.subType).toLowerCase()==='boss'&&present.has(x.id)).map(x=>Number(x.gameID));
  need(ids?.length===3&&ids.every(x=>Number.isInteger(x)&&x>0),'MULTI_EXPECT_THREE_BOSSES');
  need(fight.endTime>fight.startTime,'MULTI_DURATION');
  return {ids,revision:report.revision,duration:(fight.endTime-fight.startTime)/1000};
