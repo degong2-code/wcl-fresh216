@@ -1,0 +1,46 @@
+name: Fresh216 PUBLIC-only WCL API efficiency micro-pilot
+on:
+  push:
+    branches:
+      - work/public-runner-effexp-20261030
+    paths:
+      - .github/workflows/fresh216-public-paid-pilot.yml
+permissions:
+  contents: write
+concurrency:
+  group: fresh216-public-pilot-only-20261030
+  cancel-in-progress: false
+jobs:
+  compare:
+    if: >-
+      github.repository == 'degong2-code/wcl-fresh216' &&
+      github.ref == 'refs/heads/work/public-runner-effexp-20261030' &&
+      github.event_name == 'push' &&
+      github.run_attempt == 1
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: work/public-runner-effexp-20261030
+          persist-credentials: true
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+      - name: Pinned source preflight (zero API)
+        shell: bash
+        run: |
+          set -euo pipefail
+          test "$(git hash-object tools/public-wcl-cost-pilot.mjs)" = "f972e0b348c428a18a6e47ed86b606184f7d9cf7"
+          node --check tools/public-wcl-cost-pilot.mjs
+          node tools/public-wcl-cost-pilot.mjs --preflight
+      - name: Run owner-approved bounded public-report API comparison
+        env:
+          FRESH216_PILOT_APPROVED: 'true'
+          WCL_CLIENT_ID: ${{ secrets.WCL_CLIENT_ID }}
+          WCL_CLIENT_SECRET: ${{ secrets.WCL_CLIENT_SECRET }}
+        shell: bash
+        run: |
+          set -euo pipefail
+          node tools/public-wcl-cost-pilot.mjs --collect
+          echo 'No private source data used; point measurements are in branch pilot-evidence.' >> "$GITHUB_STEP_SUMMARY"
