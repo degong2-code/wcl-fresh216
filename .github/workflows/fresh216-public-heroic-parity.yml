@@ -1,0 +1,52 @@
+name: Fresh216 public Heroic BossDPS table parity pilot
+on:
+  push:
+    branches: [work/public-runner-effexp-20261030]
+    paths: [.github/workflows/fresh216-public-heroic-parity.yml]
+permissions:
+  contents: write
+concurrency:
+  group: fresh216-public-heroic-parity-once
+  cancel-in-progress: false
+jobs:
+  heroic:
+    if: >-
+      github.repository == 'degong2-code/wcl-fresh216' &&
+      github.ref == 'refs/heads/work/public-runner-effexp-20261030' &&
+      github.run_attempt == 1
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: work/public-runner-effexp-20261030
+          persist-credentials: true
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+      - name: No-network public source and script preflight
+        run: |
+          set -euo pipefail
+          node --check tools/discover-public-heroic-fight.mjs
+          node --check tools/public-boss-table-parity-heroic.mjs
+          node tools/discover-public-heroic-fight.mjs --preflight
+      - name: Discover PUBLIC guild heroic fight, bounded evidence
+        env:
+          FRESH216_HEROIC_APPROVED: 'true'
+          WCL_CLIENT_ID: ${{ secrets.WCL_CLIENT_ID }}
+          WCL_CLIENT_SECRET: ${{ secrets.WCL_CLIENT_SECRET }}
+        run: |
+          set -euo pipefail
+          node tools/discover-public-heroic-fight.mjs --collect
+      - name: Compare Heroic original BossDPS and boss-target DamageDone on same fight actors
+        env:
+          FRESH216_BOSS_TABLE_APPROVED: 'true'
+          WCL_CLIENT_ID: ${{ secrets.WCL_CLIENT_ID }}
+          WCL_CLIENT_SECRET: ${{ secrets.WCL_CLIENT_SECRET }}
+        run: |
+          set -euo pipefail
+          export FRESH216_PUBLIC_HEROIC_CODE="$(node -p 'require("./pilot-evidence/20261030-heroic-discovery/01.done.json").selected.reportCode')"
+          export FRESH216_PUBLIC_HEROIC_FIGHT="$(node -p 'require("./pilot-evidence/20261030-heroic-discovery/01.done.json").selected.fightId')"
+          export FRESH216_PUBLIC_HEROIC_ENCOUNTER="$(node -p 'require("./pilot-evidence/20261030-heroic-discovery/01.done.json").selected.encounterId')"
+          node tools/public-boss-table-parity-heroic.mjs --preflight
+          node tools/public-boss-table-parity-heroic.mjs --collect
