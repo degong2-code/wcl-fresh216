@@ -92,7 +92,7 @@ async function main(){
  if(mode==='--preflight'){
   need(!fs.existsSync(file(0,'start')),'MULTI_ALREADY_STARTED');
   console.log(JSON.stringify({result:'PUBLIC_HEROIC_MULTIBOSS_FILTER_PREFLIGHT_PASS',
-   previousPublicBossActorCount:2,publicFight:10,maxPilotPoints:24,
+   previousPublicBossActorCount:2,publicFight:FIGHT,maxPilotPoints:24,
    apiCalls:0,privateData:false}));return;
  }
  need(process.env.FRESH216_MULTIBOSS_APPROVED==='true'&&
