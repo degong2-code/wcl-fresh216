@@ -77,7 +77,7 @@ jobs:
         uses: actions/checkout@v4
         with:
           repository: degong2-code/ai-project-lab
-          ref: bb1fd0e6a9e6455f2a9ffd07cb9f915671cfce97
+          ref: a0aa92eb28cf32f9bd53ac3330d2b02117630d2b
           token: ${{ secrets.FRESH216_PRIVATE_READ_TOKEN }}
           persist-credentials: false
           path: evidence/code
@@ -144,6 +144,15 @@ jobs:
           token: ${{ secrets.FRESH216_PRIVATE_READ_TOKEN }}
           persist-credentials: false
           path: evidence/report1000
+      - name: Checkout immutable Boss1000 ranked evidence
+        if: steps.gate.outputs.present == 'true'
+        uses: actions/checkout@v4
+        with:
+          repository: degong2-code/ai-project-lab
+          ref: e31fdbd031b4f70c92e752fc1d5682b4f3bb6492
+          token: ${{ secrets.FRESH216_PRIVATE_READ_TOKEN }}
+          persist-credentials: false
+          path: evidence/boss1000
       - name: Checkout pinned public pure-core product
         if: steps.gate.outputs.present == 'true'
         uses: actions/checkout@v4
@@ -176,6 +185,7 @@ jobs:
             "$GITHUB_WORKSPACE/evidence/report20" \
             "$GITHUB_WORKSPACE/evidence/report80" \
             "$GITHUB_WORKSPACE/evidence/report1000" \
+            "$GITHUB_WORKSPACE/evidence/boss1000" \
             > "$output" 2> "$errors"; then
             echo 'PRIVATE_INVENTORY_EXECUTION_BLOCKED'
             grep -oE 'RECOVERY348_[A-Z_]+' "$errors" | head -n 1 || true
@@ -190,7 +200,12 @@ jobs:
              r.repositoryWrites !== 0 || r.containsPrivateIdentifiers !== false ||
              r.otherHistoricalReportCaches?.compressedBatches !== 37 ||
              r.otherHistoricalReportCaches?.additionalWclCalls !== 0 ||
-             r.otherHistoricalReportCaches?.additionalSheetWrites !== 0)
+             r.otherHistoricalReportCaches?.additionalSheetWrites !== 0 ||
+             r.boss1000Cache?.sourceBatchFiles !== 22 ||
+             r.boss1000Cache?.sourceJobsScanned !== 216 ||
+             r.boss1000Cache?.verifiedNewProofs !== 0 ||
+             r.boss1000Cache?.additionalWclCalls !== 0 ||
+             r.boss1000Cache?.sheetsWrites !== 0)
 
             throw Error('PRIVATE_INVENTORY_OUTPUT_POLICY_DRIFT');
           const safe = {
@@ -206,7 +221,13 @@ jobs:
             archivedFightOverlap:r.otherHistoricalReportCaches.overlappingFightGroups,
             archivedSlotOverlap:r.otherHistoricalReportCaches.overlappingPendingSlots,
             unpromotedHistoricalCandidates:r.otherHistoricalReportCaches.candidateOnlyUnpromotedSlots,
-            unscannedDistinctFights:r.otherHistoricalReportCaches.remainingNoOverlapFightGroups
+            unscannedDistinctFights:r.otherHistoricalReportCaches.remainingNoOverlapFightGroups,
+            boss1000CachedPages:r.boss1000Cache.rankingPages,
+            boss1000RowsScanned:r.boss1000Cache.rankingRowsScanned,
+            boss1000OverlappingFights:r.boss1000Cache.overlappingFightGroups,
+            boss1000NamedCandidates:r.boss1000Cache.uniquelyMatchedNamedCandidates,
+            boss1000MaskedCandidates:r.boss1000Cache.uniquelyMatchedMaskedCandidates,
+            boss1000Ambiguous:r.boss1000Cache.ambiguousCandidates
           };
           // Aggregate-only stdout. No report/actor identifiers, no raw archives.
           console.log(JSON.stringify(safe));
@@ -218,6 +239,12 @@ jobs:
             'Older Report archives: ' + safe.historicalCompressedBatches +
             ' batches, overlapping fights: ' + safe.archivedFightOverlap +
             ', unpromoted candidate slots: ' + safe.unpromotedHistoricalCandidates +
+            '\n' +
+            'Boss1000: ' + safe.boss1000RowsScanned +
+            ' B leaderboard rows; overlapping fight groups: ' +
+            safe.boss1000OverlappingFights +
+            '; named/masked preview candidates: ' +
+            safe.boss1000NamedCandidates + '/' + safe.boss1000MaskedCandidates +
             '\n');
           NODE
       # Do not upload artifacts, print private response bodies, or write private Git.
