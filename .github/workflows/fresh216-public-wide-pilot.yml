@@ -1,0 +1,41 @@
+name: Fresh216 public whole-report aggregation cost pilot
+on:
+  push:
+    branches: [work/public-runner-effexp-20261030]
+    paths: [.github/workflows/fresh216-public-wide-pilot.yml]
+permissions:
+  contents: write
+concurrency:
+  group: fresh216-public-whole-report-once
+  cancel-in-progress: false
+jobs:
+  compare:
+    if: >-
+      github.repository == 'degong2-code/wcl-fresh216' &&
+      github.ref == 'refs/heads/work/public-runner-effexp-20261030' &&
+      github.run_attempt == 1
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: work/public-runner-effexp-20261030
+          persist-credentials: true
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+      - name: Offline pinned source, no API or Secrets
+        run: |
+          set -euo pipefail
+          test "$(git hash-object tools/public-wcl-whole-report-pilot.mjs)" = "2e717c8192757dbc6facc9697c8b48c55304472e"
+          node --check tools/public-wcl-whole-report-pilot.mjs
+          node tools/public-wcl-whole-report-pilot.mjs --preflight
+      - name: Two bounded public-only WCL cost requests, durable no-retry markers
+        env:
+          FRESH216_PUBLIC_WIDE_APPROVED: 'true'
+          WCL_CLIENT_ID: ${{ secrets.WCL_CLIENT_ID }}
+          WCL_CLIENT_SECRET: ${{ secrets.WCL_CLIENT_SECRET }}
+        run: |
+          set -euo pipefail
+          node tools/public-wcl-whole-report-pilot.mjs --collect
+          echo "No source A, C, private branch, player names, or raw response published." >> "$GITHUB_STEP_SUMMARY"
