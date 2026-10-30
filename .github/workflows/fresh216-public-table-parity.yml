@@ -1,0 +1,41 @@
+name: Fresh216 public BossDPS vs DamageDone exact parity pilot
+on:
+  push:
+    branches: [work/public-runner-effexp-20261030]
+    paths: [.github/workflows/fresh216-public-table-parity.yml]
+permissions:
+  contents: write
+concurrency:
+  group: fresh216-public-boss-table-parity-v1
+  cancel-in-progress: false
+jobs:
+  compare:
+    if: >-
+      github.repository == 'degong2-code/wcl-fresh216' &&
+      github.ref == 'refs/heads/work/public-runner-effexp-20261030' &&
+      github.run_attempt == 1
+    runs-on: ubuntu-latest
+    timeout-minutes: 12
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: work/public-runner-effexp-20261030
+          persist-credentials: true
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+      - name: Check public-only exact actor comparison and no-retry checkpoint
+        run: |
+          set -euo pipefail
+          test "$(git hash-object tools/public-boss-table-parity-pilot.mjs)" = "f1bd545a6a92e0d1e477a9ca4a4bdb4cbbec175f"
+          node --check tools/public-boss-table-parity-pilot.mjs
+          node tools/public-boss-table-parity-pilot.mjs --preflight
+      - name: Owner-approved WCL public BossDPS table parity, capped 40pt
+        env:
+          FRESH216_BOSS_TABLE_APPROVED: 'true'
+          WCL_CLIENT_ID: ${{ secrets.WCL_CLIENT_ID }}
+          WCL_CLIENT_SECRET: ${{ secrets.WCL_CLIENT_SECRET }}
+        run: |
+          set -euo pipefail
+          node tools/public-boss-table-parity-pilot.mjs --collect
+          echo 'Only public WCL report used, no actor data stored; cap 40pt.' >> "$GITHUB_STEP_SUMMARY"
