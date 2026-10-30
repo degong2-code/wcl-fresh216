@@ -1,0 +1,25 @@
+{
+  "schema": 1,
+  "status": "FINAL",
+  "querySha256": "cd9901e381c5db577781f228ffabf1bcb8ec209302598c3f0b2317a1227f6900",
+  "observedPoints": 3,
+  "httpStatus": 200,
+  "elapsedMs": 483,
+  "verification": "VALID",
+  "bodySha256": "fac1dff63ea4d0d463081a726a09f3ac8c8da81273df8058c4497ba1f884e8fd",
+  "result": {
+    "encounterID": 3122,
+    "publicFight": 10,
+    "bossActors": 3,
+    "rankedPlayers": 18,
+    "tableEntries": 24,
+    "compared": 18,
+    "exact0005": 18,
+    "within1": 18,
+    "maxAbsDps": 4.383764462545514e-10,
+    "comparisonFormula": "table.total / full fight duration vs official bossdps",
+    "noPlayerDataPersisted": true
+  },
+  "publicOnly": true,
+  "rawActorsPersisted": false
+}
