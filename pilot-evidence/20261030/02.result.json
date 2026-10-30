@@ -1,0 +1,23 @@
+{
+  "schema": 1,
+  "status": "FINAL",
+  "kind": "boss_rankings",
+  "requestSha256": "45ceb0b8b45154208bd979ca2615ac095e2a952642fdcacf9d85ff262189f3fe",
+  "httpStatus": 200,
+  "elapsedMs": 240,
+  "cost": 2,
+  "quota": {
+    "spent": 6,
+    "limit": 3600,
+    "reset": 3592
+  },
+  "evidenceDigest": "c9f65537bb39d9b09ad39f6b5038467f894cfbd8c2880cdb7322331c31bf53db",
+  "verification": "VALID",
+  "shape": {
+    "b": {
+      "fights": 1,
+      "characters": 17
+    }
+  },
+  "noPrivateDataPublished": true
+}
