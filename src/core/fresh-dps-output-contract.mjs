@@ -61,14 +61,27 @@ function withExactProofs(slots,proofRows){
     const key=JSON.stringify([s.reportCode,s.fightId,norm(s.name)]);
     identityCount.set(key,(identityCount.get(key)??0)+1);
   }
-  const attached=new Map();
+  const attached=new Map(),actorClaims=new Set();
   for(const row of proofRows){
     const s=index.get(row?.rank),p=row?.proof;
     need(s&&row.jobKey===s.jobKey&&row.snapshotSha===s.snapshotSha&&
       !attached.has(row.rank),'DPS_PROOF_RANK_OR_SNAPSHOT_DRIFT');
-    need(!masked(s.name)&&identityCount.get(JSON.stringify([
-      s.reportCode,s.fightId,norm(s.name)]))===1,
-      'DPS_MASKED_OR_COLLIDING_ACTOR');
+    const isMasked=masked(s.name);
+    const uniqueNamed=!isMasked&&identityCount.get(JSON.stringify([
+      s.reportCode,s.fightId,norm(s.name)]))===1;
+    // A masked A rank is NEVER proven by a BossDPS leaderboard row,
+    // same-name guess, numerical B rank, or synthetic missing value.
+    // Only the offline validated paired Report overall/boss witness passes.
+    // The upstream private collector must independently verify its raw
+    // report before persisting these proof rows.
+    const pairedMasked=isMasked&&
+      p?.discovery?.kind==='REPORT_DUAL_RANKINGS_MASKED'&&
+      sha(p.discovery.evidenceSha256)&&
+      Number.isSafeInteger(p.reportRevision)&&p.reportRevision>=0&&
+      (typeof p.actorRef==='string'&&
+       (/^id:[1-9]\\d*$/.test(p.actorRef)||
+        /^name:player\\s*\\([1-9]\\d*\\)$/.test(p.actorRef)));
+    need(uniqueNamed||pairedMasked,'DPS_MASKED_OR_COLLIDING_ACTOR');
     need(p?.proofType==='EXACT_SAME_FIGHT_ACTOR'&&
       typeof p.actorRef==='string'&&p.actorRef.length>0&&
       number(p.bossDps)&&p.bossDps>=0&&p.bossDps<=s.totalDps&&
@@ -89,6 +102,9 @@ function withExactProofs(slots,proofRows){
     if(s.reportRevision==null&&p.reportRevision==null)
       need(p.sourceStartTime===s.startTime,
         'DPS_REVISIONLESS_START_TIME_REQUIRED');
+    const actorIdentity=JSON.stringify([s.reportCode,s.fightId,p.actorRef]);
+    need(!actorClaims.has(actorIdentity),'DPS_DOUBLE_CLAIMED_ACTOR');
+    actorClaims.add(actorIdentity);
     attached.set(row.rank,p);
   }
   return slots.map(s=>({...s,status:attached.has(s.rank)?'VERIFIED':'PENDING',
