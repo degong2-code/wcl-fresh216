@@ -1,0 +1,39 @@
+name: Fresh216 public Heroic multi-boss gameID table verification
+on:
+  push:
+    branches: [work/public-runner-effexp-20261030]
+    paths: [.github/workflows/fresh216-public-heroic-gameid-filter.yml]
+permissions:
+  contents: write
+concurrency:
+  group: fresh216-public-heroic-gameid-filter-v1
+  cancel-in-progress: false
+jobs:
+  compare:
+    if: >-
+      github.repository == 'degong2-code/wcl-fresh216' &&
+      github.ref == 'refs/heads/work/public-runner-effexp-20261030' &&
+      github.run_attempt == 1
+    runs-on: ubuntu-latest
+    timeout-minutes: 12
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: work/public-runner-effexp-20261030
+          persist-credentials: true
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+      - name: Preflight with zero WCL calls
+        run: |
+          set -euo pipefail
+          node --check tools/public-heroic-gameid-filter-pilot.mjs
+          node tools/public-heroic-gameid-filter-pilot.mjs --preflight
+      - name: Execute small Heroic 2-boss IN expression plus official BossDPS
+        env:
+          FRESH216_MULTIBOSS_APPROVED: 'true'
+          WCL_CLIENT_ID: ${{ secrets.WCL_CLIENT_ID }}
+          WCL_CLIENT_SECRET: ${{ secrets.WCL_CLIENT_SECRET }}
+        run: |
+          set -euo pipefail
+          node tools/public-heroic-gameid-filter-pilot.mjs --collect
