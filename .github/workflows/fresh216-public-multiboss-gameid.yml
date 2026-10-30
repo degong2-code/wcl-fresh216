@@ -1,0 +1,40 @@
+name: Fresh216 public NPC gameID multi-boss filter pilot
+on:
+  push:
+    branches: [work/public-runner-effexp-20261030]
+    paths: [.github/workflows/fresh216-public-multiboss-gameid.yml]
+permissions:
+  contents: write
+concurrency:
+  group: fresh216-public-multiboss-gameid-once
+  cancel-in-progress: false
+jobs:
+  compare:
+    if: >-
+      github.repository == 'degong2-code/wcl-fresh216' &&
+      github.ref == 'refs/heads/work/public-runner-effexp-20261030' &&
+      github.run_attempt == 1
+    runs-on: ubuntu-latest
+    timeout-minutes: 12
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: work/public-runner-effexp-20261030
+          persist-credentials: true
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+      - name: No-secrets code preflight
+        run: |
+          set -euo pipefail
+          test "$(git hash-object tools/public-multiboss-gameid-filter-pilot.mjs)" = "3ef776f551415111518f7cbea16f3b75a4dd88c3"
+          node --check tools/public-multiboss-gameid-filter-pilot.mjs
+          node tools/public-multiboss-gameid-filter-pilot.mjs --preflight
+      - name: Owner approved WCL public exact multi-boss gameID filter experiment
+        env:
+          FRESH216_MULTIBOSS_APPROVED: 'true'
+          WCL_CLIENT_ID: ${{ secrets.WCL_CLIENT_ID }}
+          WCL_CLIENT_SECRET: ${{ secrets.WCL_CLIENT_SECRET }}
+        run: |
+          set -euo pipefail
+          node tools/public-multiboss-gameid-filter-pilot.mjs --collect
