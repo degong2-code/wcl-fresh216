@@ -1,0 +1,23 @@
+{
+  "schema": 1,
+  "status": "FINAL",
+  "kind": "identify",
+  "requestSha256": "05e46a6d1f50be2bc52d9f27e16377244aa5db0e13b2be662d15da9ec858628b",
+  "httpStatus": 200,
+  "elapsedMs": 435,
+  "cost": 1,
+  "quota": {
+    "spent": 1,
+    "limit": 3600,
+    "reset": 3600
+  },
+  "evidenceDigest": "03ed1f85fcd3fc9503099ab4277e4616ab40d5bd5d68dd51d28059bb010a3199",
+  "verification": "VALID",
+  "shape": {
+    "totalFights": 64,
+    "selectedEncounter": 3129,
+    "selectedDifficulty": 1,
+    "selectedKill": true
+  },
+  "noPrivateDataPublished": true
+}
