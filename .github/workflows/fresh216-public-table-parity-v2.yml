@@ -1,0 +1,40 @@
+name: Fresh216 public BossDPS table actor-join correction pilot
+on:
+  push:
+    branches: [work/public-runner-effexp-20261030]
+    paths: [.github/workflows/fresh216-public-table-parity-v2.yml]
+permissions:
+  contents: write
+concurrency:
+  group: fresh216-public-boss-table-parity-v2
+  cancel-in-progress: false
+jobs:
+  compare:
+    if: >-
+      github.repository == 'degong2-code/wcl-fresh216' &&
+      github.ref == 'refs/heads/work/public-runner-effexp-20261030' &&
+      github.run_attempt == 1
+    runs-on: ubuntu-latest
+    timeout-minutes: 12
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: work/public-runner-effexp-20261030
+          persist-credentials: true
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+      - name: Offline preflight for new no-retry evidence scope
+        run: |
+          set -euo pipefail
+          test "$(git hash-object tools/public-boss-table-parity-pilot-v2.mjs)" = "188b9f9a691b1f499f617a3388852b20f1b755da"
+          node --check tools/public-boss-table-parity-pilot-v2.mjs
+          node tools/public-boss-table-parity-pilot-v2.mjs --preflight
+      - name: Re-test public boss target source actor matching with max 40pt
+        env:
+          FRESH216_BOSS_TABLE_APPROVED: 'true'
+          WCL_CLIENT_ID: ${{ secrets.WCL_CLIENT_ID }}
+          WCL_CLIENT_SECRET: ${{ secrets.WCL_CLIENT_SECRET }}
+        run: |
+          set -euo pipefail
+          node tools/public-boss-table-parity-pilot-v2.mjs --collect
