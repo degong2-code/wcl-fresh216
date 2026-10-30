@@ -1,0 +1,88 @@
+{
+  "schema": 1,
+  "status": "FINAL",
+  "kind": "public_reference_rankings_tables",
+  "querySha256": "c400449292806971ec8a822099a612b447b5790b5e34ce5c79204f687db3d4c0",
+  "httpStatus": 200,
+  "observedPoints": 9.02,
+  "quota": {
+    "spent": 74.78,
+    "limit": 3600,
+    "reset": 2265
+  },
+  "elapsedMs": 1771,
+  "bodySha256": "5c83af368d4fabe62bd1abfd379cec76033bdb7bac5a08da50d6b713f2865a1a",
+  "verification": "VALID",
+  "summary": {
+    "schema": 1,
+    "reportRevision": 2,
+    "encounterID": 3122,
+    "difficulty": 1,
+    "durationMs": 155854,
+    "bossNpcTargets": 3,
+    "totalFightNPCs": 5,
+    "totalMasterActors": 1204,
+    "totalRankedDpsActors": 18,
+    "bossRankedDpsActors": 18,
+    "sourceTable": {
+      "entries": 24,
+      "firstKeys": [
+        "name",
+        "id",
+        "guid",
+        "type",
+        "icon",
+        "itemLevel",
+        "total",
+        "totalReduced",
+        "activeTime",
+        "activeTimeReduced",
+        "abilities",
+        "damageAbilities",
+        "targets",
+        "talents",
+        "gear",
+        "pets"
+      ],
+      "totalFieldCount": 24
+    },
+    "targetTable": {
+      "entries": 3,
+      "firstKeys": [
+        "name",
+        "id",
+        "guid",
+        "type",
+        "icon",
+        "total",
+        "totalReduced",
+        "activeTime",
+        "activeTimeReduced",
+        "abilities",
+        "damageAbilities",
+        "sources"
+      ],
+      "totalFieldCount": 3
+    },
+    "bossTableMatchedActors": 18,
+    "totalTableMatchedActors": 18,
+    "unfilteredTableVsOfficialTotal": {
+      "compared": 18,
+      "exact0005": 18,
+      "within001": 18,
+      "within1": 18,
+      "medianAbsDps": 2.0736479200422764e-10,
+      "maxAbsDps": 4.383764462545514e-10
+    },
+    "unfilteredTableVsOfficialBoss": {
+      "compared": 18,
+      "exact0005": 18,
+      "within001": 18,
+      "within1": 18,
+      "medianAbsDps": 2.0736479200422764e-10,
+      "maxAbsDps": 4.383764462545514e-10
+    }
+  },
+  "privateDataAccess": false,
+  "rawActorDataPersisted": false
+}
