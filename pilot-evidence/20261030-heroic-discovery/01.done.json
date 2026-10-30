@@ -1,0 +1,20 @@
+{
+  "schema": 1,
+  "status": "FINAL",
+  "queryHash": "c418eeeda32cfed17e2f6d61f9a26c9d862fc35016d90379aba3fc82d4ab1350",
+  "httpStatus": 200,
+  "observedPoints": 1,
+  "quotaSpent": 97.96,
+  "quotaLimit": 3600,
+  "verification": "VALID",
+  "responseHash": "9ca2f5a14bb73850c34bf9d2bd7dc4c97657fcad96e595ecd7d1e669272feefb",
+  "selected": {
+    "reportCode": "rPRCwg6fjc9XdQLz",
+    "fightId": 2,
+    "encounterId": 3470,
+    "difficulty": 4,
+    "heroicKills": 2
+  },
+  "rawActorsSaved": false,
+  "publicOnly": true
+}
