@@ -1,0 +1,22 @@
+name: Fresh216 public runner no-secret smoke
+on:
+  push:
+    branches:
+      - work/public-runner-effexp-20261030
+    paths:
+      - .github/workflows/fresh216-public-runner-smoke.yml
+permissions:
+  contents: read
+concurrency:
+  group: fresh216-public-smoke-once
+  cancel-in-progress: false
+jobs:
+  smoke:
+    runs-on: ubuntu-latest
+    timeout-minutes: 3
+    steps:
+      - name: Confirm hosted runner started, without checkout, secrets, WCL or private data
+        shell: bash
+        run: |
+          set -euo pipefail
+          echo FRESH216_PUBLIC_HOSTED_RUNNER_PASS
