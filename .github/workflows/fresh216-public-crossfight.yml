@@ -1,0 +1,54 @@
+name: Fresh216 cross-encounter public BossDPS table parity
+on:
+  push:
+    branches: [work/public-runner-effexp-20261030]
+    paths: [.github/workflows/fresh216-public-crossfight.yml]
+permissions:
+  contents: write
+concurrency:
+  group: fresh216-public-crossfight-v1
+  cancel-in-progress: false
+jobs:
+  validate:
+    if: >-
+      github.repository == 'degong2-code/wcl-fresh216' &&
+      github.ref == 'refs/heads/work/public-runner-effexp-20261030' &&
+      github.run_attempt == 1
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: work/public-runner-effexp-20261030
+          persist-credentials: true
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+      - name: Validate public-only scripts and selection state before any WCL points
+        run: |
+          set -euo pipefail
+          node --check tools/select-public-crossfight.mjs
+          node --check tools/public-boss-table-parity-crossfight.mjs
+          node tools/select-public-crossfight.mjs --preflight
+      - name: Choose two other public LFR boss encounters without private data
+        env:
+          FRESH216_CROSS_PILOT_APPROVED: 'true'
+          WCL_CLIENT_ID: ${{ secrets.WCL_CLIENT_ID }}
+          WCL_CLIENT_SECRET: ${{ secrets.WCL_CLIENT_SECRET }}
+        run: |
+          set -euo pipefail
+          node tools/select-public-crossfight.mjs --collect
+      - name: Compare official bossdps against boss-target DamageDone for two fights
+        env:
+          FRESH216_BOSS_TABLE_APPROVED: 'true'
+          WCL_CLIENT_ID: ${{ secrets.WCL_CLIENT_ID }}
+          WCL_CLIENT_SECRET: ${{ secrets.WCL_CLIENT_SECRET }}
+        run: |
+          set -euo pipefail
+          for i in 0 1; do
+            export FRESH216_PUBLIC_FIGHT_ID="$(node -e 'const r=require("./pilot-evidence/20261030-parity-crossfight/selection-result.json");console.log(r.selection[Number(process.argv[1])].fightId)' "$i")"
+            export FRESH216_PUBLIC_ENCOUNTER_ID="$(node -e 'const r=require("./pilot-evidence/20261030-parity-crossfight/selection-result.json");console.log(r.selection[Number(process.argv[1])].encounterId)' "$i")"
+            node tools/public-boss-table-parity-crossfight.mjs --preflight
+            node tools/public-boss-table-parity-crossfight.mjs --collect
+          done
+          echo 'Cross-encounter tests saved only public aggregated parity receipts, no names or raw actors.' >> "$GITHUB_STEP_SUMMARY"
