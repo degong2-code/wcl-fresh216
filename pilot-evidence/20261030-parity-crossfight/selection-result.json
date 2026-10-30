@@ -1,0 +1,22 @@
+{
+  "schema": 1,
+  "status": "FINAL",
+  "httpStatus": 200,
+  "points": 1,
+  "querySha256": "ba3eee9177d57537a8405e41ce5edd6879eca7d84f39084eaad79d0455130936",
+  "responseHash": "811bc95e74036113226e78e8258c5fa907f243740bbcf2515f8e46bd5e36e13b",
+  "publicOnly": true,
+  "selection": [
+    {
+      "fightId": 6,
+      "encounterId": 3132,
+      "difficulty": 1
+    },
+    {
+      "fightId": 10,
+      "encounterId": 3122,
+      "difficulty": 1
+    }
+  ],
+  "hasTwoCandidates": true
+}
