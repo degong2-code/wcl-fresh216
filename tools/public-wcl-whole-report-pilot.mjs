@@ -52,7 +52,7 @@ async function main(){
   git('branch','--show-current')===BRANCH,'WIDE_PUBLIC_BRANCH_ONLY');
  if(process.argv[2]==='--preflight'){
   need(qs.every((_,i)=>paths(i).every(p=>!fs.existsSync(p))),'WIDE_ALREADY_RAN');
-  console.log(JSON.stringify({result:'PUBLIC_WIDE_OFFLINE_PASS',tests:qs.map(q=>q.name),noApiCalls:0,privateInputs:false}));
+  console.log(JSON.stringify({result:'PUBLIC_WIDE_OFFLINE_PASS',tests:qs.map(q=>q.name),apiCalls:0,privateInputs:false}));
   return;
  }
  need(process.argv[2]==='--collect'&&process.env.WCL_CLIENT_ID&&
@@ -100,8 +100,8 @@ async function main(){
  }
  const comparison=inMemory.length===2?{
   revisionsEqual:inMemory[0].details.revision===inMemory[1].details.revision,
-  totalFight50HashEqual:inMemory[0].details.hashes.o===inMemory[1].details.hashes.o,
-  bossFight50HashEqual:inMemory[0].details.hashes.b===inMemory[1].details.hashes.b
+  totalFight50HashEqual:inMemory[0].details.hashes.o!=null&&inMemory[0].details.hashes.o===inMemory[1].details.hashes.o,
+  bossFight50HashEqual:inMemory[0].details.hashes.b!=null&&inMemory[0].details.hashes.b===inMemory[1].details.hashes.b
  }:null;
  console.log(JSON.stringify({result:'PUBLIC_WIDE_COST_COMPARISON',
   observedPoints:observed,performed:inMemory.map(x=>({kind:x.kind,points:x.points,shape:x.details.shape})),
