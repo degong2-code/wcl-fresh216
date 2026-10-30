@@ -79,8 +79,8 @@ function withExactProofs(slots,proofRows){
       sha(p.discovery.evidenceSha256)&&
       Number.isSafeInteger(p.reportRevision)&&p.reportRevision>=0&&
       (typeof p.actorRef==='string'&&
-       (/^id:[1-9]\\d*$/.test(p.actorRef)||
-        /^name:player\\s*\\([1-9]\\d*\\)$/.test(p.actorRef)));
+       (/^id:[1-9]\d*$/.test(p.actorRef)||
+        /^name:player\s*\([1-9]\d*\)$/.test(p.actorRef)));
     need(uniqueNamed||pairedMasked,'DPS_MASKED_OR_COLLIDING_ACTOR');
     need(p?.proofType==='EXACT_SAME_FIGHT_ACTOR'&&
       typeof p.actorRef==='string'&&p.actorRef.length>0&&
