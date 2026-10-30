@@ -165,16 +165,7 @@ function interpretTargets(body,reference,ids){
  need(r?.code===CODE&&r.revision===reference.summary.reportRevision,'PARITY_TARGET_REPORT_DRIFT');
  const tables=ids.map((id,i)=>asRows(r['b'+i]));
  need(tables.every(x=>Array.isArray(x)),'PARITY_BOSS_TABLE_SHAPE');
- const perTargetCounts=[];
- for(let i=0;i<tables.length;i++){
-  let n=0;
-  for(const row of tables[i]){
-   const id=actorId(row)??actorName(row),x=numericTotal(row);
-   if(!id||!x)continue;
-   merged.set(id,(merged.get(id)??0)+x.value);n++;
-  }
-  perTargetCounts.push(n);
- }
+ const perTargetCounts=tables.map(x=>x.length);
  const counted=[];
  let exact=0,near=0,most=0;
  for(const actor of reference.boss){
