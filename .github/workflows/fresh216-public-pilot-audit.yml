@@ -1,0 +1,25 @@
+name: Fresh216 public WCL cost pilot independent audit
+on:
+  push:
+    branches: [work/public-runner-effexp-20261030]
+    paths: [.github/workflows/fresh216-public-pilot-audit.yml]
+permissions:
+  contents: read
+jobs:
+  readback:
+    if: github.repository == 'degong2-code/wcl-fresh216'
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: work/public-runner-effexp-20261030
+          persist-credentials: false
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+      - name: Verify immutable payment receipts and safe public-only response summaries
+        run: |
+          set -euo pipefail
+          node --check tools/audit-public-wcl-cost-pilot.mjs
+          node tools/audit-public-wcl-cost-pilot.mjs
