@@ -1,0 +1,24 @@
+name: Fresh216 public multi-boss gameID filter audit
+on:
+  push:
+    branches: [work/public-runner-effexp-20261030]
+    paths: [.github/workflows/fresh216-public-multiboss-filter-audit.yml]
+permissions:
+  contents: read
+jobs:
+  audit:
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: work/public-runner-effexp-20261030
+          persist-credentials: false
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+      - name: Read back both NPC ID class experiments, no WCL or Secrets
+        run: |
+          set -euo pipefail
+          node --check tools/audit-public-multiboss-filter.mjs
+          node tools/audit-public-multiboss-filter.mjs
