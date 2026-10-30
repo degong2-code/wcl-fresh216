@@ -1,0 +1,86 @@
+{
+  "schema": 1,
+  "status": "FINAL",
+  "kind": "public_reference_rankings_tables",
+  "querySha256": "8d90ab29e61ec92d23f40c3fc5b18f4ca2f733d7802c0d3fcc5c1d51fb93a089",
+  "httpStatus": 200,
+  "observedPoints": 8,
+  "quota": {
+    "spent": 54,
+    "limit": 3600,
+    "reset": 2573
+  },
+  "elapsedMs": 361,
+  "bodySha256": "89eb08e7a61020dc29c934eca3d1f3139effa7d31545730290698bef97bea1f0",
+  "verification": "VALID",
+  "summary": {
+    "schema": 1,
+    "reportRevision": 2,
+    "encounterID": 3129,
+    "difficulty": 1,
+    "durationMs": 133344,
+    "bossNpcTargets": 1,
+    "totalFightNPCs": 5,
+    "totalMasterActors": 1204,
+    "totalRankedDpsActors": 17,
+    "bossRankedDpsActors": 17,
+    "sourceTable": {
+      "entries": 25,
+      "firstKeys": [
+        "name",
+        "id",
+        "guid",
+        "type",
+        "icon",
+        "itemLevel",
+        "total",
+        "activeTime",
+        "activeTimeReduced",
+        "abilities",
+        "damageAbilities",
+        "targets",
+        "talents",
+        "gear"
+      ],
+      "totalFieldCount": 25
+    },
+    "targetTable": {
+      "entries": 2,
+      "firstKeys": [
+        "name",
+        "id",
+        "guid",
+        "type",
+        "icon",
+        "total",
+        "totalReduced",
+        "activeTime",
+        "activeTimeReduced",
+        "abilities",
+        "damageAbilities",
+        "sources"
+      ],
+      "totalFieldCount": 2
+    },
+    "bossTableMatchedActors": 17,
+    "totalTableMatchedActors": 17,
+    "unfilteredTableVsOfficialTotal": {
+      "compared": 17,
+      "exact0005": 17,
+      "within001": 17,
+      "within1": 17,
+      "medianAbsDps": 3.728928277269006e-11,
+      "maxAbsDps": 4.874891601502895e-10
+    },
+    "unfilteredTableVsOfficialBoss": {
+      "compared": 17,
+      "exact0005": 12,
+      "within001": 12,
+      "within1": 12,
+      "medianAbsDps": 2.000888343900442e-10,
+      "maxAbsDps": 30.072594192470206
+    }
+  },
+  "privateDataAccess": false,
+  "rawActorDataPersisted": false
+}
