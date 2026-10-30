@@ -1,0 +1,27 @@
+{
+  "schema": 1,
+  "status": "FINAL",
+  "kind": "both_rankings",
+  "requestSha256": "fd6bc8729a1a36a69d22182683dc1bb101a652de5bc5359d46f20f324b04a8c0",
+  "httpStatus": 200,
+  "elapsedMs": 2959,
+  "cost": 4,
+  "quota": {
+    "spent": 2,
+    "limit": 3600,
+    "reset": 3598
+  },
+  "evidenceDigest": "a9480840902e667cafe49d29abf3b201d3d16f6626e90a1cea5781d6a1663aeb",
+  "verification": "VALID",
+  "shape": {
+    "o": {
+      "fights": 1,
+      "characters": 17
+    },
+    "b": {
+      "fights": 1,
+      "characters": 17
+    }
+  },
+  "noPrivateDataPublished": true
+}
