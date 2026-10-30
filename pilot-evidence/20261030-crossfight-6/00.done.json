@@ -1,0 +1,88 @@
+{
+  "schema": 1,
+  "status": "FINAL",
+  "kind": "public_reference_rankings_tables",
+  "querySha256": "ada3905bb750d2920796df9617bfb88569feefeb36850afd67a58cc974745a63",
+  "httpStatus": 200,
+  "observedPoints": 9.780000000000001,
+  "quota": {
+    "spent": 64,
+    "limit": 3600,
+    "reset": 2273
+  },
+  "elapsedMs": 1788,
+  "bodySha256": "286fb0d8fae992f0c334377b5541fbe3fb6b4bd232e9cf568e73a13b56601341",
+  "verification": "VALID",
+  "summary": {
+    "schema": 1,
+    "reportRevision": 2,
+    "encounterID": 3132,
+    "difficulty": 1,
+    "durationMs": 118797,
+    "bossNpcTargets": 1,
+    "totalFightNPCs": 4,
+    "totalMasterActors": 1204,
+    "totalRankedDpsActors": 18,
+    "bossRankedDpsActors": 18,
+    "sourceTable": {
+      "entries": 23,
+      "firstKeys": [
+        "name",
+        "id",
+        "guid",
+        "type",
+        "icon",
+        "itemLevel",
+        "total",
+        "totalReduced",
+        "activeTime",
+        "activeTimeReduced",
+        "abilities",
+        "damageAbilities",
+        "targets",
+        "talents",
+        "gear",
+        "pets"
+      ],
+      "totalFieldCount": 23
+    },
+    "targetTable": {
+      "entries": 3,
+      "firstKeys": [
+        "name",
+        "id",
+        "guid",
+        "type",
+        "icon",
+        "total",
+        "totalReduced",
+        "activeTime",
+        "activeTimeReduced",
+        "abilities",
+        "damageAbilities",
+        "sources"
+      ],
+      "totalFieldCount": 3
+    },
+    "bossTableMatchedActors": 18,
+    "totalTableMatchedActors": 18,
+    "unfilteredTableVsOfficialTotal": {
+      "compared": 18,
+      "exact0005": 18,
+      "within001": 18,
+      "within1": 18,
+      "medianAbsDps": 3.346940502524376e-10,
+      "maxAbsDps": 4.929461283609271e-10
+    },
+    "unfilteredTableVsOfficialBoss": {
+      "compared": 18,
+      "exact0005": 0,
+      "within001": 0,
+      "within1": 0,
+      "medianAbsDps": 774.0346978459547,
+      "maxAbsDps": 6430.701111980627
+    }
+  },
+  "privateDataAccess": false,
+  "rawActorDataPersisted": false
+}
