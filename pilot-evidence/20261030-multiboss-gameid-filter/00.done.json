@@ -1,0 +1,13 @@
+{
+  "schema": 1,
+  "status": "FINAL",
+  "querySha256": "1a346f7a1d34e8d3f3d28cb946bfcfd44071383e87c4b523ccecb79ba8350880",
+  "observedPoints": 2,
+  "httpStatus": 200,
+  "elapsedMs": 215,
+  "verification": "VALID",
+  "bodySha256": "285a40b5183c90b0d9131aff36a633af98e9d9e2f97591f87ad2fe87352fcc85",
+  "result": null,
+  "publicOnly": true,
+  "rawActorsPersisted": false
+}
