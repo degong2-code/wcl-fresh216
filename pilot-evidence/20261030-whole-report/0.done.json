@@ -1,0 +1,31 @@
+{
+  "schema": 1,
+  "status": "FINAL",
+  "kind": "whole",
+  "requestSha256": "6d9e25cb95d5619e4ca65e553b39021c7d8ea67cd7e4ea9401d636b3787f367b",
+  "httpStatus": 200,
+  "points": 36,
+  "elapsedMs": 10380,
+  "verification": "VALID",
+  "shape": {
+    "o": {
+      "fightRecords": 9,
+      "fight50Records": 1,
+      "dpsActorsAll": 164,
+      "fightIds": 9
+    },
+    "b": {
+      "fightRecords": 9,
+      "fight50Records": 1,
+      "dpsActorsAll": 164,
+      "fightIds": 9
+    }
+  },
+  "revision": 2,
+  "fight50Hashes": {
+    "o": "768e4cee1ce8ed28a1045e9a84fd7b18c397b2cf85163c9cccf9b907c9457722",
+    "b": "f73d17bbf2582db50be6e7e545b082eb2692f0490852019039b34ea564eff776"
+  },
+  "rawBodySha256": "917cbc16dae0ff0ba49a59cc7d1facc5f1380976ab66a33ff746f8b4040e5df5",
+  "privateData": false
+}
