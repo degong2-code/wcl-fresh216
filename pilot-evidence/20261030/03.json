@@ -1,0 +1,8 @@
+{
+  "schema": 1,
+  "status": "IN_FLIGHT",
+  "kind": "damage_table",
+  "source": "PUBLIC_FORUM_REPORT",
+  "reportUrl": "https://www.warcraftlogs.com/reports/wyCNP6db8FrxG7gk?fight=50",
+  "querySha256": "f559dfda066d69cb3f7c4b07b3ca0fb651cf385c67f4ec7fe9c2615703b681b6"
+}
