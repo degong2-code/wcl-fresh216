@@ -142,7 +142,7 @@ async function main(){
   }catch{}
   const ms=Math.round(performance.now()-t),q=points(body);
   let verification='UNVERIFIED',shape=null;
-  if(rsp?.status===200&&body?.data&&!Array.isArray(body?.errors)){
+  if(rsp?.status===200&&body?.data&&(!Array.isArray(body?.errors)||body.errors.length===0)){
    try{shape=summary(kind,body);verification='VALID'}catch(e){verification=e.message}
   }
   // IN_FLIGHT stays permanent audit marker. Separate finalized receipt
@@ -159,7 +159,7 @@ async function main(){
   git('-c','user.name=Fresh216-Public-Probe','-c','user.email=fresh216-probe@users.noreply.github.com',
    'commit','-m','experiment: '+kind+' result (no actor details)');
   git('push','origin','HEAD:refs/heads/'+BRANCH);
-  if(q.request==null||verification!=='VALID'||q.spent==null||q.limit==null){
+  if(q.request==null||q.request>RESERVE||verification!=='VALID'||q.spent==null||q.limit==null){
    console.log(JSON.stringify({result:'PUBLIC_RUNNER_PILOT_SAFETY_STOP',kind,
     reason:verification,knownSpentBefore:observed}));
    break;
