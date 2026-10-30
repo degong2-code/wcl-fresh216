@@ -95,8 +95,9 @@ async function main(){
    fight50Hashes:details?.hashes??null,
    rawBodySha256:body?hash(body):null,
    privateData:false});
-  if(points===null||points>16||verification!=='VALID')break;
+  if(points===null||verification!=='VALID')break;
   observed+=points;inMemory.push({kind:item.name,points,details});
+  if(points>16)break; // charged cost counted even when the safety guard stops
  }
  const comparison=inMemory.length===2?{
   revisionsEqual:inMemory[0].details.revision===inMemory[1].details.revision,
