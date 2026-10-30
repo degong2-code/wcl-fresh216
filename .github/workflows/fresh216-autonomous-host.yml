@@ -1,0 +1,179 @@
+name: Fresh216 autonomous offline CI and private-evidence inventory
+
+# Only owner-controlled direct pushes to this isolated public branch.
+# NEVER pull_request, pull_request_target, workflow_run, or fork input.
+on:
+  push:
+    branches:
+      - work/fresh216-autonomous-host-20261031
+    paths:
+      - .github/workflows/fresh216-autonomous-host.yml
+      - src/**
+      - tests/**
+      - tools/**
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: fresh216-autonomous-owner-branch
+  cancel-in-progress: false
+
+jobs:
+  offline-core:
+    if: >-
+      github.repository == 'degong2-code/wcl-fresh216' &&
+      github.ref == 'refs/heads/work/fresh216-autonomous-host-20261031'
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+      - name: Run public, credential-free core checks
+        run: |
+          set -euo pipefail
+          node --version
+          node tools/ci.mjs
+          echo 'PUBLIC_OFFLINE_CORE_PASS (no WCL, no Sheets, no private data)'
+      - name: Explain scope
+        if: always()
+        run: |
+          echo '### Fresh216 offline engine CI' >> "$GITHUB_STEP_SUMMARY"
+          echo 'Only public pure-core code and tests. No WCL calls, private data, or Sheets.' >> "$GITHUB_STEP_SUMMARY"
+
+  private-evidence-inventory:
+    needs: offline-core
+    if: >-
+      github.event_name == 'push' &&
+      github.repository == 'degong2-code/wcl-fresh216' &&
+      github.ref == 'refs/heads/work/fresh216-autonomous-host-20261031'
+    runs-on: ubuntu-latest
+    timeout-minutes: 12
+    permissions:
+      contents: read
+    steps:
+      - name: Check whether private source read access has been granted
+        id: gate
+        shell: bash
+        env:
+          EVIDENCE_READ_TOKEN: ${{ secrets.FRESH216_PRIVATE_READ_TOKEN }}
+        run: |
+          set -euo pipefail
+          if [[ -z "$EVIDENCE_READ_TOKEN" ]]; then
+            echo 'present=false' >> "$GITHUB_OUTPUT"
+            echo 'PRIVATE_INVENTORY_BLOCKED: private read-only repository credential not configured'
+            echo '### Private inventory: NOT RUN (read credential missing)' >> "$GITHUB_STEP_SUMMARY"
+            exit 0
+          fi
+          echo 'present=true' >> "$GITHUB_OUTPUT"
+          echo 'PRIVATE_INVENTORY_AUTH_PRESENT (no token disclosed)'
+      - name: Checkout pinned private analyzer
+        if: steps.gate.outputs.present == 'true'
+        uses: actions/checkout@v4
+        with:
+          repository: degong2-code/ai-project-lab
+          ref: 2c7806c35f2c21aecf57362f356e57f27f03f0a5
+          token: ${{ secrets.FRESH216_PRIVATE_READ_TOKEN }}
+          persist-credentials: false
+          path: evidence/code
+      - name: Checkout immutable original A
+        if: steps.gate.outputs.present == 'true'
+        uses: actions/checkout@v4
+        with:
+          repository: degong2-code/ai-project-lab
+          ref: 39573a118f2a57f9dc6758936e9d73e9aa6cebf5
+          token: ${{ secrets.FRESH216_PRIVATE_READ_TOKEN }}
+          persist-credentials: false
+          path: evidence/source
+      - name: Checkout verified C candidate
+        if: steps.gate.outputs.present == 'true'
+        uses: actions/checkout@v4
+        with:
+          repository: degong2-code/ai-project-lab
+          ref: d56befacce6ff8062878ed3a4edec6a55cd91b07
+          token: ${{ secrets.FRESH216_PRIVATE_READ_TOKEN }}
+          persist-credentials: false
+          path: evidence/delta
+      - name: Checkout immutable saved Report bodies
+        if: steps.gate.outputs.present == 'true'
+        uses: actions/checkout@v4
+        with:
+          repository: degong2-code/ai-project-lab
+          ref: 5b302ee00483c1415fa9c3c73df43e8ac4f89dc1
+          token: ${{ secrets.FRESH216_PRIVATE_READ_TOKEN }}
+          persist-credentials: false
+          path: evidence/report
+      - name: Checkout immutable priority plan
+        if: steps.gate.outputs.present == 'true'
+        uses: actions/checkout@v4
+        with:
+          repository: degong2-code/ai-project-lab
+          ref: 811c4e67878f9b70e420fccb4ecf84301d211223
+          token: ${{ secrets.FRESH216_PRIVATE_READ_TOKEN }}
+          persist-credentials: false
+          path: evidence/plan
+      - name: Checkout pinned public pure-core product
+        if: steps.gate.outputs.present == 'true'
+        uses: actions/checkout@v4
+        with:
+          repository: degong2-code/wcl-fresh216
+          ref: 8bb96e64add3703a9c9d60c973754943b64d57be
+          persist-credentials: false
+          path: evidence/product
+      - uses: actions/setup-node@v4
+        if: steps.gate.outputs.present == 'true'
+        with:
+          node-version: '22'
+      - name: Inventory residual 348 with read-only pinned evidence
+        if: steps.gate.outputs.present == 'true'
+        shell: bash
+        env:
+          FRESH216_TRUSTED_READONLY_HOST: owner-approved-20261031
+        run: |
+          set -euo pipefail
+          # No access token or WCL credentials are passed to the analyzer.
+          output="$RUNNER_TEMP/fresh216-private-aggregate.json"
+          errors="$RUNNER_TEMP/fresh216-private-errors.txt"
+          if ! env -u WCL_CLIENT_ID -u WCL_CLIENT_SECRET \
+            node evidence/code/tools/fresh216-recovery348-inventory.mjs \
+            "$GITHUB_WORKSPACE/evidence/source" \
+            "$GITHUB_WORKSPACE/evidence/delta" \
+            "$GITHUB_WORKSPACE/evidence/report" \
+            "$GITHUB_WORKSPACE/evidence/plan" \
+            "$GITHUB_WORKSPACE/evidence/product" \
+            > "$output" 2> "$errors"; then
+            echo 'PRIVATE_INVENTORY_EXECUTION_BLOCKED'
+            grep -oE 'RECOVERY348_[A-Z_]+' "$errors" | head -n 1 || true
+            exit 1
+          fi
+          node - "$output" <<'NODE'
+          const fs = require('node:fs');
+          const r = JSON.parse(fs.readFileSync(process.argv[2], 'utf8'));
+          if(r.result !== 'FRESH216_RECOVERY348_OFFLINE_INVENTORY' ||
+             r.exactC !== 21252 || r.unresolved?.total !== 348 ||
+             r.additionalWclCalls !== 0 || r.sheetsWrites !== 0 ||
+             r.repositoryWrites !== 0 || r.containsPrivateIdentifiers !== false)
+            throw Error('PRIVATE_INVENTORY_OUTPUT_POLICY_DRIFT');
+          const safe = {
+            result:r.result,exactC:r.exactC,
+            pending:r.unresolved.total,
+            named:r.unresolved.named,masked:r.unresolved.masked,
+            uniqueFightGroups:r.unresolved.uniqueFightGroups,
+            reusedFightGroups:r.existingSavedReports.overlappingFightGroups,
+            cachedActorCandidates:r.existingSavedReports.candidateOnlyNotPromoted.candidateMatched,
+            newWclCalls:r.additionalWclCalls
+          };
+          // Aggregate-only stdout. No report/actor identifiers, no raw archives.
+          console.log(JSON.stringify(safe));
+          fs.appendFileSync(process.env.GITHUB_STEP_SUMMARY,
+            '### Private inventory: PASS (sanitized aggregates only)\n' +
+            'Exact C: ' + safe.exactC + '; pending: ' + safe.pending +
+            '; cached actor candidates (not promoted): ' +
+            safe.cachedActorCandidates + '\n');
+          NODE
+      # Do not upload artifacts, print private response bodies, or write private Git.
