@@ -1,0 +1,18 @@
+{
+  "schema": 1,
+  "status": "FINAL",
+  "queryHash": "f0ebecffaaae89ccbf2f4f42cfd2e7d627e5ee36343ee99fbbef46d43449f540",
+  "httpStatus": 200,
+  "observedPoints": 1,
+  "quotaSpent": 96.96,
+  "quotaLimit": 3600,
+  "verification": "VALID",
+  "responseHash": "e522add5e0831667279903f69b02f4a380b47243a3a7748829486dfc175afe6d",
+  "selected": {
+    "candidateCount": 12,
+    "selectedCode": "rPRCwg6fjc9XdQLz",
+    "selectedTitleIsHeroic": true
+  },
+  "rawActorsSaved": false,
+  "publicOnly": true
+}
