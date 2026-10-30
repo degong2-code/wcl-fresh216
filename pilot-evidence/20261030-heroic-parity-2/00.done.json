@@ -1,0 +1,83 @@
+{
+  "schema": 1,
+  "status": "FINAL",
+  "kind": "public_reference_rankings_tables",
+  "querySha256": "5e26f3d6052e8135a28e867da2bd78007f9b7918602a36fc12ca958c9066f457",
+  "httpStatus": 200,
+  "observedPoints": 8.6,
+  "quota": {
+    "spent": 98.96,
+    "limit": 3600,
+    "reset": 1669
+  },
+  "elapsedMs": 2184,
+  "bodySha256": "07fa72fe226d64f27094535d4455a1b185ae76048bf771cbe05c498724384646",
+  "verification": "VALID",
+  "summary": {
+    "schema": 1,
+    "reportRevision": 17,
+    "encounterID": 3470,
+    "difficulty": 4,
+    "durationMs": 362217,
+    "bossNpcTargets": 2,
+    "totalFightNPCs": 4,
+    "totalMasterActors": 204,
+    "totalRankedDpsActors": 12,
+    "bossRankedDpsActors": 12,
+    "sourceTable": {
+      "entries": 18,
+      "firstKeys": [
+        "name",
+        "id",
+        "guid",
+        "type",
+        "icon",
+        "total",
+        "totalReduced",
+        "activeTime",
+        "abilities",
+        "damageAbilities",
+        "targets"
+      ],
+      "totalFieldCount": 18
+    },
+    "targetTable": {
+      "entries": 3,
+      "firstKeys": [
+        "name",
+        "id",
+        "guid",
+        "type",
+        "icon",
+        "total",
+        "totalReduced",
+        "activeTime",
+        "activeTimeReduced",
+        "abilities",
+        "damageAbilities",
+        "sources"
+      ],
+      "totalFieldCount": 3
+    },
+    "bossTableMatchedActors": 12,
+    "totalTableMatchedActors": 12,
+    "unfilteredTableVsOfficialTotal": {
+      "compared": 12,
+      "exact0005": 12,
+      "within001": 12,
+      "within1": 12,
+      "medianAbsDps": 2.7939677238464355e-9,
+      "maxAbsDps": 3.9726728573441505e-9
+    },
+    "unfilteredTableVsOfficialBoss": {
+      "compared": 12,
+      "exact0005": 0,
+      "within001": 0,
+      "within1": 0,
+      "medianAbsDps": 23433.02495465611,
+      "maxAbsDps": 53461.14345820667
+    }
+  },
+  "privateDataAccess": false,
+  "rawActorDataPersisted": false
+}
