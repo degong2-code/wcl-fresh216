@@ -1,0 +1,13 @@
+{
+  "schema": 1,
+  "kind": "FRESH216_SINGLE_WAVE_PUBLIC_PILOT",
+  "status": "IN_FLIGHT",
+  "runSha": "2adb6587d7e5874f3b074ca5b2c21381ffb8e6a9",
+  "runId": "41153217467",
+  "sourceSha256": "7231c678f305dfe2a278b6a0371897044d4d0a0058cf5f6219c993a4a3fae9d2",
+  "waveSha256": "8221472835f61c0a9366e438ccf0e79969778445b37ce7fe922eebb92629b6c2",
+  "maxGraphql": 1,
+  "maxFights": 4,
+  "reservedAtMs": 1793408527775,
+  "result": null
+}
