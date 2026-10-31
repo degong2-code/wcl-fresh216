@@ -42,7 +42,7 @@ export function derivePinnedFresh216SourceSlots({
     makeFreshDatedHeroicManifest(expectedScopeKey));
   need(Array.isArray(exported?.slots)&&exported.slots.length===21600,
     'PRIVATE_FRESH216_A_SOURCE_EXPORT_INVALID');
-  return exported.slots;
+  return Object.freeze(exported.slots.map(slot=>Object.freeze({...slot})));
 }
 export function createPrivateFresh216EvidenceHooks({
   privateDir,repoRoot,sourceState,sourceSlots=null,

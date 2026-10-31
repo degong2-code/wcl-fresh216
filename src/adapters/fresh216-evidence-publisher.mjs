@@ -86,7 +86,9 @@ export function createFresh216EvidencePublisher({
     archiveStore&&typeof archiveStore.persistWave==='function'&&
     typeof cDeltaAppender==='function',
     'EVIDENCE_PUBLISHER_CONFIG_INVALID');
-  validateSourceSlots(sourceSlots,expectedScopeKey);
+  const pinnedSourceSlots=Object.freeze(sourceSlots.map(slot=>
+    Object.freeze({...slot})));
+  validateSourceSlots(pinnedSourceSlots,expectedScopeKey);
   return async function publishFresh216Evidence({
     wave,attemptId,evidence,witness
   }={}){
@@ -189,13 +191,13 @@ export function createFresh216EvidencePublisher({
       stored.verifiedSlots<=candidateVerifiedSlots,
       'EVIDENCE_PUBLISHER_ARCHIVE_READBACK_DRIFT');
     const bridgeResult=buildFresh216CProofRowsFromActorArchives({
-      groups:wave.fightGroups,archives,manifest,sourceSlots,
+      groups:wave.fightGroups,archives,manifest,sourceSlots:pinnedSourceSlots,
       privateProofRows,hmacKey,expectedSourceSha256,expectedScopeKey
     });
     let delta;
     try{
       delta=await cDeltaAppender({
-        bridgeResult,sourceSlots,privateProofRows,archives,manifest,
+        bridgeResult,sourceSlots:pinnedSourceSlots,privateProofRows,archives,manifest,
         archiveReceipt:stored,wave,attemptId,evidence,witness
       });
     }catch(_error){

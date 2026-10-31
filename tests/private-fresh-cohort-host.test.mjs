@@ -215,6 +215,10 @@ test('pinned A source derivation verifies sourceRequests digest and full 21600-s
    sourceExporter:()=>({slots:sourceSlots})
  });
  assert.deepEqual(derived,sourceSlots);
+ assert.equal(Object.isFrozen(derived),true);
+ assert.equal(Object.isFrozen(derived[0]),true);
+ assert.throws(()=>{derived[0].slot=999;},TypeError);
+ assert.equal(sourceSlots[0].slot,0);
  assert.throws(()=>derivePinnedFresh216SourceSlots({
    sourceState,expectedSourceSha256:'c'.repeat(64),expectedScopeKey:scopeKey,
    sourceExporter:()=>({slots:sourceSlots})

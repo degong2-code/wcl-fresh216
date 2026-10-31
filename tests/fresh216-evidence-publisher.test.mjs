@@ -161,3 +161,14 @@ test('witness request/source/response drift is rejected before either writer',as
   }),/EVIDENCE_PUBLISHER_WITNESS_IDENTITY_DRIFT/);
   assert.deepEqual(p.counts(),{archiveCalls:0,deltaCalls:0});
 });
+
+test('publisher snapshots the pinned A slots so caller mutation cannot drift a later wave',async()=>{
+  const f=fixture(),p=publisherFor(f);
+  f.sourceSlots[0].totalDps=123456789;
+  const out=await p.publish({
+    wave:f.wave,attemptId:f.witness.attemptId,
+    evidence:f.evidence,witness:f.witness
+  });
+  assert.equal(out.status,'COMMITTED');
+  assert.equal(out.cDeltaReceipt.addedExactC,1);
+});
