@@ -3,12 +3,12 @@ import assert from 'node:assert/strict';
 import {preflightFresh216PublicPilot,executePublicPilotOnce}
  from '../tools/run-fresh216-public-pilot-once.mjs';
 const request={
- id:'FRESH216_PUBLIC_1_WAVE_V2_20261031',
- approval:'OWNER_PROCEED_PUBLIC_RESULTS_V2_AFTER_NO_CALL_20261031',
+ id:'FRESH216_PUBLIC_1_WAVE_V3_20261031',
+ approval:'OWNER_PROCEED_PUBLIC_RESULTS_V3_AFTER_ZERO_WCL_20261031',
  maxGraphql:1,maxFights:4,
  sourceSha256:'7231c678f305dfe2a278b6a0371897044d4d0a0058cf5f6219c993a4a3fae9d2'
 };
-const diff='A\texperiments/fresh216-one-wave-public-pilot-v2-20261031.json\n';
+const diff='A\texperiments/fresh216-one-wave-public-pilot-v3-20261031.json\n';
 const env={
  GITHUB_ACTIONS:'true',GITHUB_EVENT_NAME:'push',
  GITHUB_REPOSITORY:'degong2-code/wcl-fresh216',
