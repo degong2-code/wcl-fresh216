@@ -76,7 +76,7 @@ function fixture({actorName='Player (1)',duplicateNamed=false}={}){
     scopeKey:SCOPE,reportCode:REPORT,reportRevision:REVISION,
     fightId:FIGHT,encounterId:ENCOUNTER,difficulty:DIFFICULTY
   };
-  const privateProofRows=joined.verified.map(row=>({...identity,...row}));
+  const privateProofRows=joined.verified.map(row=>({identity,...row}));
   return {sourceSlots,group,report,archive,manifest,privateProofRows};
 }
 function convert(f,overrides={}){
