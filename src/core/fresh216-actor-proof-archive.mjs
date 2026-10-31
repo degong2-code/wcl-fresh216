@@ -62,7 +62,7 @@ const validToken=v=>typeof v==='string'&&TOKEN_RE.test(v);
 const nameKind=v=>{
   const n=norm(v);
   if(!n||n==='anonymous')return 'ANONYMOUS';
-  if(/^player\\s*\\(\\d+\\)$/i.test(n))return 'MASKED_LABEL';
+  if(/^player\s*\(\d+\)$/i.test(n))return 'MASKED_LABEL';
   return 'NAMED';
 };
 const rawActorRef=a=>{
@@ -72,7 +72,7 @@ const rawActorRef=a=>{
   const n=norm(a?.name);
   if(n&&n!=='anonymous'){
     return {ref:'name:'+n,
-      kind:/^player\\s*\\([1-9]\\d*\\)$/i.test(n)?
+      kind:/^player\s*\([1-9]\d*\)$/i.test(n)?
         'MASKED_PLAYER_LABEL':'REPORT_ACTOR_NAME'};
   }
   return {ref:null,kind:'UNRESOLVED'};
