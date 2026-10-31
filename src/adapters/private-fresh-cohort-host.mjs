@@ -133,12 +133,19 @@ export async function makePrivateWclTransport({
         body:JSON.stringify(query)
       });
     }catch{fail('PRIVATE_WCL_GRAPHQL_NETWORK_UNKNOWN');}
-    const rawBodyBytes=Buffer.from(await response.arrayBuffer());
-    let body=null;
-    try{body=JSON.parse(rawBodyBytes.toString('utf8'));}
-    catch{/* The runner records an uncertain response; never redispatch. */}
+    let rawBodyBytes=null,body=null;
+    if(typeof response.arrayBuffer==='function'){
+      rawBodyBytes=Buffer.from(await response.arrayBuffer());
+      try{body=JSON.parse(rawBodyBytes.toString('utf8'));}
+      catch{/* The runner records an uncertain response; never redispatch. */}
+    }else{
+      // Backward-compatible transport test/adapter path. Archive-backed
+      // collection rejects this path because it lacks exact Fetch bytes.
+      body=await response.json().catch(()=>null);
+    }
     // Exact Fetch body bytes stay in the private witness path only.
-    return {httpStatus:response.status,body,rawBodyBytes};
+    return {httpStatus:response.status,body,
+      ...(rawBodyBytes?{rawBodyBytes}:{})};
   };
 }
 /**

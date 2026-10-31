@@ -5,6 +5,10 @@ import {evaluateRequestAdmission} from './request-admission.mjs';
 import {beginWaveFetch,completeWaveFetch,uncertainWaveFailure,
   checkpointStats} from './checkpoint.mjs';
 
+const check=(v,c)=>{if(!v)throw Error(c);};
+const shaBytes=v=>createHash('sha256').update(v).digest('hex');
+const validSha=v=>typeof v==='string'&&/^[a-f0-9]{64}$/.test(v);
+
 /**
  * One Report wave is ONE billed HTTP operation, not several fight requests.
  * No WCL client: tests inject a synthetic transport. The host supplies
