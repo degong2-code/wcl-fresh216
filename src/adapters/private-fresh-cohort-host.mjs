@@ -9,7 +9,12 @@ import fs from 'node:fs';
 import path from 'node:path';
 import {createHash} from 'node:crypto';
 import {JsonCheckpointStore} from './json-checkpoint-store.mjs';
+import {createPrivateWaveWitnessStore} from './private-wave-witness-store.mjs';
+import {createFresh216EvidencePublisher} from './fresh216-evidence-publisher.mjs';
+import {SOURCE_SHA256 as C_SOURCE_SHA256}
+  from '../../tools/lib/fresh216-c-delta.mjs';
 import {newCheckpoint,checkpointStats,recoverCheckpoint} from '../core/checkpoint.mjs';
+import {runOneAdaptiveStep} from '../core/adaptive-collector-runner.mjs';
 import {makeFreshDatedHeroicManifest,runOneFreshCohortBatch,
   nextFreshCohortBatch,exportVerifiedFreshCohort
 } from '../core/fresh-cohort-source.mjs';
@@ -18,7 +23,57 @@ const fail=x=>{throw Error(x);};
 const need=(x,c)=>{if(!x)fail(c);};
 const under=(p,base)=>p===base||p.startsWith(base+path.sep);
 const sha=x=>typeof x==='string'&&/^[0-9a-f]{40}$/.test(x);
+const shaObject=x=>createHash('sha256').update(JSON.stringify(x)).digest('hex');
 const fileName='fresh216-checkpoint.json';
+
+/** Wire the existing adaptive host to its private witness and evidence adapters.
+ * This factory performs no WCL/OAuth or public/private Git writes.
+ */
+export function derivePinnedFresh216SourceSlots({
+  sourceState,expectedSourceSha256,expectedScopeKey,
+  sourceExporter=exportVerifiedFreshCohort
+}={}){
+  need(sourceState?.version===0&&
+    sourceState.sourceRequests&&typeof sourceState.sourceRequests==='object'&&
+    shaObject(sourceState.sourceRequests)===expectedSourceSha256&&
+    typeof sourceExporter==='function',
+    'PRIVATE_FRESH216_A_SOURCE_ATTESTATION_INVALID');
+  const exported=sourceExporter(sourceState,
+    makeFreshDatedHeroicManifest(expectedScopeKey));
+  need(Array.isArray(exported?.slots)&&exported.slots.length===21600,
+    'PRIVATE_FRESH216_A_SOURCE_EXPORT_INVALID');
+  return Object.freeze(exported.slots.map(slot=>Object.freeze({...slot})));
+}
+export function createPrivateFresh216EvidenceHooks({
+  privateDir,repoRoot,sourceState,sourceSlots=null,
+  sourceExporter=exportVerifiedFreshCohort,
+  expectedSourceSha256,expectedScopeKey,hmacKey,archiveStore,cDeltaAppender
+}={}){
+  need(expectedSourceSha256===C_SOURCE_SHA256,
+    'PRIVATE_FRESH216_C_SOURCE_SHA_DRIFT');
+  const pinnedSourceSlots=derivePinnedFresh216SourceSlots({
+    sourceState,expectedSourceSha256,expectedScopeKey,sourceExporter
+  });
+  if(sourceSlots!==null)
+    need(shaObject(sourceSlots)===shaObject(pinnedSourceSlots),
+      'PRIVATE_FRESH216_A_SOURCE_SLOT_DRIFT');
+  const witnessStore=createPrivateWaveWitnessStore({
+    privateDir,repoRoot,sourceSha256:expectedSourceSha256
+  });
+  const evidencePublisher=createFresh216EvidencePublisher({
+    sourceSlots:pinnedSourceSlots,expectedSourceSha256,expectedScopeKey,hmacKey,
+    archiveStore,cDeltaAppender
+  });
+  return {
+    sourceSlots:pinnedSourceSlots,
+    sourceSlotsSha256:shaObject(pinnedSourceSlots),
+    witnessStore,
+    onVerifiedWave:input=>witnessStore.persist(input),
+    witnessReader:ref=>witnessStore.read(ref),
+    evidencePublisher
+  };
+}
+
 const assertState=(state,scopeKey,sourceCommit)=>{
   need(state?.schema===1&&state.scopeKey===scopeKey&&
     state.sourceCodeCommit===sourceCommit,
@@ -100,7 +155,11 @@ export async function withPrivateCohortOwnerLease(privateDir,operation){
   finally{fs.rmdirSync(lease);}
 }
 
-/** Obtain OAuth before starting a charged source-request checkpoint. */
+/**
+ * Lazy OAuth transport: construction is network-free. The first transport
+ * invocation occurs only after the runner has durably marked its operation
+ * IN_FLIGHT, so an OAuth/HTTP ambiguity cannot precede the checkpoint.
+ */
 export async function makePrivateWclTransport({
   clientId,clientSecret,fetchImpl=fetch,timeoutMs=45000
 }={}){
@@ -110,33 +169,81 @@ export async function makePrivateWclTransport({
     timeoutMs>=1000&&timeoutMs<=120000,
     'PRIVATE_WCL_TRANSPORT_CONFIG_INVALID');
   const credentials=Buffer.from(clientId+':'+clientSecret).toString('base64');
-  let auth;
-  try{
-    auth=await fetchImpl('https://www.warcraftlogs.com/oauth/token',{
-      method:'POST',redirect:'error',signal:AbortSignal.timeout(timeoutMs),
-      headers:{Authorization:'Basic '+credentials,
-        'Content-Type':'application/x-www-form-urlencoded'},
-      body:'grant_type=client_credentials'
-    });
-  }catch{fail('PRIVATE_WCL_OAUTH_NETWORK_UNKNOWN');}
-  need(auth?.status===200,'PRIVATE_WCL_OAUTH_REFUSED');
-  const token=await auth.json().catch(()=>null);
-  need(typeof token?.access_token==='string'&&token.access_token.length>0,
-    'PRIVATE_WCL_OAUTH_RESPONSE_INVALID');
-  return async query=>{
+  let tokenPromise=null;
+  const acquireToken=async()=>{
+    let auth;
+    try{
+      auth=await fetchImpl('https://www.warcraftlogs.com/oauth/token',{
+        method:'POST',redirect:'error',signal:AbortSignal.timeout(timeoutMs),
+        headers:{Authorization:'Basic '+credentials,
+          'Content-Type':'application/x-www-form-urlencoded'},
+        body:'grant_type=client_credentials'
+      });
+    }catch{fail('PRIVATE_WCL_OAUTH_NETWORK_UNKNOWN');}
+    need(auth?.status===200,'PRIVATE_WCL_OAUTH_REFUSED');
+    const token=await auth.json().catch(()=>null);
+    need(typeof token?.access_token==='string'&&token.access_token.length>0,
+      'PRIVATE_WCL_OAUTH_RESPONSE_INVALID');
+    return token.access_token;
+  };
+  return async (query,requestBodyText)=>{
+    if(!tokenPromise)tokenPromise=acquireToken();
+    const token=await tokenPromise;
+    const bodyText=typeof requestBodyText==='string'?
+      requestBodyText:JSON.stringify(query);
     let response;
     try{
       response=await fetchImpl('https://www.warcraftlogs.com/api/v2/client',{
         method:'POST',redirect:'error',signal:AbortSignal.timeout(timeoutMs),
-        headers:{Authorization:'Bearer '+token.access_token,
+        headers:{Authorization:'Bearer '+token,
           'Content-Type':'application/json'},
-        body:JSON.stringify(query)
+        body:bodyText
       });
     }catch{fail('PRIVATE_WCL_GRAPHQL_NETWORK_UNKNOWN');}
-    const body=await response.json().catch(()=>null);
-    // No raw response, token, report code or actor details leave the host.
-    return {httpStatus:response.status,body};
+    let rawBodyBytes=null,body=null;
+    if(typeof response.arrayBuffer==='function'){
+      rawBodyBytes=Buffer.from(await response.arrayBuffer());
+      try{body=JSON.parse(rawBodyBytes.toString('utf8'));}
+      catch{/* The runner records an uncertain response; never redispatch. */}
+    }else{
+      // Backward-compatible transport test/adapter path. Archive-backed
+      // collection rejects this path because it lacks exact Fetch bytes.
+      body=await response.json().catch(()=>null);
+    }
+    return {httpStatus:response.status,body,
+      ...(rawBodyBytes?{rawBodyBytes}:{})};
   };
+}
+
+/**
+ * One private owner-serialized step through the existing adaptive engine.
+ * The caller supplies the same pinned 21,600 A slots, atomic checkpoint,
+ * lazy transport and evidence hooks; this host adds no scheduler or journal.
+ */
+export async function runPrivateAdaptiveStep({
+  privateDir,repoRoot,scopeKey,sourceCommit,slots,store,
+  mode='preview',approved=false,transport=null,admissionPolicy=null,
+  hooks=null,archivePublishApproved=false,economics=null,
+  batchPages=3,recentPages=3,clock=Date.now
+}={}){
+  const folder=ensurePrivateCohortDirectory(privateDir,repoRoot);
+  need(typeof scopeKey==='string'&&scopeKey&&
+    typeof sourceCommit==='string'&&sourceCommit&&
+    Array.isArray(slots)&&slots.length===21600&&
+    store&&typeof store.read==='function'&&
+    typeof store.update==='function',
+    'PRIVATE_ADAPTIVE_HOST_CONFIG_INVALID');
+  assertState(store.read(),scopeKey,sourceCommit);
+  return withPrivateCohortOwnerLease(folder,()=>runOneAdaptiveStep({
+    slots,store,mode,approved,
+    rankTransport:transport,reportTransport:transport,
+    admissionPolicy,
+    onVerifiedWave:hooks?.onVerifiedWave??null,
+    archivePublishApproved,
+    witnessReader:hooks?.witnessReader??null,
+    evidencePublisher:hooks?.evidencePublisher??null,
+    economics,batchPages,recentPages,clock
+  }));
 }
 /**
  * Exact one-request progress primitive. Full-run modes call repeatedly but

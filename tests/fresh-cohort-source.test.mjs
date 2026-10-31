@@ -201,6 +201,7 @@ test('charged source IN_FLIGHT blocks another report attempt in same scope',()=>
  const s={scopeKey:m.scopeKey,jobKey:'네크잘리|DeathKnight|Frost',
    rank:1,snapshotSha:'a'.repeat(64),status:'PENDING',totalDps:500,
    className:'DeathKnight',specName:'Frost',name:'Actor1',
+   startTime:1792600000000,
    reportCode:'TEST_REPORT',fightId:5,
    encounterId:3470,difficulty:4,reportRevision:null};
  const grouped=planFightFetches([s]).groups;

@@ -1,7 +1,8 @@
 import {planAdaptive216} from './adaptive-depth-plan.mjs';
 import {planReportWaves} from './report-wave-plan.mjs';
 import {registerPlan,readyFetches,committedProofs,
-  checkpointStats} from './checkpoint.mjs';
+  checkpointStats,pendingWaveEvidence,markWaveEvidenceCommitted,
+  markWaveEvidenceNeedsReview} from './checkpoint.mjs';
 import {registerRankBatch,readyRankBatches,
   committedRankingEvidence} from './rank-batch-checkpoint.mjs';
 import {executeOneRankBatch} from './rank-batch-runner.mjs';
@@ -26,8 +27,14 @@ export function prepareAdaptiveNext({slots,state,economics=null,
     slots.length===21600,'COLLECTOR_INPUT_INVALID');
   const stats=checkpointStats(state);
   if(state.status!=='ACTIVE')return {kind:'NOT_ACTIVE',stats};
-  if(stats.counts.NEEDS_REVIEW||stats.counts.IN_FLIGHT||
-     stats.pointsUnobserved)return {kind:'NEEDS_REVIEW',stats};
+  // Resume persisted evidence before any new paid request.
+  const pendingEvidence=pendingWaveEvidence(state);
+  if(pendingEvidence.length)return {
+    kind:'ARCHIVE_PUBLISH',publication:pendingEvidence[0],stats
+  };
+  if(stats.evidenceNeedsReview||stats.counts.NEEDS_REVIEW||
+     stats.counts.IN_FLIGHT||stats.pointsUnobserved)
+    return {kind:'NEEDS_REVIEW',stats};
   // Requests previously registered are resumed BEFORE planning new ones.
   const readyRank=readyRankBatches(state);
   if(readyRank.length)return {kind:'RANK_BATCH',request:readyRank[0],stats,
@@ -35,7 +42,12 @@ export function prepareAdaptiveNext({slots,state,economics=null,
   const readyReport=readyFetches(state);
   if(readyReport.length){
     const waves=planReportWaves({groups:readyReport}).waves;
-    return {kind:'REPORT_WAVE',wave:waves[0],stats,resumed:true};
+    const wave=waves[0];
+    if(wave.fightGroups.some(g=>g.slots.some(s=>
+      !Number.isFinite(s.startTime)||s.startTime<=0)))
+      return {kind:'NEEDS_REVIEW',stats,
+        incident:'REPORT_SOURCE_START_TIME_MISSING'};
+    return {kind:'REPORT_WAVE',wave,stats,resumed:true};
   }
   const all=new Map();
   for(const p of committedProofs(state)){
@@ -82,6 +94,10 @@ export function prepareAdaptiveNext({slots,state,economics=null,
     !Object.hasOwn(state.entries,groupKey(g)));
   if(unregistered.length){
     const wave=planReportWaves({groups:unregistered}).waves[0];
+    if(wave.fightGroups.some(g=>g.slots.some(s=>
+      !Number.isFinite(s.startTime)||s.startTime<=0)))
+      return {kind:'NEEDS_REVIEW',stats,
+        incident:'REPORT_SOURCE_START_TIME_MISSING'};
     return {kind:'REPORT_WAVE',resumed:false,wave,stats,calibration,
       groups:unregistered};
   }
@@ -94,7 +110,8 @@ export function prepareAdaptiveNext({slots,state,economics=null,
  */
 export async function runOneAdaptiveStep({
   slots,store,mode='preview',approved=false,
-  rankTransport,reportTransport,admissionPolicy=null,
+  rankTransport,reportTransport,admissionPolicy=null,onVerifiedWave=null,
+  archivePublishApproved=false,witnessReader=null,evidencePublisher=null,
   economics=null,batchPages=3,recentPages=3,clock=Date.now
 }={}){
   check(store&&typeof store.read==='function'&&
@@ -105,10 +122,52 @@ export async function runOneAdaptiveStep({
     nextPage:next.request?.firstPage??null,
     nextPageCount:next.request?.pageCount??0,
     nextReportFights:next.wave?.fightGroups?.length??0,
+    witnessRef:next.publication?.evidence?.witnessRef??null,
     remainingRanks:next.remainingRanks??null,
     calibration:next.calibration??null};
-  check(mode==='execute'&&approved===true&&
-    admissionPolicy&&typeof rankTransport==='function'&&
+  check(mode==='execute','COLLECTOR_MODE_INVALID');
+  if(next.kind==='ARCHIVE_PUBLISH'){
+    if(archivePublishApproved!==true)
+      return {status:'ARCHIVE_PUBLISH_APPROVAL_REQUIRED',
+        attempted:false,witnessRef:next.publication.evidence.witnessRef};
+    check(typeof witnessReader==='function'&&
+      typeof evidencePublisher==='function',
+      'COLLECTOR_EVIDENCE_PUBLISHER_REQUIRED');
+    let published;
+    try{
+      const witness=await witnessReader(next.publication.evidence.witnessRef);
+      published=await evidencePublisher({
+        wave:next.publication.wave,attemptId:next.publication.attemptId,
+        evidence:next.publication.evidence,witness
+      });
+    }catch(_error){
+      store.update(s=>markWaveEvidenceNeedsReview(s,
+        next.publication.wave,next.publication.attemptId,
+        'EVIDENCE_PUBLISHER_EXECUTION_FAILED'));
+      return {kind:'ARCHIVE_PUBLISH',status:'NEEDS_REVIEW',attempted:false,
+        witnessRef:next.publication.evidence.witnessRef};
+    }
+    if(published?.status==='NEEDS_REVIEW'){
+      store.update(s=>markWaveEvidenceNeedsReview(s,
+        next.publication.wave,next.publication.attemptId,
+        published.code??'ARCHIVE_PUBLICATION_UNCERTAIN'));
+      return {kind:'ARCHIVE_PUBLISH',status:'NEEDS_REVIEW',
+        attempted:false,witnessRef:next.publication.evidence.witnessRef};
+    }
+    if(published?.status!=='COMMITTED')
+      return {kind:'ARCHIVE_PUBLISH',status:'PENDING',attempted:false,
+        witnessRef:next.publication.evidence.witnessRef};
+    const updated=store.update(s=>markWaveEvidenceCommitted(s,
+      next.publication.wave,next.publication.attemptId,{
+        archiveReceipt:published.archiveReceipt,
+        cDeltaReceipt:published.cDeltaReceipt
+      }));
+    return {kind:'ARCHIVE_PUBLISH',status:'COMMITTED',attempted:false,
+      evidenceCommitted:checkpointStats(updated).evidenceCommitted,
+      witnessRef:next.publication.evidence.witnessRef};
+  }
+  check(approved===true&&admissionPolicy&&
+    typeof rankTransport==='function'&&
     typeof reportTransport==='function',
     'COLLECTOR_PAID_EXECUTION_NOT_AUTHORIZED');
   if(!['RANK_BATCH','REPORT_WAVE'].includes(next.kind))
@@ -127,7 +186,9 @@ export async function runOneAdaptiveStep({
   const ready=readyFetches(store.read());
   const wave=planReportWaves({groups:ready}).waves[0];
   check(wave,'COLLECTOR_REGISTER_REPORT_FAILED');
+  check(typeof onVerifiedWave==='function',
+    'COLLECTOR_PRIVATE_WITNESS_REQUIRED');
   const out=await executeOneReportWave({store,wave,
-    transport:reportTransport,clock,admissionPolicy});
+    transport:reportTransport,clock,admissionPolicy,onVerifiedWave});
   return {kind:'REPORT_WAVE',...out};
 }

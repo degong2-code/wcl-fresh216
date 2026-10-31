@@ -1,0 +1,63 @@
+name: Fresh216 C-delta v1 adapter offline validation
+on:
+  push:
+    branches:
+      - work/fresh216-adaptive-archive-delta-20261031
+    paths:
+      - tools/lib/fresh216-c-delta.mjs
+      - tools/lib/fresh216-archive-c-delta.mjs
+      - tests/fresh216-c-delta.test.mjs
+      - tests/fresh216-archive-c-delta.test.mjs
+      - .github/workflows/fresh216-c-delta-adapter-validation.yml
+permissions:
+  contents: read
+concurrency:
+  group: fresh216-c-delta-adapter-validation
+  cancel-in-progress: false
+jobs:
+  syntax:
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+      - name: Syntax check codec, adapter and tests
+        run: |
+          set -euo pipefail
+          node --check tools/lib/fresh216-c-delta.mjs
+          node --check tools/lib/fresh216-archive-c-delta.mjs
+          node --check tests/fresh216-c-delta.test.mjs
+          node --check tests/fresh216-archive-c-delta.test.mjs
+  existing-codec:
+    needs: syntax
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+      - name: Existing C-delta v1 contract tests
+        run: node --test tests/fresh216-c-delta.test.mjs
+  archive-adapter:
+    needs: syntax
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+      - name: Synthetic PR19 bridge to C-delta v1 adapter tests
+        run: |
+          set -euo pipefail
+          node --test tests/fresh216-archive-c-delta.test.mjs
+          echo 'PASS: synthetic fixtures only; no WCL, OAuth, Git writes, C promotion, private evidence or Sheets.' >> "$GITHUB_STEP_SUMMARY"

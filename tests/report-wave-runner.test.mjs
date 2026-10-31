@@ -19,6 +19,7 @@ const slot=(i,changes={})=>({
  scopeKey:'heroic:test',jobKey:'Nekzali|Hunter|Marksmanship',
  rank:i+1,snapshotSha:sha,status:'PENDING',name:i===0?'Anonymous':'Actor'+i,
  className:'Hunter',specName:'Marksmanship',totalDps:1000-i,
+ startTime:1792600000000+i,
  reportCode:'SYNTHETIC_REPORT',fightId:10+i,
  encounterId:3470,difficulty:4,reportRevision:5,...changes
 });

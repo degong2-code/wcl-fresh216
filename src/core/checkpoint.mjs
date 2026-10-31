@@ -16,11 +16,13 @@ const requestKey=(g)=>JSON.stringify([
 const idFields=(g)=>({
   scopeKey:g.scopeKey,reportCode:g.reportCode,fightId:g.fightId,
   encounterId:g.encounterId,difficulty:g.difficulty,
-  reportRevision:g.reportRevision??null
+  reportRevision:g.reportRevision??null,
+  revisionKnown:g.reportRevision!=null
 });
 const slotShape=(s)=>({
   jobKey:s.jobKey,rank:s.rank,snapshotSha:s.snapshotSha,
   totalDps:s.totalDps,className:s.className,specName:s.specName,
+  ...(Number.isFinite(s.startTime)?{startTime:s.startTime}:{}),
   name:s.name??''
 });
 const clone=(o)=>structuredClone(o);
@@ -244,7 +246,7 @@ export function beginWaveFetch(state,wave,attemptId,atMs){
   out.version++;return out;
 }
 export function completeWaveFetch(state,wave,attemptId,joinedByFight,{
-  points=null,wallMs=null
+  points=null,wallMs=null,evidence=null
 }={}){
   const keys=waveAttempt(state,wave,attemptId);
   ok(Array.isArray(joinedByFight)&&joinedByFight.length===keys.length,
@@ -257,7 +259,137 @@ export function completeWaveFetch(state,wave,attemptId,joinedByFight,{
       joinedByFight[i],{points,wallMs});
   }
   const out={...result,version:state.version+1};
+  if(evidence!==null){
+    ok(evidence&&evidence.schema===1&&evidence.status==='PENDING'&&
+      evidence.attemptId===attemptId&&
+      typeof evidence.waveId==='string'&&evidence.waveId.length>0&&
+      /^[a-f0-9]{64}$/.test(evidence.sourceSha256||'')&&
+      /^[a-f0-9]{64}$/.test(evidence.waveSha256||'')&&
+      /^[a-f0-9]{64}$/.test(evidence.requestBodySha256||'')&&
+      /^[a-f0-9]{64}$/.test(evidence.responseBodySha256||'')&&
+      /^[a-f0-9]{64}$/.test(evidence.witnessSha256||'')&&
+      typeof evidence.witnessRef==='string'&&
+      /^report-wave-witnesses\/[a-f0-9]{64}\.json\.br$/.test(evidence.witnessRef),
+      'WAVE_EVIDENCE_METADATA_INVALID');
+    for(const key of keys)out.entries[key].evidence=clone(evidence);
+  }
   return out;
+}
+const completedWaveKeys=(state,wave,attemptId)=>{
+  ok(state?.schema===1&&wave&&Array.isArray(wave.fightGroups)&&
+    wave.fightGroups.length>=1&&wave.fightGroups.length<=8,
+    'WAVE_EVIDENCE_SHAPE');
+  const keys=wave.fightGroups.map(requestKey);
+  ok(new Set(keys).size===keys.length,'WAVE_EVIDENCE_DUPLICATE_FIGHT');
+  const canonical=keys.slice().sort();
+  for(const key of keys){
+    const entry=state.entries?.[key],attempt=entry?.attempt;
+    ok(entry&&['COMPLETED','COMPLETED_PARTIAL'].includes(entry.status)&&
+      attempt?.id===attemptId&&attempt.kind==='REPORT_WAVE'&&
+      JSON.stringify(attempt.waveKeys)===JSON.stringify(canonical),
+      'WAVE_EVIDENCE_ATTEMPT_DRIFT');
+  }
+  return keys;
+};
+export function pendingWaveEvidence(state){
+  ok(state?.schema===1,'CHECKPOINT_INVALID');
+  if(state.status!=='ACTIVE')return [];
+  const grouped=new Map();
+  for(const entry of Object.values(state.entries)){
+    const evidence=entry.evidence;
+    if(evidence?.status!=='PENDING')continue;
+    const attemptId=evidence.attemptId;
+    const current=grouped.get(attemptId);
+    if(current){
+      ok(JSON.stringify(current.evidence)===JSON.stringify(evidence),
+        'WAVE_EVIDENCE_MEMBERSHIP_DRIFT');
+      current.wave.fightGroups.push({...clone(entry.identity),
+        slots:clone(entry.slots)});
+    }else grouped.set(attemptId,{
+      attemptId,evidence:clone(evidence),
+      wave:{waveId:evidence.waveId,scopeKey:entry.identity.scopeKey,
+        reportCode:entry.identity.reportCode,
+        reportRevision:entry.identity.reportRevision,
+        fightGroups:[{...clone(entry.identity),slots:clone(entry.slots)}]}
+    });
+  }
+  return [...grouped.values()].map(item=>{
+    item.wave.fightGroups.sort((a,b)=>
+      a.fightId-b.fightId||a.encounterId-b.encounterId||
+      a.difficulty-b.difficulty);
+    return item;
+  }).sort((a,b)=>a.attemptId.localeCompare(b.attemptId));
+}
+export function markWaveEvidenceCommitted(state,wave,attemptId,{
+  archiveReceipt,cDeltaReceipt
+}={}){
+  const keys=completedWaveKeys(state,wave,attemptId);
+  const first=state.entries[keys[0]].evidence;
+  ok(first?.status==='PENDING'&&first.attemptId===attemptId&&
+    keys.every(key=>JSON.stringify(state.entries[key].evidence)===
+      JSON.stringify(first)),
+    'WAVE_EVIDENCE_NOT_PENDING');
+  ok(archiveReceipt?.status==='VERIFIED'&&
+    archiveReceipt.waveSha256===first.waveSha256&&
+    /^[a-f0-9]{64}$/.test(archiveReceipt.manifestSha256||'')&&
+    (archiveReceipt.manifestCommitSha==null||
+      /^[a-f0-9]{40}$/.test(archiveReceipt.manifestCommitSha))&&
+    archiveReceipt.archiveCount===keys.length&&
+    Number.isSafeInteger(archiveReceipt.verifiedSlots)&&
+    archiveReceipt.verifiedSlots>=0&&
+    Number.isSafeInteger(archiveReceipt.unresolvedSlots)&&
+    archiveReceipt.unresolvedSlots>=0&&
+    cDeltaReceipt&&
+    ['APPENDED','NO_NEW_PROOFS'].includes(cDeltaReceipt.status)&&
+    cDeltaReceipt.sourceSha256===first.sourceSha256&&
+    Number.isSafeInteger(cDeltaReceipt.addedExactC)&&
+    cDeltaReceipt.addedExactC>=0&&
+    (cDeltaReceipt.status==='NO_NEW_PROOFS'?
+      cDeltaReceipt.deltaSha256==null:
+      Number.isSafeInteger(cDeltaReceipt.deltaIndex)&&
+      cDeltaReceipt.deltaIndex>=0&&
+      /^[a-f0-9]{64}$/.test(cDeltaReceipt.deltaSha256||'')),
+    'WAVE_EVIDENCE_RECEIPTS_INVALID');
+  const archiveSummary={
+    status:'VERIFIED',waveSha256:archiveReceipt.waveSha256,
+    manifestSha256:archiveReceipt.manifestSha256,
+    manifestCommitSha:archiveReceipt.manifestCommitSha??null,
+    archiveCount:archiveReceipt.archiveCount,
+    verifiedSlots:archiveReceipt.verifiedSlots,
+    unresolvedSlots:archiveReceipt.unresolvedSlots
+  };
+  const cDeltaSummary={
+    status:cDeltaReceipt.status,sourceSha256:cDeltaReceipt.sourceSha256,
+    deltaIndex:cDeltaReceipt.deltaIndex??null,
+    deltaSha256:cDeltaReceipt.deltaSha256??null,
+    addedExactC:cDeltaReceipt.addedExactC
+  };
+  const out=clone(state);
+  for(const key of keys){
+    out.entries[key].evidence={
+      ...out.entries[key].evidence,status:'COMMITTED',
+      archiveReceipt:archiveSummary,cDeltaReceipt:cDeltaSummary
+    };
+  }
+  out.version++;return out;
+}
+export function markWaveEvidenceNeedsReview(state,wave,attemptId,code){
+  const keys=completedWaveKeys(state,wave,attemptId);
+  ok(typeof code==='string'&&/^[A-Z0-9_]{2,60}$/.test(code),
+    'WAVE_EVIDENCE_INCIDENT_INVALID');
+  const first=state.entries[keys[0]].evidence;
+  ok(first?.status==='PENDING'&&first.attemptId===attemptId&&
+    keys.every(key=>JSON.stringify(state.entries[key].evidence)===
+      JSON.stringify(first)),
+    'WAVE_EVIDENCE_NOT_PENDING');
+  const out=clone(state);
+  for(const key of keys){
+    out.entries[key].evidence={
+      ...out.entries[key].evidence,status:'NEEDS_REVIEW',
+      incident:{code,automaticRetry:false}
+    };
+  }
+  out.version++;return out;
 }
 export function uncertainWaveFailure(state,wave,attemptId,{
   code,points=null,wallMs=null
@@ -299,6 +431,7 @@ export function checkpointStats(state){
   ok(state?.schema===1,'CHECKPOINT_INVALID');
   const counts={READY:0,IN_FLIGHT:0,COMPLETED:0,COMPLETED_PARTIAL:0,NEEDS_REVIEW:0};
   let witnessedPoints=0,pointsUnobserved=0,proofs=0,unresolved=0;
+  let evidencePending=0,evidenceNeedsReview=0,evidenceCommitted=0;
   const billedAttempts=new Map();
   for(const e of Object.values(state.entries)){
     counts[e.status]=(counts[e.status]||0)+1;
@@ -313,6 +446,9 @@ export function checkpointStats(state){
         waveKeys:a.waveKeys??null,points:e.observedPoints});
     }
     if(e.result){proofs+=e.result.verified.length;unresolved+=e.result.unresolved.length;}
+    if(e.evidence?.status==='PENDING')evidencePending++;
+    if(e.evidence?.status==='NEEDS_REVIEW')evidenceNeedsReview++;
+    if(e.evidence?.status==='COMMITTED')evidenceCommitted++;
   }
   for(const e of Object.values(state.rankRequests??{})){
     counts[e.status]=(counts[e.status]||0)+1;
@@ -346,7 +482,8 @@ export function checkpointStats(state){
   }
   return {version:state.version,runStatus:state.status,counts,
     witnessedPoints,pointsUnobserved,pointsTotalConfirmed:pointsUnobserved===0?witnessedPoints:null,
-    verifiedSlotEvidence:proofs,unresolvedSlotEvidence:unresolved};
+    verifiedSlotEvidence:proofs,unresolvedSlotEvidence:unresolved,
+    evidencePending,evidenceNeedsReview,evidenceCommitted};
 }
 export function committedProofs(state){
   ok(state?.schema===1,'CHECKPOINT_INVALID');

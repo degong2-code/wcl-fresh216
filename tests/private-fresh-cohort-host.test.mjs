@@ -3,10 +3,15 @@ import assert from 'node:assert/strict';
 import fs from 'node:fs';
 import os from 'node:os';
 import path from 'node:path';
+import {createHash} from 'node:crypto';
 import {
  ensurePrivateCohortDirectory,openPrivateCohortStore,
- withPrivateCohortOwnerLease,readPrivateCohortStatus
+ withPrivateCohortOwnerLease,readPrivateCohortStatus,
+ createPrivateFresh216EvidenceHooks,derivePinnedFresh216SourceSlots,
+ runPrivateAdaptiveStep,
+ makePrivateWclTransport
 } from '../src/adapters/private-fresh-cohort-host.mjs';
+import {newCheckpoint} from '../src/core/checkpoint.mjs';
 import {executePrivateCohortCli,privateSourceIdentity,SCOPE}
   from '../tools/run-private-fresh216.mjs';
 
@@ -197,4 +202,44 @@ test('GitHub Actions ephemeral workspace cannot be used for private paid source'
    }),/PRIVATE_HOST_ACTIONS_VOLUME_NOT_ATTESTED/);
    assert.equal(fs.existsSync(path.join(dir,'fresh216-checkpoint.json')),false);
  }finally{fs.rmSync(dir,{force:true,recursive:true});}
+});
+
+test('pinned A source derivation verifies sourceRequests digest and full 21600-slot export',()=>{
+ const scopeKey='heroic:2026-10-22_27:latest:source';
+ const sourceState={version:0,sourceRequests:{syntheticPinnedSource:'source-v1'}};
+ const expectedSourceSha256=createHash('sha256')
+   .update(JSON.stringify(sourceState.sourceRequests)).digest('hex');
+ const sourceSlots=Array.from({length:21600},(_,i)=>({slot:i}));
+ const derived=derivePinnedFresh216SourceSlots({
+   sourceState,expectedSourceSha256,expectedScopeKey:scopeKey,
+   sourceExporter:()=>({slots:sourceSlots})
+ });
+ assert.deepEqual(derived,sourceSlots);
+ assert.equal(Object.isFrozen(derived),true);
+ assert.equal(Object.isFrozen(derived[0]),true);
+ assert.throws(()=>{derived[0].slot=999;},TypeError);
+ assert.equal(sourceSlots[0].slot,0);
+ assert.throws(()=>derivePinnedFresh216SourceSlots({
+   sourceState,expectedSourceSha256:'c'.repeat(64),expectedScopeKey:scopeKey,
+   sourceExporter:()=>({slots:sourceSlots})
+ }),/PRIVATE_FRESH216_A_SOURCE_ATTESTATION_INVALID/);
+});
+test('private evidence hooks refuse an A source hash different from the pinned C-delta identity before creating witness storage',()=>{
+ const root=FRESH_DIR(),repo=path.join(root,'repo');
+ const privateDir=path.join(root,'private');
+ fs.mkdirSync(repo,{mode:0o700});
+ const sourceState={version:0,sourceRequests:{syntheticPinnedSource:'source-v1'}};
+ const expectedSourceSha256=createHash('sha256')
+   .update(JSON.stringify(sourceState.sourceRequests)).digest('hex');
+ try{
+   assert.throws(()=>createPrivateFresh216EvidenceHooks({
+     privateDir,repoRoot:repo,sourceState,
+     sourceExporter:()=>({slots:Array.from({length:21600},()=>({}))}),
+     expectedSourceSha256,expectedScopeKey:'heroic:2026-10-22_27:latest:source',
+     hmacKey:'SYNTHETIC_PRIVATE_HMAC_KEY_LONG_ENOUGH_20261031',
+     archiveStore:{persistWave:async()=>{throw Error('NOT_CALLED');}},
+     cDeltaAppender:async()=>{throw Error('NOT_CALLED');}
+   }),/PRIVATE_FRESH216_C_SOURCE_SHA_DRIFT/);
+   assert.equal(fs.existsSync(privateDir),false);
+ }finally{fs.rmSync(root,{force:true,recursive:true});}
 });
