@@ -9,6 +9,7 @@ on:
     paths:
       - .github/workflows/fresh216-autonomous-host.yml
       - src/**
+      - experiments/fresh216-one-wave-public-pilot-20261031.json
       - tests/**
       - tools/**
 
@@ -261,3 +262,154 @@ jobs:
             ' grouped calls (4/8 fight cap)\n');
           NODE
       # Do not upload artifacts, print private response bodies, or write private Git.
+
+  public-one-wave-wcl-pilot:
+    needs: offline-core
+    if: >-
+      github.event_name == 'push' &&
+      github.repository == 'degong2-code/wcl-fresh216' &&
+      github.ref == 'refs/heads/work/fresh216-autonomous-host-20261031' &&
+      contains(github.event.head_commit.added, 'experiments/fresh216-one-wave-public-pilot-20261031.json')
+    environment: fresh216-private-read
+    runs-on: ubuntu-latest
+    timeout-minutes: 16
+    permissions:
+      contents: write
+    steps:
+      - name: Checkout trusted public pilot runner at triggering commit
+        uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+      - name: Checkout immutable pinned private inventory and source selector
+        uses: actions/checkout@v4
+        with:
+          repository: degong2-code/ai-project-lab
+          ref: af91bd222e3833b16416d492dc50efcff68f8fa3
+          token: ${{ secrets.FRESH216_PRIVATE_READ_TOKEN }}
+          persist-credentials: false
+          path: evidence/pilot-code
+      - name: Checkout immutable original A source
+        uses: actions/checkout@v4
+        with:
+          repository: degong2-code/ai-project-lab
+          ref: 39573a118f2a57f9dc6758936e9d73e9aa6cebf5
+          token: ${{ secrets.FRESH216_PRIVATE_READ_TOKEN }}
+          persist-credentials: false
+          path: evidence/pilot-source
+      - name: Checkout immutable C candidate
+        uses: actions/checkout@v4
+        with:
+          repository: degong2-code/ai-project-lab
+          ref: d56befacce6ff8062878ed3a4edec6a55cd91b07
+          token: ${{ secrets.FRESH216_PRIVATE_READ_TOKEN }}
+          persist-credentials: false
+          path: evidence/pilot-delta
+      - name: Checkout immutable saved Report batches
+        uses: actions/checkout@v4
+        with:
+          repository: degong2-code/ai-project-lab
+          ref: 5b302ee00483c1415fa9c3c73df43e8ac4f89dc1
+          token: ${{ secrets.FRESH216_PRIVATE_READ_TOKEN }}
+          persist-credentials: false
+          path: evidence/pilot-report
+      - name: Checkout immutable priority plan
+        uses: actions/checkout@v4
+        with:
+          repository: degong2-code/ai-project-lab
+          ref: 811c4e67878f9b70e420fccb4ecf84301d211223
+          token: ${{ secrets.FRESH216_PRIVATE_READ_TOKEN }}
+          persist-credentials: false
+          path: evidence/pilot-plan
+      - name: Checkout immutable historical report20
+        uses: actions/checkout@v4
+        with:
+          repository: degong2-code/ai-project-lab
+          ref: 0d6d00e53b240eccb4977a8d70e625072a557a7a
+          token: ${{ secrets.FRESH216_PRIVATE_READ_TOKEN }}
+          persist-credentials: false
+          path: evidence/pilot-report20
+      - name: Checkout immutable historical report21to100
+        uses: actions/checkout@v4
+        with:
+          repository: degong2-code/ai-project-lab
+          ref: 20d13c718b70f1adfce1216b81f518733f11687c
+          token: ${{ secrets.FRESH216_PRIVATE_READ_TOKEN }}
+          persist-credentials: false
+          path: evidence/pilot-report80
+      - name: Checkout immutable historical report1000
+        uses: actions/checkout@v4
+        with:
+          repository: degong2-code/ai-project-lab
+          ref: 7ec1e48f9bafa205026c89a8b9aad5809835b32a
+          token: ${{ secrets.FRESH216_PRIVATE_READ_TOKEN }}
+          persist-credentials: false
+          path: evidence/pilot-report1000
+      - name: Checkout immutable Boss1000
+        uses: actions/checkout@v4
+        with:
+          repository: degong2-code/ai-project-lab
+          ref: e31fdbd031b4f70c92e752fc1d5682b4f3bb6492
+          token: ${{ secrets.FRESH216_PRIVATE_READ_TOKEN }}
+          persist-credentials: false
+          path: evidence/pilot-boss1000
+      - name: Checkout immutable public proof-core
+        uses: actions/checkout@v4
+        with:
+          repository: degong2-code/wcl-fresh216
+          ref: 8bb96e64add3703a9c9d60c973754943b64d57be
+          persist-credentials: false
+          path: evidence/pilot-product
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+      - name: Select ONE bounded private wave without WCL credentials
+        env:
+          FRESH216_TRUSTED_READONLY_HOST: owner-approved-20261031
+          FRESH216_PRIVATE_PILOT_WAVE_OUT: ${{ runner.temp }}/fresh216-pilot-wave.json
+        shell: bash
+        run: |
+          set -euo pipefail
+          if ! env -u WCL_CLIENT_ID -u WCL_CLIENT_SECRET \
+            node evidence/pilot-code/tools/fresh216-recovery348-inventory.mjs \
+              "$GITHUB_WORKSPACE/evidence/pilot-source" \
+              "$GITHUB_WORKSPACE/evidence/pilot-delta" \
+              "$GITHUB_WORKSPACE/evidence/pilot-report" \
+              "$GITHUB_WORKSPACE/evidence/pilot-plan" \
+              "$GITHUB_WORKSPACE/evidence/pilot-product" \
+              "$GITHUB_WORKSPACE/evidence/pilot-report20" \
+              "$GITHUB_WORKSPACE/evidence/pilot-report80" \
+              "$GITHUB_WORKSPACE/evidence/pilot-report1000" \
+              "$GITHUB_WORKSPACE/evidence/pilot-boss1000" \
+              > "$RUNNER_TEMP/fresh216-pilot-inventory.json" \
+              2> "$RUNNER_TEMP/fresh216-pilot-errors.txt"; then
+            echo 'PILOT_SOURCE_PREFLIGHT_BLOCKED'
+            grep -oE 'RECOVERY348_[A-Z_]+' "$RUNNER_TEMP/fresh216-pilot-errors.txt" | head -n 1 || true
+            exit 1
+          fi
+          node - "$RUNNER_TEMP/fresh216-pilot-inventory.json" <<'NODE'
+          const fs=require('fs');
+          const r=JSON.parse(fs.readFileSync(process.argv[2],'utf8'));
+          if(r.exactC!==21252||r.unresolved?.total!==348||
+             r.recoveryFetchPlanReadOnly?.distinctReports!==248||
+             r.recoveryFetchPlanReadOnly?.additionalWclCalls!==0)
+            throw Error('PILOT_PINNED_SOURCE_DRIFT_NO_WCL');
+          NODE
+          test -s "$FRESH216_PRIVATE_PILOT_WAVE_OUT"
+          chmod 600 "$FRESH216_PRIVATE_PILOT_WAVE_OUT"
+          echo 'PILOT_SOURCE_PREFLIGHT_PASS (private data retained only in runner temp)'
+      - name: Execute maximum ONE WCL GraphQL call after public durable IN_FLIGHT
+        shell: bash
+        env:
+          GITHUB_TOKEN: ${{ github.token }}
+          WCL_CLIENT_ID: ${{ secrets.WCL_CLIENT_ID }}
+          WCL_CLIENT_SECRET: ${{ secrets.WCL_CLIENT_SECRET }}
+          FRESH216_PRIVATE_PILOT_WAVE_FILE: ${{ runner.temp }}/fresh216-pilot-wave.json
+        run: |
+          set -euo pipefail
+          node tools/run-fresh216-public-pilot-once.mjs
+      - name: Summarize privacy and durability
+        if: always()
+        run: |
+          echo '### Fresh216 one-call pilot' >> "$GITHUB_STEP_SUMMARY"
+          echo 'Public Git ledger: hashes and aggregates only; never raw actor data.' >> "$GITHUB_STEP_SUMMARY"
+          echo 'No auto retries, C promotion, or Google Sheets writes.' >> "$GITHUB_STEP_SUMMARY"
