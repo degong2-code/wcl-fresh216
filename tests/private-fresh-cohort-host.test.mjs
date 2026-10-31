@@ -271,7 +271,8 @@ test('private host runs one existing adaptive preview under the owner lease with
    encounterId:3470+boss,difficulty:4,
    reportCode:'R_'+boss+'_'+spec+'_'+rank,fightId:rank,
    reportRevision:5,name:'Actor'+spec,totalDps:10000-rank-spec,
-   startTime:1792600000000+rank
+   startTime:1792600000000+rank,
+   filter:'date.1792594800000.1793199600000'
  });
  try{
    const result=await runPrivateAdaptiveStep({
