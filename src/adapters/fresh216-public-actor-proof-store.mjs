@@ -120,8 +120,8 @@ export function createPublicActorProofArchiveStore({
       hmacKey,archives:ordered
     });
     return {
-      waveSha256:manifest.waveSha256,manifestPath:p,
-      manifestCommitSha:saved.commitSha,manifestBlobSha:saved.blobSha,
+      waveSha256:manifest.waveSha256,manifestSha256:manifest.manifestSha256,
+      manifestPath:p,manifestCommitSha:saved.commitSha,manifestBlobSha:saved.blobSha,
       archiveReceipts,archiveCount:verified.archiveCount,
       verifiedSlots:verified.verifiedSlots,
       unresolvedSlots:verified.unresolvedSlots
