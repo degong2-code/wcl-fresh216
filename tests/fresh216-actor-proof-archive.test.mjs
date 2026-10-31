@@ -5,6 +5,7 @@ import {
   buildActorProofArchive,verifyActorProofArchive,buildActorProofWaveManifest,
   verifyActorProofWaveManifest,replayActorProofArchive,ACTOR_PROOF_ARCHIVE_KEY_ID
 } from '../src/core/fresh216-actor-proof-archive.mjs';
+import {resolveExactBossDps} from '../src/core/resolve-proof.mjs';
 
 const KEY='SYNTHETIC_ONLY_HMAC_KEY_DO_NOT_USE_IN_PRODUCTION_20261031';
 const sha=x=>createHash('sha256').update(x).digest('hex');
@@ -184,7 +185,7 @@ test('Player(n) source label must match the same report-local label when no A na
  });
  const v=verifyActorProofArchive(a,{hmacKey:KEY});
  assert.equal(v.verifiedSlots,0);
- assert.equal(v.outcomes[0].reason,'NO_TOTAL_DPS_MATCH');
+ assert.equal(v.outcomes[0].reason,'NAME_TOKEN_MISMATCH');
 });
 test('named source slot requires exact pseudonymized name match',()=>{
  const a=build({
@@ -193,7 +194,7 @@ test('named source slot requires exact pseudonymized name match',()=>{
  });
  const v=verifyActorProofArchive(a,{hmacKey:KEY});
  assert.equal(v.verifiedSlots,0);
- assert.equal(v.outcomes[0].reason,'NO_TOTAL_DPS_MATCH');
+ assert.equal(v.outcomes[0].reason,'NAME_TOKEN_MISMATCH');
 });
 test('report code/revision, fight/encounter/difficulty and source slot scope are pinned',()=>{
  assert.throws(()=>build({
@@ -294,4 +295,23 @@ test('wave manifest rejects tampered archive links, missing archives and wrong k
  assert.throws(()=>verifyActorProofWaveManifest(manifest,{
   hmacKey:'WRONG_KEY_'.repeat(5),archives:[first,second]
  }),/ACTOR_WAVE_MANIFEST_HMAC_INVALID/);
+});
+
+
+test('duplicate TotalDPS across different specializations stays ambiguous before class/spec filtering',()=>{
+ const g=group();
+ const r=report([
+  actor(7,'Player (4)',1000),
+  actor(8,'Player (5)',1000,{class:'Mage',spec:'Arcane'})
+ ],[
+  actor(7,'Player (4)',700),
+  actor(8,'Player (5)',600,{class:'Mage',spec:'Arcane'})
+ ]);
+ const slot={...baseSlot(),fightId:g.fightId,
+  encounterId:g.encounterId,difficulty:g.difficulty};
+ assert.equal(resolveExactBossDps(slot,r),null);
+ const a=build({group:g,report:r});
+ const v=verifyActorProofArchive(a,{hmacKey:KEY});
+ assert.equal(v.verifiedSlots,0);
+ assert.equal(v.outcomes[0].reason,'AMBIGUOUS_TOTAL_DPS_MATCH');
 });

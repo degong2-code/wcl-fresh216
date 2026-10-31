@@ -6,6 +6,7 @@ on:
   push:
     branches:
       - work/fresh216-autonomous-host-20261031
+      - work/fresh216-public-actor-proof-livewire-20261031
     paths:
       - .github/workflows/fresh216-autonomous-host.yml
       - src/**
@@ -26,7 +27,8 @@ jobs:
   offline-core:
     if: >-
       github.repository == 'degong2-code/wcl-fresh216' &&
-      github.ref == 'refs/heads/work/fresh216-autonomous-host-20261031'
+      (github.ref == 'refs/heads/work/fresh216-autonomous-host-20261031' ||
+       github.ref == 'refs/heads/work/fresh216-public-actor-proof-livewire-20261031')
     runs-on: ubuntu-latest
     timeout-minutes: 10
     steps:
@@ -406,6 +408,7 @@ jobs:
           GITHUB_TOKEN: ${{ github.token }}
           WCL_CLIENT_ID: ${{ secrets.WCL_CLIENT_ID }}
           WCL_CLIENT_SECRET: ${{ secrets.WCL_CLIENT_SECRET }}
+          FRESH216_EVIDENCE_HMAC_KEY: ${{ secrets.FRESH216_EVIDENCE_HMAC_KEY }}
           FRESH216_PRIVATE_PILOT_WAVE_FILE: ${{ runner.temp }}/fresh216-pilot-wave.json
         run: |
           set -euo pipefail
@@ -414,5 +417,5 @@ jobs:
         if: always()
         run: |
           echo '### Fresh216 one-call pilot' >> "$GITHUB_STEP_SUMMARY"
-          echo 'Public Git ledger: hashes and aggregates only; never raw actor data.' >> "$GITHUB_STEP_SUMMARY"
+          echo 'Public Git ledger: HMAC-pseudonymized actor proof archives plus hashes and aggregates; never raw report codes, actor IDs or actor names.' >> "$GITHUB_STEP_SUMMARY"
           echo 'No auto retries, C promotion, or Google Sheets writes.' >> "$GITHUB_STEP_SUMMARY"
