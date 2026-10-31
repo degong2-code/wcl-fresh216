@@ -6,7 +6,7 @@ import {deriveFresh216PriorityByKey}
 
 const slot=(jobKey,rank,reportCode,fightId)=>({
   scopeKey:'heroic:test:latest:source',jobKey,rank,
-  snapshotSha:(jobKey+':'+rank).padEnd(64,'a').slice(0,64),
+  snapshotSha:(rank===1?'a':'b').repeat(64),
   name:'Named Actor '+jobKey,totalDps:1000-rank,startTime:100000+rank,
   reportCode,reportRevision:2,fightId,encounterId:3470,difficulty:4,
   className:'Mage',specName:'Arcane'

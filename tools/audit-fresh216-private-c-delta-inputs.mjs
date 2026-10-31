@@ -24,7 +24,7 @@ const SCOPE='heroic:2026-10-22_27:latest:source';
 const PIN={
   source:'39573a118f2a57f9dc6758936e9d73e9aa6cebf5',
   candidate:'d56befacce6ff8062878ed3a4edec6a55cd91b07',
-  report20:'0d6d00e53b240eccb4978a7d70e625072a557a7a',
+  report20:'0d6d00e53b240eccb4977a8d70e625072a557a7a',
   report80:'20d13c718b70f1adfce1216b81f518733f11687c',
   report1000:'7ec1e48f9bafa205026c89a8b9aad5809835b32a',
   reportRemaining:'5b302ee00483c1415fa9c3c73df43e8ac4f89dc1',
@@ -123,7 +123,8 @@ need(priorityPlan.totals?.sourceSlots===21600&&
   priorityPlan.totals?.namedMissing===2432&&
   priorityPlan.totals?.maskedMissing===339&&
   priorityPlan.totals?.fightsByReportFight===2256&&
-  priorityPlan.totals?.safePriorityGroups===2256,
+  priorityPlan.totals?.safePriorityGroups===2256&&
+  priorityPlan.unionCompressedSha256===BASE_UNION_SHA256,
   'FRESH216_CDELTA_PLAN_SCOPE_DRIFT');
 const priorityByKey=deriveFresh216PriorityByKey({priorityPlan,sourceSlots});
 need(priorityByKey.size===2432,'FRESH216_CDELTA_PRIORITY_MAP_COUNT');
@@ -132,12 +133,13 @@ const candidateRoot=deltaRoot;
 const baseBytes=fs.readFileSync(path.join(candidateRoot,FILE.base));
 need(shaBytes(baseBytes)===BASE_UNION_SHA256,'FRESH216_CDELTA_BASE_COMPRESSED_SHA');
 const deltaDirectory=path.join(candidateRoot,FILE.deltas);
-const reportHeads=[
-  git(report20Root,'rev-parse','HEAD'),
-  git(report80Root,'rev-parse','HEAD'),
-  git(report1000Root,'rev-parse','HEAD'),
-  git(reportRemainingRoot,'rev-parse','HEAD')
-].sort();
+const reportHeads={
+  report20:git(report20Root,'rev-parse','HEAD'),
+  report80:git(report80Root,'rev-parse','HEAD'),
+  report1000:git(report1000Root,'rev-parse','HEAD'),
+  reportRemaining:git(reportRemainingRoot,'rev-parse','HEAD')
+};
+const sortedReportHeads=Object.values(reportHeads).sort();
 
 const delta20=JSON.parse(fs.readFileSync(path.join(deltaDirectory,
   'delta20-receipt.json'),'utf8'));
@@ -147,15 +149,15 @@ const report1000=JSON.parse(fs.readFileSync(path.join(deltaDirectory,
   'report1000pt-delta-receipt.json'),'utf8'));
 const reportRemaining=JSON.parse(fs.readFileSync(path.join(deltaDirectory,
   'report-remaining-delta-receipt.json'),'utf8'));
-need(delta20.sourceReportCommit===reportHeads[0]&&delta20.partCount===2&&
+need(delta20.sourceReportCommit===reportHeads.report20&&delta20.partCount===2&&
   delta20.overlayRows===18849,'FRESH216_CDELTA_REPORT20_RECEIPT_DRIFT');
-need(report80.reportStateCommit===reportHeads[1]&&
+need(report80.reportStateCommit===reportHeads.report80&&
   report80.newDeltaFiles?.length===9&&report80.nextDeltaIndex===11&&
   report80.cAfter===18947,'FRESH216_CDELTA_REPORT80_RECEIPT_DRIFT');
-need(report1000.reportCommit===reportHeads[2]&&
+need(report1000.reportCommit===reportHeads.report1000&&
   report1000.newParts?.length===25&&report1000.totalExactC===19339,
   'FRESH216_CDELTA_REPORT1000_RECEIPT_DRIFT');
-need(reportRemaining.reportCommit===reportHeads[3]&&
+need(reportRemaining.reportCommit===reportHeads.reportRemaining&&
   reportRemaining.newParts?.length===195&&
   reportRemaining.addedExactC===1913&&reportRemaining.totalExactC===21252,
   'FRESH216_CDELTA_REPORT_REMAINING_RECEIPT_DRIFT');
@@ -180,7 +182,7 @@ need(snapshot.totalExactC===21252&&snapshot.deltaCount===231&&
   snapshot.applied===2423&&
   snapshot.lastDeltaSha256===reportRemaining.lastDeltaSha256,
   'FRESH216_CDELTA_REAL_CHAIN_REPLAY_DRIFT');
-need(JSON.stringify(reportStateCommits)===JSON.stringify(reportHeads),
+need(JSON.stringify(reportStateCommits)===JSON.stringify(sortedReportHeads),
   'FRESH216_CDELTA_REPORT_STATE_COMMITS_DRIFT');
 need(uy.rank1===208&&uy.rank30===212&&uy.rank100===212&&
   uy.mean30===139&&uy.mean100===90&&uyTotal===861,
