@@ -116,7 +116,8 @@ test('shared fights choose one 4-fight Report wave and persist 108 actor proofs'
    },
    onVerifiedWave:async input=>{
      const waveSha=shaHex(JSON.stringify(input.wave));
-     return {schema:1,sourceSha256:'b'.repeat(64),waveSha256:waveSha,
+     return {schema:1,sourceSha256:'b'.repeat(64),waveId:input.wave.waveId,
+       waveSha256:waveSha,
        witnessRef:'report-wave-witnesses/'+waveSha+'.json.br',
        witnessSha256:'c'.repeat(64)};
    }});

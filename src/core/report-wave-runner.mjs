@@ -97,11 +97,13 @@ export async function executeOneReportWave({
         });
         check(receipt&&receipt.schema===1&&
           validSha(receipt.sourceSha256)&&validSha(receipt.waveSha256)&&
+          typeof receipt.waveId==='string'&&receipt.waveId.length>0&&
           typeof receipt.witnessRef==='string'&&receipt.witnessRef.length>0&&
           validSha(receipt.witnessSha256),
           'WAVE_PRIVATE_WITNESS_RECEIPT_INVALID');
         evidence={
-          schema:1,status:'PENDING',sourceSha256:receipt.sourceSha256,
+          schema:1,status:'PENDING',waveId:receipt.waveId,
+          sourceSha256:receipt.sourceSha256,
           waveSha256:receipt.waveSha256,requestBodySha256,
           responseBodySha256,witnessRef:receipt.witnessRef,
           witnessSha256:receipt.witnessSha256,attemptId

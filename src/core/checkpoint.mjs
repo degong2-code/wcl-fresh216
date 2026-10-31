@@ -16,12 +16,13 @@ const requestKey=(g)=>JSON.stringify([
 const idFields=(g)=>({
   scopeKey:g.scopeKey,reportCode:g.reportCode,fightId:g.fightId,
   encounterId:g.encounterId,difficulty:g.difficulty,
-  reportRevision:g.reportRevision??null
+  reportRevision:g.reportRevision??null,
+  revisionKnown:g.reportRevision!=null
 });
 const slotShape=(s)=>({
   jobKey:s.jobKey,rank:s.rank,snapshotSha:s.snapshotSha,
   totalDps:s.totalDps,className:s.className,specName:s.specName,
-  name:s.name??''
+  startTime:s.startTime,name:s.name??''
 });
 const clone=(o)=>structuredClone(o);
 const numCost=(v)=>v===null||(typeof v==='number'&&Number.isFinite(v)&&v>=0);
@@ -260,6 +261,7 @@ export function completeWaveFetch(state,wave,attemptId,joinedByFight,{
   if(evidence!==null){
     ok(evidence&&evidence.schema===1&&evidence.status==='PENDING'&&
       evidence.attemptId===attemptId&&
+      typeof evidence.waveId==='string'&&evidence.waveId.length>0&&
       /^[a-f0-9]{64}$/.test(evidence.sourceSha256||'')&&
       /^[a-f0-9]{64}$/.test(evidence.waveSha256||'')&&
       /^[a-f0-9]{64}$/.test(evidence.requestBodySha256||'')&&
@@ -304,7 +306,7 @@ export function pendingWaveEvidence(state){
         slots:clone(entry.slots)});
     }else grouped.set(attemptId,{
       attemptId,evidence:clone(evidence),
-      wave:{scopeKey:entry.identity.scopeKey,
+      wave:{waveId:evidence.waveId,scopeKey:entry.identity.scopeKey,
         reportCode:entry.identity.reportCode,
         reportRevision:entry.identity.reportRevision,
         fightGroups:[{...clone(entry.identity),slots:clone(entry.slots)}]}

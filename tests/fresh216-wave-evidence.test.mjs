@@ -22,6 +22,7 @@ const slot=(i)=>({
   rank:i+1,snapshotSha:SNAPSHOT,status:'PENDING',
   name:i===0?'Player (1)':'Actor'+i,className:'Hunter',
   specName:'Marksmanship',totalDps:1000-i,
+  startTime:1792600000000+i,
   reportCode:'SYNTHETIC_REPORT',fightId:10+i,
   encounterId:3470,difficulty:4,reportRevision:5
 });

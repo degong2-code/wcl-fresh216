@@ -15,6 +15,7 @@ function validateSlot(s) {
   requireTrue(["PENDING", "VERIFIED"].includes(s.status), "SLOT_STATUS");
   requireTrue(nonempty(s.className) && nonempty(s.specName), "SPEC_MISSING");
   requireTrue(Number.isFinite(s.totalDps) && s.totalDps > 0, "TOTAL_DPS_INVALID");
+  requireTrue(Number.isFinite(s.startTime) && s.startTime > 0, "START_TIME_INVALID");
   requireTrue(nonempty(s.reportCode) && /^[\x21-\x7E]+$/.test(s.reportCode), "REPORT_CODE_INVALID");
   requireTrue(positiveInt(s.fightId) && positiveInt(s.encounterId), "FIGHT_MISSING");
   requireTrue(Number.isInteger(s.difficulty) && s.difficulty > 0, "DIFFICULTY_MISSING");
@@ -71,6 +72,7 @@ export function planFightFetches(slots) {
     groups.get(groupKey).slots.push({
       jobKey: s.jobKey, rank: s.rank, snapshotSha: s.snapshotSha,
       totalDps: s.totalDps, className: s.className, specName: s.specName,
+      startTime:s.startTime,
       name: typeof s.name === 'string' ? s.name : ''
     });
   }

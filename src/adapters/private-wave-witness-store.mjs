@@ -21,7 +21,8 @@ const witnessPath=(waveSha256)=>{
   return 'report-wave-witnesses/'+waveSha256+'.json.br';
 };
 function waveIdentity(wave){
-  need(wave&&typeof wave.scopeKey==='string'&&wave.scopeKey&&
+  need(wave&&typeof wave.waveId==='string'&&wave.waveId&&
+    typeof wave.scopeKey==='string'&&wave.scopeKey&&
     typeof wave.reportCode==='string'&&wave.reportCode&&
     Array.isArray(wave.fightGroups)&&wave.fightGroups.length>=1&&
     wave.fightGroups.length<=8,'PRIVATE_WAVE_WITNESS_WAVE_INVALID');
@@ -46,7 +47,8 @@ function waveIdentity(wave){
       need(typeof slot.jobKey==='string'&&slot.jobKey&&
         Number.isSafeInteger(slot.rank)&&slot.rank>=1&&slot.rank<=100&&
         validSha(slot.snapshotSha)&&Number.isFinite(slot.totalDps)&&
-        slot.totalDps>0&&!slots.has(slotKey),
+        slot.totalDps>0&&Number.isFinite(slot.startTime)&&
+        slot.startTime>0&&!slots.has(slotKey),
         'PRIVATE_WAVE_WITNESS_SLOT_INVALID');
       slots.add(slotKey);
     }
@@ -148,8 +150,8 @@ export function createPrivateWaveWitnessStore({
       const existing=fs.readFileSync(target);
       need(shaBytes(existing)===witnessSha256,
         'PRIVATE_WAVE_WITNESS_EXISTING_CONFLICT');
-      return {schema:1,sourceSha256,waveSha256:witness.waveSha256,
-        witnessRef:ref,witnessSha256,reused:true};
+      return {schema:1,sourceSha256,waveId:witness.wave.waveId,
+        waveSha256:witness.waveSha256,witnessRef:ref,witnessSha256,reused:true};
     }
     const tmp=target+'.'+randomUUID()+'.tmp';
     const fd=fs.openSync(tmp,'wx',0o600);
@@ -172,8 +174,8 @@ export function createPrivateWaveWitnessStore({
     }
     const dirfd=fs.openSync(folder,'r');
     try{fs.fsyncSync(dirfd);}finally{fs.closeSync(dirfd);}
-    return {schema:1,sourceSha256,waveSha256:witness.waveSha256,
-      witnessRef:ref,witnessSha256,reused:false};
+    return {schema:1,sourceSha256,waveId:witness.wave.waveId,
+      waveSha256:witness.waveSha256,witnessRef:ref,witnessSha256,reused:false};
   }
   function read(ref){
     const target=resolveRef(ref),stat=fs.lstatSync(target);
