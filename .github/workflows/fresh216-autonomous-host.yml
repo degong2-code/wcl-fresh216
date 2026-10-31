@@ -8,6 +8,7 @@ on:
       - work/fresh216-autonomous-host-20261031
       - work/fresh216-public-actor-proof-livewire-20261031
       - work/fresh216-archive-to-c-core-20261031
+      - work/fresh216-hmac-secret-preflight-20261031
     paths:
       - .github/workflows/fresh216-autonomous-host.yml
       - src/**
@@ -30,7 +31,8 @@ jobs:
       github.repository == 'degong2-code/wcl-fresh216' &&
       (github.ref == 'refs/heads/work/fresh216-autonomous-host-20261031' ||
        github.ref == 'refs/heads/work/fresh216-public-actor-proof-livewire-20261031' ||
-       github.ref == 'refs/heads/work/fresh216-archive-to-c-core-20261031')
+       github.ref == 'refs/heads/work/fresh216-archive-to-c-core-20261031' ||
+       github.ref == 'refs/heads/work/fresh216-hmac-secret-preflight-20261031')
     runs-on: ubuntu-latest
     timeout-minutes: 10
     steps:
@@ -79,6 +81,24 @@ jobs:
           fi
           echo 'present=true' >> "$GITHUB_OUTPUT"
           echo 'PRIVATE_INVENTORY_AUTH_PRESENT (no token disclosed)'
+      - name: Check dedicated archive HMAC key presence without disclosure
+        id: hmac
+        shell: bash
+        env:
+          FRESH216_EVIDENCE_HMAC_KEY: ${{ secrets.FRESH216_EVIDENCE_HMAC_KEY }}
+        run: |
+          set -euo pipefail
+          export LC_ALL=C
+          if [[ -z "${FRESH216_EVIDENCE_HMAC_KEY:-}" ]]; then
+            echo 'status=missing' >> "$GITHUB_OUTPUT"
+            echo 'FRESH216_EVIDENCE_HMAC_KEY_MISSING (value not disclosed)' >> "$GITHUB_STEP_SUMMARY"
+          elif (( ${#FRESH216_EVIDENCE_HMAC_KEY} < 32 )); then
+            echo 'status=too_short' >> "$GITHUB_OUTPUT"
+            echo 'FRESH216_EVIDENCE_HMAC_KEY_TOO_SHORT (value not disclosed)' >> "$GITHUB_STEP_SUMMARY"
+          else
+            echo 'status=present' >> "$GITHUB_OUTPUT"
+            echo 'FRESH216_EVIDENCE_HMAC_KEY_PRESENT (at least 32 bytes; value not disclosed)' >> "$GITHUB_STEP_SUMMARY"
+          fi
       - name: Checkout pinned private analyzer
         if: steps.gate.outputs.present == 'true'
         uses: actions/checkout@v4
