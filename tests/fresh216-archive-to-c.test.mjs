@@ -148,7 +148,7 @@ test('actor HMAC, BossDPS, report identity and A snapshot drift fail closed',()=
     /ARCHIVE_TO_C_CANONICAL_PROOF_DIVERGENCE/);
   const badGroup={...f.group,reportCode:'OTHER-REPORT'};
   assert.throws(()=>convert(f,{groups:[badGroup]}),
-    /ARCHIVE_TO_C_REPORT_FIGHT_SCOPE_MISMATCH/);
+    /ARCHIVE_TO_C_GROUP_NOT_IN_IMMUTABLE_A/);
   const badSlots=f.sourceSlots.map(s=>({...s}));
   badSlots[0].snapshotSha='e'.repeat(64);
   assert.throws(()=>convert(f,{sourceSlots:badSlots}),
