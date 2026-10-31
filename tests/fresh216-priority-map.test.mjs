@@ -41,7 +41,7 @@ test('priority map binds exact source slot keys to contiguous fight priorities',
 test('priority map rejects duplicate source keys and duplicate plan assignments',()=>{
   const a=slot('job-a',1,'RPT-A',11);
   assert.throws(()=>deriveFresh216PriorityByKey({
-    priorityPlan:planFor([a]),sourceSlots:[a,{...a}]
+    priorityPlan:planFor([a,{...a}]),sourceSlots:[a,{...a}]
   }),/FRESH216_PRIORITY_SOURCE_SLOT_INVALID/);
   const p=planFor([a,{...a,jobKey:'job-b',reportCode:'RPT-A'}]);
   p.orderedFightGroups[1].slots[0]={...a};
