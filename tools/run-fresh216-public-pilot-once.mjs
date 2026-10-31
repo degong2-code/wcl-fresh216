@@ -12,7 +12,7 @@ import {executeFresh216PublicPilot}
 import {createPublicPilotJournal,PILOT_JOURNAL}
  from '../src/adapters/fresh216-public-pilot-journal.mjs';
 
-const REQUEST='experiments/fresh216-one-wave-public-pilot-v2-20261031.json';
+const REQUEST='experiments/fresh216-one-wave-public-pilot-v3-20261031.json';
 const SOURCE_HASH='7231c678f305dfe2a278b6a0371897044d4d0a0058cf5f6219c993a4a3fae9d2';
 const ORIGINAL_SOURCE='39573a118f2a57f9dc6758936e9d73e9aa6cebf5';
 const DELTA_SOURCE='d56befacce6ff8062878ed3a4edec6a55cd91b07';
@@ -29,8 +29,8 @@ export function preflightFresh216PublicPilot({env,request,diff,privateWave}={}){
   env?.RUNNER_OS==='Linux','PILOT_TRUSTED_GITHUB_CONTEXT_REQUIRED');
  need(diff?.trim()==='A\t'+REQUEST,'PILOT_ONE_TIME_ADD_ONLY_REQUEST_REQUIRED');
  need(exact(request,['id','approval','maxGraphql','maxFights','sourceSha256'])&&
-  request.id==='FRESH216_PUBLIC_1_WAVE_V2_20261031'&&
-  request.approval==='OWNER_PROCEED_PUBLIC_RESULTS_V2_AFTER_NO_CALL_20261031'&&
+  request.id==='FRESH216_PUBLIC_1_WAVE_V3_20261031'&&
+  request.approval==='OWNER_PROCEED_PUBLIC_RESULTS_V3_AFTER_ZERO_WCL_20261031'&&
   request.maxGraphql===1&&request.maxFights===4&&
   request.sourceSha256===SOURCE_HASH,
   'PILOT_EXPLICIT_SCOPE_INVALID');
