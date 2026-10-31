@@ -7,6 +7,7 @@
  * planes by recomputing the archive's scoped HMAC tokens and requiring exact
  * source-slot and BossDPS parity before emitting any C proof.
  */
+import {createHash} from 'node:crypto';
 import {
   verifyActorProofArchive,verifyActorProofWaveManifest,
   deriveActorProofArchiveTokens
@@ -15,6 +16,9 @@ import {
 const need=(v,c)=>{if(!v)throw Error(c);};
 const sha=v=>typeof v==='string'&&/^[a-f0-9]{64}$/.test(v);
 const keyOf=s=>JSON.stringify([s.jobKey,s.rank,s.snapshotSha]);
+const slotHash=s=>createHash('sha256').update(JSON.stringify([
+  s.jobKey,s.rank,s.snapshotSha
+])).digest('hex');
 const masked=v=>{
   const n=String(v??'').trim().toLowerCase();
   return !n||n==='anonymous'||/^player[ ]*[(][0-9]+[)]$/i.test(n);
