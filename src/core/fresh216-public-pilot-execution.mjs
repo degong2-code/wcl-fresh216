@@ -102,6 +102,7 @@ export async function executeFresh216PublicPilot({
    responseBodySha256:isSha(response?.responseBodySha256)?
      response.responseBodySha256:null,
    fightGroups:wave.fightGroups.length,
+   sourceSlots:wave.fightGroups.reduce((n,g)=>n+g.slots.length,0),
    candidateVerifiedSlots,verifiedSlots,unresolvedSlots,
    archiveCount,archiveManifestSha256,incident
  };
