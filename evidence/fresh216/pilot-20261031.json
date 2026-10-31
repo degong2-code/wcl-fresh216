@@ -1,7 +1,7 @@
 {
   "schema": 1,
   "kind": "FRESH216_SINGLE_WAVE_PUBLIC_PILOT",
-  "status": "IN_FLIGHT",
+  "status": "COMPLETED",
   "runSha": "2adb6587d7e5874f3b074ca5b2c21381ffb8e6a9",
   "runId": "41153217467",
   "sourceSha256": "7231c678f305dfe2a278b6a0371897044d4d0a0058cf5f6219c993a4a3fae9d2",
@@ -9,5 +9,14 @@
   "maxGraphql": 1,
   "maxFights": 4,
   "reservedAtMs": 1793408527775,
-  "result": null
+  "result": {
+    "httpStatus": 200,
+    "observedPoints": 24,
+    "requestBodySha256": "4b1c460fd51c92d45142d1df0da3bd1d1e4b155661060692241cb618e9b2838a",
+    "responseSha256": "78153c7521108885aedcf3597b4dced52df61a2c92108049d4d1723731e6ebf3",
+    "fightGroups": 4,
+    "verifiedSlots": 9,
+    "unresolvedSlots": 0,
+    "incident": null
+  }
 }
