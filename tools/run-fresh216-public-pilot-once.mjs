@@ -84,7 +84,7 @@ export async function executePublicPilotOnce({
  const actorArchiveStore=createPublicActorProofArchiveStore({
   token:env.GITHUB_TOKEN,hmacKey:env.FRESH216_EVIDENCE_HMAC_KEY,fetchImpl
  });
- const transport=async (query,requestBodyText)=>{
+ const transport=async (query,requestBodyText,{markGraphqlAttempt})=>{
    // OAuth happens only AFTER the verified, durable public IN_FLIGHT marker.
    const basic=Buffer.from(env.WCL_CLIENT_ID+':'+env.WCL_CLIENT_SECRET)
     .toString('base64');
@@ -98,6 +98,7 @@ export async function executePublicPilotOnce({
    const auth=await oauth.json();
    if(typeof auth?.access_token!=='string'||!auth.access_token)
     throw Error('PILOT_OAUTH_RESPONSE_INVALID');
+   markGraphqlAttempt();
    const res=await fetchImpl(GRAPHQL_ENDPOINT,{
     method:'POST',redirect:'error',signal:AbortSignal.timeout(45000),
     headers:{Authorization:'Bearer '+auth.access_token,
