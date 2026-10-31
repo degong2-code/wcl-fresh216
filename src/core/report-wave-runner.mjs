@@ -139,5 +139,7 @@ export async function executeOneReportWave({
     observedPoints:points,wallMs,
     incident:candidate.code??null,
     witnessedPointsTotal:stats.witnessedPoints,
-    pointsTotalConfirmed:stats.pointsTotalConfirmed};
+    pointsTotalConfirmed:stats.pointsTotalConfirmed,
+    requestBodySha256,responseBodySha256,
+    witnessRef:candidate.evidence?.witnessRef??null};
 }
