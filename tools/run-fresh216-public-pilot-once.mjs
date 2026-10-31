@@ -1,16 +1,19 @@
 #!/usr/bin/env node
 /**
- * Fresh216 at-most-one WCL GraphQL calibration. PRIVATE wave file is local
- * ephemeral input; PUBLIC journal receives only SHA digests/aggregate counts.
- * Never dispatch on an ordinary code push, fork PR, or repeated request.
+ * Fresh216 at-most-one WCL GraphQL wave. Private source stays in runner temp.
+ * The exact WCL response bytes are hashed before parsing; only the redacted
+ * HMAC actor archive is persisted to the public evidence branch.
  */
 import fs from 'node:fs';
 import path from 'node:path';
 import {execFileSync} from 'node:child_process';
+import {createHash} from 'node:crypto';
 import {executeFresh216PublicPilot}
  from '../src/core/fresh216-public-pilot-execution.mjs';
 import {createPublicPilotJournal,PILOT_JOURNAL}
  from '../src/adapters/fresh216-public-pilot-journal.mjs';
+import {createPublicActorProofArchiveStore}
+ from '../src/adapters/fresh216-public-actor-proof-store.mjs';
 
 const REQUEST='experiments/fresh216-one-wave-public-pilot-v3-20261031.json';
 const SOURCE_HASH='7231c678f305dfe2a278b6a0371897044d4d0a0058cf5f6219c993a4a3fae9d2';
@@ -21,6 +24,25 @@ const GRAPHQL_ENDPOINT='https://www.warcraftlogs.com/api/v2/client';
 const need=(v,c)=>{if(!v)throw Error(c);};
 const exact=(v,keys)=>v&&typeof v==='object'&&!Array.isArray(v)&&
  Object.keys(v).sort().join('|')===keys.slice().sort().join('|');
+const shaBytes=v=>createHash('sha256').update(v).digest('hex');
+
+/** Read exact response bytes once; hash before UTF-8 decoding or JSON parsing. */
+export async function captureExactWclResponse(response){
+ need(response&&Number.isInteger(response.status)&&
+  typeof response.arrayBuffer==='function','WCL_RESPONSE_BYTES_INTERFACE_INVALID');
+ const raw=Buffer.from(await response.arrayBuffer());
+ const responseBodySha256=shaBytes(raw);
+ let body=null,parseStatus='INVALID_UTF8_OR_JSON';
+ try{
+  const text=new TextDecoder('utf-8',{fatal:true}).decode(raw);
+  body=JSON.parse(text);
+  parseStatus='JSON_OK';
+ }catch{}
+ return {
+  httpStatus:response.status,body,responseBodySha256,
+  responseBodyByteLength:raw.length,parseStatus
+ };
+}
 
 export function preflightFresh216PublicPilot({env,request,diff,privateWave}={}){
  need(env?.GITHUB_ACTIONS==='true'&&env?.GITHUB_EVENT_NAME==='push'&&
@@ -34,6 +56,11 @@ export function preflightFresh216PublicPilot({env,request,diff,privateWave}={}){
   request.maxGraphql===1&&request.maxFights===4&&
   request.sourceSha256===SOURCE_HASH,
   'PILOT_EXPLICIT_SCOPE_INVALID');
+ // A dedicated HMAC key is mandatory before GitHub reservation or OAuth.
+ // It is not derived from, or interchangeable with, either WCL credential.
+ need(typeof env.FRESH216_EVIDENCE_HMAC_KEY==='string'&&
+  Buffer.byteLength(env.FRESH216_EVIDENCE_HMAC_KEY,'utf8')>=32,
+  'PILOT_EVIDENCE_HMAC_KEY_MISSING_OR_TOO_SHORT');
  need(typeof env.GITHUB_TOKEN==='string'&&env.GITHUB_TOKEN.length>20&&
   typeof env.WCL_CLIENT_ID==='string'&&env.WCL_CLIENT_ID.length>0&&
   typeof env.WCL_CLIENT_SECRET==='string'&&env.WCL_CLIENT_SECRET.length>0,
@@ -54,7 +81,10 @@ export async function executePublicPilotOnce({
  const journal=createPublicPilotJournal({
   token:env.GITHUB_TOKEN,fetchImpl
  });
- const transport=async query=>{
+ const actorArchiveStore=createPublicActorProofArchiveStore({
+  token:env.GITHUB_TOKEN,hmacKey:env.FRESH216_EVIDENCE_HMAC_KEY,fetchImpl
+ });
+ const transport=async (query,requestBodyText)=>{
    // OAuth happens only AFTER the verified, durable public IN_FLIGHT marker.
    const basic=Buffer.from(env.WCL_CLIENT_ID+':'+env.WCL_CLIENT_SECRET)
     .toString('base64');
@@ -72,12 +102,13 @@ export async function executePublicPilotOnce({
     method:'POST',redirect:'error',signal:AbortSignal.timeout(45000),
     headers:{Authorization:'Bearer '+auth.access_token,
       'Content-Type':'application/json'},
-    body:JSON.stringify(query)
+    body:requestBodyText
    });
-   return {httpStatus:res.status,body:await res.json().catch(()=>null)};
+   return captureExactWclResponse(res);
  };
  return executeFresh216PublicPilot({
-  env,journal,wave,sourceSha256:SOURCE_HASH,clock,transport
+  env,journal,wave,sourceSha256:SOURCE_HASH,clock,transport,
+  actorArchiveStore,hmacKey:env.FRESH216_EVIDENCE_HMAC_KEY
  });
 }
 
@@ -99,8 +130,11 @@ if(process.argv[1]?.endsWith('/run-fresh216-public-pilot-once.mjs')){
   });
   process.stdout.write('FRESH216_PUBLIC_PILOT '+JSON.stringify({
    status:result.status,attemptedGraphql:result.attemptedGraphql,
-   observedPoints:result.observedPoints,verifiedSlots:result.verifiedSlots,
-   unresolvedSlots:result.unresolvedSlots
+   observedPoints:result.observedPoints,
+   candidateVerifiedSlots:result.candidateVerifiedSlots,
+   verifiedSlots:result.verifiedSlots,unresolvedSlots:result.unresolvedSlots,
+   archiveCount:result.archiveCount,
+   archiveManifestSha256:result.archiveManifestSha256
   })+'\n');
   if(result.status!=='COMPLETED')process.exitCode=2;
  }catch(err){
