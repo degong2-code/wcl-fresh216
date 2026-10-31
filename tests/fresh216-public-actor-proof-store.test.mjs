@@ -135,37 +135,68 @@ test('tampered archive is rejected before any GitHub access',async()=>{
  assert.equal(calls,0);
 });
 
-function fakeGithubMany({failPutAt=null}={}){
- const files=new Map();let puts=0,gets=0;
- const fetchImpl=async(url,init={})=>{
-  assert.ok(url.startsWith(
-   'https://api.github.com/repos/degong2-code/wcl-fresh216/contents/'
-  ));
-  assert.equal(init.redirect,'error');
-  const path=url.split('/contents/')[1].split('?')[0];
-  const method=init.method??'GET';
-  if(method==='GET'){
-   gets++;
-   if(!files.has(path))return {status:404};
-   const saved=files.get(path);
-   return {status:200,json:async()=>({
-    sha:saved.sha,encoding:'base64',
-    content:Buffer.from(saved.content,'utf8').toString('base64')
-   })};
-  }
-  assert.equal(method,'PUT');puts++;
-  if(puts===failPutAt)return {status:403};
-  const req=JSON.parse(init.body);
-  assert.equal(req.branch,'fresh216-public-evidence-pilot-20261031');
-  if(files.has(path))return {status:422};
-  const content=Buffer.from(req.content,'base64').toString('utf8');
-  const saved={content,sha:blobSha(content)};
-  files.set(path,saved);
-  return {status:201,json:async()=>({
-   content:{sha:saved.sha},commit:{sha:String(puts).padStart(40,'a')}
-  })};
+function fakeGithubMany({
+  failRefUpdate=false,applyOnFailedUpdate=false
+}={}){
+ const files=new Map();let treeCreates=0,commitCreates=0,refUpdates=0,
+  gets=0,head='a'.repeat(40),pendingTree=null,pendingCommit=null;
+ const blobSha=content=>createHash('sha1')
+  .update('blob '+Buffer.byteLength(content)+'\0').update(content).digest('hex');
+ const seed=(path,data)=>{
+  const content=JSON.stringify(data,null,2)+'\n';
+  files.set(path,{content,sha:blobSha(content)});
  };
- return {fetchImpl,puts:()=>puts,gets:()=>gets,files};
+ const fetchImpl=async(url,init={})=>{
+  assert.equal(init.redirect,'error');
+  const method=init.method??'GET';
+  if(url.includes('/contents/')){
+   const p=decodeURIComponent(url.split('/contents/')[1].split('?')[0]);
+   if(method==='GET'){
+    gets++;
+    if(!files.has(p))return {status:404};
+    const saved=files.get(p);
+    return {status:200,json:async()=>({
+     sha:saved.sha,encoding:'base64',
+     content:Buffer.from(saved.content,'utf8').toString('base64')
+    })};
+   }
+   throw Error('Contents writes are forbidden in atomic wave mode');
+  }
+  if(url.endsWith('/git/ref/heads/fresh216-public-evidence-pilot-20261031')&&
+     method==='GET'){
+   return {status:200,json:async()=>({object:{sha:head}})};
+  }
+  if(url.includes('/git/commits/')&&method==='GET'){
+   return {status:200,json:async()=>({tree:{sha:'b'.repeat(40)}})};
+  }
+  if(url.endsWith('/git/trees')&&method==='POST'){
+   treeCreates++;
+   const request=JSON.parse(init.body);
+   pendingTree=request.tree;
+   return {status:201,json:async()=>({sha:'c'.repeat(40)})};
+  }
+  if(url.endsWith('/git/commits')&&method==='POST'){
+   commitCreates++;
+   const request=JSON.parse(init.body);
+   pendingCommit={tree:pendingTree,message:request.message};
+   return {status:201,json:async()=>({sha:'d'.repeat(40)})};
+  }
+  if(url.endsWith('/git/refs/heads/fresh216-public-evidence-pilot-20261031')&&
+     method==='PATCH'){
+   refUpdates++;
+   if(failRefUpdate&&!applyOnFailedUpdate)return {status:500};
+   for(const item of pendingCommit.tree){
+    const content=item.content;
+    files.set(item.path,{content,sha:blobSha(content)});
+   }
+   head='d'.repeat(40);
+   if(failRefUpdate)return {status:500};
+   return {status:200,json:async()=>({object:{sha:head}})};
+  }
+  throw Error('Unexpected synthetic GitHub URL: '+url);
+ };
+ return {fetchImpl,files,seed,gets:()=>gets,treeCreates:()=>treeCreates,
+  commitCreates:()=>commitCreates,refUpdates:()=>refUpdates};
 }
 test('persistWave appends every fight archive before a signed manifest',async()=>{
  const gh=fakeGithubMany(),archives=[archive(),archive(13)];
@@ -178,22 +209,60 @@ test('persistWave appends every fight archive before a signed manifest',async()=
  assert.equal(result.verifiedSlots,2);
  assert.equal(result.unresolvedSlots,0);
  assert.equal(result.archiveReceipts.length,2);
- assert.equal(gh.puts(),3);
+ assert.equal(gh.treeCreates(),1);
+ assert.equal(gh.commitCreates(),1);
+ assert.equal(gh.refUpdates(),1);
  assert.equal(gh.files.size,3);
  const manifest=JSON.parse(gh.files.get(result.manifestPath).content);
  assert.equal(manifest.archives.length,2);
  assert.equal(manifest.waveSha256,archives[0].waveSha256);
  assert.equal(JSON.stringify(manifest).includes('SYNTHETIC-PRIVATE-REPORT'),false);
 });
-test('partial wave archive write leaves no manifest and never retries',async()=>{
- const gh=fakeGithubMany({failPutAt:2}),archives=[archive(),archive(13)];
+test('an exact existing archive is reused while missing archive and manifest commit atomically',async()=>{
+ const gh=fakeGithubMany(),archives=[archive(),archive(13)];
  const store=createPublicActorProofArchiveStore({
   token:'SYNTHETIC_GITHUB_TOKEN_WITH_ENOUGH_LENGTH',
   hmacKey:KEY,fetchImpl:gh.fetchImpl
  });
- await assert.rejects(store.persistWave(archives,{createdAtMs:1793450002000}),
-  /PUBLIC_ACTOR_ARCHIVE_WRITE_UNCONFIRMED_STOP/);
- assert.equal(gh.puts(),2);
- assert.equal(gh.files.size,1);
- assert.equal([...gh.files.keys()].some(x=>x.startsWith('evidence/fresh216/waves/')),false);
+ gh.seed(store.pathForArchive(archives[0].archiveId),archives[0]);
+ const result=await store.persistWave(archives,{createdAtMs:1793450002000});
+ assert.equal(result.archiveCount,2);
+ assert.equal(result.archiveReceipts.filter(x=>x.reused).length,1);
+ assert.equal(gh.treeCreates(),1);
+ assert.equal(gh.commitCreates(),1);
+ assert.equal(gh.refUpdates(),1);
+ assert.equal(gh.files.size,3);
+});
+test('repeating the same wave after verified readback is idempotent',async()=>{
+ const gh=fakeGithubMany(),archives=[archive(),archive(13)];
+ const store=createPublicActorProofArchiveStore({
+  token:'SYNTHETIC_GITHUB_TOKEN_WITH_ENOUGH_LENGTH',
+  hmacKey:KEY,fetchImpl:gh.fetchImpl
+ });
+ const first=await store.persistWave(archives,{createdAtMs:1793450002000});
+ const second=await store.persistWave(archives,{createdAtMs:1793450002000});
+ assert.equal(first.manifestSha256,second.manifestSha256);
+ assert.equal(second.reused,true);
+ assert.equal(gh.refUpdates(),1);
+ assert.equal(gh.commitCreates(),1);
+});
+test('uncertain ref update reconciles only when every object is read back exactly',async()=>{
+ const archives=[archive(),archive(13)];
+ const applied=fakeGithubMany({failRefUpdate:true,applyOnFailedUpdate:true});
+ const storeA=createPublicActorProofArchiveStore({
+  token:'SYNTHETIC_GITHUB_TOKEN_WITH_ENOUGH_LENGTH',
+  hmacKey:KEY,fetchImpl:applied.fetchImpl
+ });
+ const result=await storeA.persistWave(archives,{createdAtMs:1793450002000});
+ assert.equal(result.archiveCount,2);
+ assert.equal(applied.refUpdates(),1);
+ const absent=fakeGithubMany({failRefUpdate:true,applyOnFailedUpdate:false});
+ const storeB=createPublicActorProofArchiveStore({
+  token:'SYNTHETIC_GITHUB_TOKEN_WITH_ENOUGH_LENGTH',
+  hmacKey:KEY,fetchImpl:absent.fetchImpl
+ });
+ await assert.rejects(storeB.persistWave(archives,{createdAtMs:1793450002000}),
+  /PUBLIC_ACTOR_WAVE_COMMIT_UNCONFIRMED_STOP/);
+ assert.equal(absent.refUpdates(),1);
+ assert.equal(absent.files.size,0);
 });

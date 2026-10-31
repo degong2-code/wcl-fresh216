@@ -133,9 +133,12 @@ export async function makePrivateWclTransport({
         body:JSON.stringify(query)
       });
     }catch{fail('PRIVATE_WCL_GRAPHQL_NETWORK_UNKNOWN');}
-    const body=await response.json().catch(()=>null);
-    // No raw response, token, report code or actor details leave the host.
-    return {httpStatus:response.status,body};
+    const rawBodyBytes=Buffer.from(await response.arrayBuffer());
+    let body=null;
+    try{body=JSON.parse(rawBodyBytes.toString('utf8'));}
+    catch{/* The runner records an uncertain response; never redispatch. */}
+    // Exact Fetch body bytes stay in the private witness path only.
+    return {httpStatus:response.status,body,rawBodyBytes};
   };
 }
 /**
