@@ -109,6 +109,8 @@ function publisherFor(f,{failArchive=false,failDelta=false}={}){
     assert.equal(input.bridgeResult.verifiedSlots,1);
     assert.equal(input.archiveReceipt.status,'VERIFIED');
     assert.equal(input.archiveReceipt.manifestSha256.length,64);
+    assert.equal(input.archiveReceipt.manifestSha256,input.manifest.manifestSha256);
+    assert.equal(input.archiveReceipt.waveSha256,input.manifest.waveSha256);
     assert.equal(input.bridgeResult.proofRows.length,1);
     if(failDelta)throw Error('SYNTHETIC_PRIVATE_DELTA_UNCERTAIN');
     return {status:'APPENDED',sourceSha256:SOURCE,

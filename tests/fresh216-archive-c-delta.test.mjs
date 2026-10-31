@@ -53,7 +53,9 @@ function fixture(){
     bridgeResult,sourceSlots,reportStateCommit:'a'.repeat(40),
     reportBatchSha256:'b'.repeat(64),
     archiveReceipt:{status:'VERIFIED',waveSha256:'d'.repeat(64),
-      manifestSha256:'e'.repeat(64)},deltaIndex:36,
+      manifestSha256:'e'.repeat(64)},
+    expectedWaveSha256:'d'.repeat(64),
+    expectedManifestSha256:'e'.repeat(64),deltaIndex:36,
     previousDeltaSha256:'c'.repeat(64),
     priorityByKey:new Map([[key,348]]),existingUnion:new Map()
   };
@@ -116,9 +118,12 @@ test('create-only append is idempotent and never overwrites an indexed delta',()
   }finally{fs.rmSync(dir,{recursive:true,force:true});}
 });
 
-test('C-delta adapter requires a verified archive manifest receipt',()=>{
+test('C-delta adapter requires a verified archive manifest receipt bound to this wave',()=>{
   const f=fixture();delete f.input.archiveReceipt;
   assert.throws(()=>buildFresh216ArchiveCDelta(f.input),
+    /ARCHIVE_C_DELTA_INPUT_INVALID/);
+  const drift=fixture();drift.input.archiveReceipt.manifestSha256='f'.repeat(64);
+  assert.throws(()=>buildFresh216ArchiveCDelta(drift.input),
     /ARCHIVE_C_DELTA_INPUT_INVALID/);
 });
 test('verified local appender rejects an unpinned base before state-commit lookup',()=>{

@@ -84,9 +84,16 @@ export function createFresh216ArchiveCDeltaAppender({
     base,baseCompressedSha256:BASE_UNION_SHA256,slotMap,parts
   });
   let union=replay.union;
-  const append=async({bridgeResult,evidence,archiveReceipt,wave,attemptId,witness}={})=>{
+  const append=async({bridgeResult,evidence,archiveReceipt,manifest,wave,attemptId,witness}={})=>{
     need(sha(evidence?.responseBodySha256),
       'ARCHIVE_C_DELTA_RESPONSE_DIGEST_MISSING');
+    need(sha(evidence?.waveSha256)&&
+      manifest?.waveSha256===evidence.waveSha256&&
+      sha(manifest?.manifestSha256)&&
+      archiveReceipt?.status==='VERIFIED'&&
+      archiveReceipt.waveSha256===evidence.waveSha256&&
+      archiveReceipt.manifestSha256===manifest.manifestSha256,
+      'ARCHIVE_C_DELTA_ARCHIVE_RECEIPT_DRIFT');
     const reportStateCommit=await getReportStateCommit({
       wave,attemptId,evidence,witness
     });
@@ -95,6 +102,8 @@ export function createFresh216ArchiveCDeltaAppender({
     const built=appendFresh216ArchiveCDelta({
       bridgeResult,sourceSlots:pinnedSlots,reportStateCommit,
       reportBatchSha256:evidence.responseBodySha256,archiveReceipt,
+      expectedWaveSha256:evidence.waveSha256,
+      expectedManifestSha256:manifest.manifestSha256,
       deltaIndex:parts.length,
       previousDeltaSha256:parts.length?shaBytes(parts.at(-1)):null,
       priorityByKey,existingUnion:union,deltaDirectory
@@ -144,6 +153,7 @@ export function createFresh216ArchiveCDeltaAppender({
  */
 export function buildFresh216ArchiveCDelta({
   bridgeResult,sourceSlots,reportStateCommit,reportBatchSha256,archiveReceipt,
+  expectedWaveSha256,expectedManifestSha256,
   deltaIndex,previousDeltaSha256,priorityByKey,existingUnion
 }={}){
   need(bridgeResult?.schema===1&&
@@ -155,6 +165,8 @@ export function buildFresh216ArchiveCDelta({
     commit(reportStateCommit)&&sha(reportBatchSha256)&&
     archiveReceipt?.status==='VERIFIED'&&
     sha(archiveReceipt.waveSha256)&&sha(archiveReceipt.manifestSha256)&&
+    sha(expectedWaveSha256)&&archiveReceipt.waveSha256===expectedWaveSha256&&
+    sha(expectedManifestSha256)&&archiveReceipt.manifestSha256===expectedManifestSha256&&
     Number.isSafeInteger(deltaIndex)&&deltaIndex>=0&&
     (previousDeltaSha256===null||sha(previousDeltaSha256))&&
     priorityByKey instanceof Map&&existingUnion instanceof Map,
