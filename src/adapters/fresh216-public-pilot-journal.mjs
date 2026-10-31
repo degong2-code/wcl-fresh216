@@ -1,10 +1,8 @@
 /**
- * Fresh216: one-shot, minimal public GitHub evidence journal.
- * This adapter NEVER sends a WCL request, contains no actor/report identifiers,
- * and does not grant a token any scope beyond its existing GitHub permissions.
- * Reserve IN_FLIGHT with an independently verified GitHub commit BEFORE OAuth.
- *
- * If any GitHub write or verification is uncertain, STOP: do not retry WCL.
+ * Fresh216: one-shot public journal for a WCL wave and actor-proof manifest.
+ * Raw report/actor identifiers are stored only in the separate HMAC archive.
+ * Reserve IN_FLIGHT and verify GitHub readback BEFORE OAuth.
+ * Any uncertain write or readback stops the operation; never retry WCL.
  */
 import {createHash} from 'node:crypto';
 
@@ -14,7 +12,6 @@ export const PILOT_JOURNAL=Object.freeze({
   path:'evidence/fresh216/pilot-20261031.json',
   trustedRef:'refs/heads/work/fresh216-autonomous-host-20261031'
 });
-const sha256=v=>createHash('sha256').update(v).digest('hex');
 const isSha=v=>typeof v==='string'&&/^[a-f0-9]{64}$/.test(v);
 const isCommit=v=>typeof v==='string'&&/^[a-f0-9]{40}$/.test(v);
 const check=(v,code)=>{if(!v)throw Error(code);};
@@ -22,8 +19,18 @@ const API='https://api.github.com/repos/'+PILOT_JOURNAL.repo+'/contents/'+
  PILOT_JOURNAL.path+'?ref='+encodeURIComponent(PILOT_JOURNAL.branch);
 const WRITE='https://api.github.com/repos/'+PILOT_JOURNAL.repo+'/contents/'+
  PILOT_JOURNAL.path;
-const mandatoryKeys=['httpStatus','observedPoints','requestBodySha256',
- 'responseSha256','fightGroups','verifiedSlots','unresolvedSlots','incident'];
+const mandatoryKeys=[
+ 'httpStatus','observedPoints','requestBodySha256','responseBodySha256',
+ 'fightGroups','candidateVerifiedSlots','verifiedSlots','unresolvedSlots',
+ 'archiveCount','archiveManifestSha256','incident'
+];
+const INCIDENTS=[
+ 'HTTP_OR_GRAPHQL_UNCERTAIN','WAVE_REPORT_IDENTITY_DRIFT',
+ 'WAVE_RANKINGS_SHAPE_INVALID','WAVE_TRANSPORT_OR_PROCESSING_EXCEPTION',
+ 'RESPONSE_NOT_PERSISTABLE','WCL_POINTS_UNOBSERVED',
+ 'RAW_RESPONSE_BYTES_UNAVAILABLE','ACTOR_ARCHIVE_BUILD_OR_STORE_FAILED',
+ 'ACTOR_ARCHIVE_READBACK_COUNT_DRIFT'
+];
 const resultCheck=s=>{
   check(s&&typeof s==='object'&&!Array.isArray(s)&&
    Object.keys(s).sort().join('|')===mandatoryKeys.slice().sort().join('|'),
@@ -32,15 +39,24 @@ const resultCheck=s=>{
    (s.observedPoints===null||typeof s.observedPoints==='number'&&
      Number.isFinite(s.observedPoints)&&s.observedPoints>=0)&&
    isSha(s.requestBodySha256)&&
-   (s.responseSha256===null||isSha(s.responseSha256))&&
+   (s.responseBodySha256===null||isSha(s.responseBodySha256))&&
    Number.isSafeInteger(s.fightGroups)&&s.fightGroups>=0&&s.fightGroups<=4&&
+   Number.isSafeInteger(s.candidateVerifiedSlots)&&s.candidateVerifiedSlots>=0&&
    Number.isSafeInteger(s.verifiedSlots)&&s.verifiedSlots>=0&&
    Number.isSafeInteger(s.unresolvedSlots)&&s.unresolvedSlots>=0&&
-   (s.incident===null||[
-     'HTTP_OR_GRAPHQL_UNCERTAIN','WAVE_REPORT_IDENTITY_DRIFT',
-     'WAVE_RANKINGS_SHAPE_INVALID','WAVE_TRANSPORT_OR_PROCESSING_EXCEPTION',
-     'RESPONSE_NOT_PERSISTABLE','WCL_POINTS_UNOBSERVED'
-   ].includes(s.incident)), 'PUBLIC_PILOT_RESULT_SHAPE');
+   Number.isSafeInteger(s.archiveCount)&&s.archiveCount>=0&&
+   s.archiveCount<=s.fightGroups&&
+   (s.archiveManifestSha256===null||isSha(s.archiveManifestSha256))&&
+   (s.incident===null||INCIDENTS.includes(s.incident)),
+   'PUBLIC_PILOT_RESULT_SHAPE');
+  if(s.incident===null){
+    check(s.httpStatus===200&&s.observedPoints!==null&&
+      s.responseBodySha256!==null&&s.archiveCount===s.fightGroups&&
+      isSha(s.archiveManifestSha256)&&
+      s.verifiedSlots+s.unresolvedSlots>=1&&
+      s.verifiedSlots<=s.candidateVerifiedSlots,
+      'PUBLIC_PILOT_COMPLETION_PROOF_MISSING');
+  }
   return structuredClone(s);
 };
 /** Caller MUST pass the exact protected-branch env (not PR/fork). */
@@ -61,7 +77,7 @@ export function makePilotReservation({env,waveSha256,sourceSha256,nowMs}={}){
     result:null
   };
 }
-/** GitHub contents API read/write with optimistic SHA locking and readback. */
+/** GitHub Contents API read/write with optimistic SHA locking and readback. */
 export function createPublicPilotJournal({token,fetchImpl=fetch}={}){
   check(typeof token==='string'&&token.length>20&&
     typeof fetchImpl==='function','PUBLIC_PILOT_JOURNAL_CONFIG');
@@ -124,12 +140,11 @@ export function createPublicPilotJournal({token,fetchImpl=fetch}={}){
        isCommit(reserved.commitSha),
        'PUBLIC_PILOT_NO_VERIFIED_RESERVATION');
       const result=resultCheck(summary);
-      const complete=result.incident===null&&result.httpStatus===200&&
-        result.observedPoints!==null&&result.responseSha256!==null;
+      const complete=result.incident===null;
       const final={...reserved.data,status:complete?'COMPLETED':'NEEDS_REVIEW',
         result};
       // No retry: a write/readback error leaves the durable IN_FLIGHT marker.
-      return put(final,'fresh216: seal one-wave aggregate-only WCL observation',
+      return put(final,'fresh216: seal one-wave actor-proof archive observation',
         reserved.blobSha);
     }
   };
