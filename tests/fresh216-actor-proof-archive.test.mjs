@@ -185,7 +185,7 @@ test('Player(n) source label must match the same report-local label when no A na
  });
  const v=verifyActorProofArchive(a,{hmacKey:KEY});
  assert.equal(v.verifiedSlots,0);
- assert.equal(v.outcomes[0].reason,'NO_TOTAL_DPS_MATCH');
+ assert.equal(v.outcomes[0].reason,'NAME_TOKEN_MISMATCH');
 });
 test('named source slot requires exact pseudonymized name match',()=>{
  const a=build({
