@@ -132,3 +132,79 @@ test('uncertain status is durable NEEDS_REVIEW, never fabricated pass',async()=>
  assert.equal(out.data.status,'NEEDS_REVIEW');
  assert.equal(JSON.parse(gh.raw()).result.observedPoints,null);
 });
+
+test('whole one-fight pilot calls WCL exactly once, only AFTER remote reservation',async()=>{
+ const steps=[],gh=fakeGithub();
+ const real=createPublicPilotJournal({
+  token:'SYNTHETIC_NON_SECRET_GITHUB_TOKEN',fetchImpl:async(...args)=>{
+    if(args[1]?.method==='PUT')steps.push('github-write');
+    return gh.fetchImpl(...args);
+  }
+ });
+ const wave={scopeKey:'heroic:2026-10-22_27:latest:source',
+  reportCode:'SYNTHETIC',reportRevision:1,
+  fightGroups:[{
+   scopeKey:'heroic:2026-10-22_27:latest:source',
+   reportCode:'SYNTHETIC',reportRevision:1,fightId:3,
+   encounterId:3470,difficulty:4,slots:[{
+     name:'Anonymous',rank:1,jobKey:'test',snapshotSha:'a'.repeat(64),
+     totalDps:1000,className:'Hunter',specName:'Marksmanship',
+     startTime:1792600000000
+   }]
+  }]
+ };
+ const actor=(amount)=>({
+  id:7,name:'Player (1)',class:'Hunter',spec:'Marksmanship',amount
+ });
+ const fight=actor=>({
+  data:[{fightID:3,encounter:{id:3470},difficulty:4,
+   roles:{dps:{characters:[actor]}}}]
+ });
+ let called=0;
+ const result=await executeFresh216PublicPilot({
+   env:env(),journal:real,wave,sourceSha256,
+   clock:()=>1793450000000,
+   transport:async ()=>{
+     assert.equal(JSON.parse(gh.raw()).status,'IN_FLIGHT');
+     steps.push('wcl-call');called++;
+     return {httpStatus:200,body:{data:{
+      rateLimitData:{currentRequest:{total:4.25}},
+      reportData:{report:{
+       code:'SYNTHETIC',revision:1,
+       o0:fight(actor(1000)),b0:fight(actor(700))
+      }}
+     }}};
+   }
+ });
+ assert.equal(called,1);
+ assert.deepEqual(steps,['github-write','wcl-call','github-write']);
+ assert.equal(result.status,'COMPLETED');
+ assert.equal(result.verifiedSlots,1);
+ assert.equal(result.observedPoints,4.25);
+ assert.equal(JSON.parse(gh.raw()).result.responseSha256.length,64);
+ assert.equal(gh.raw().includes('Player (1)'),false);
+ assert.equal(gh.raw().includes('SYNTHETIC'),false);
+});
+test('transport uncertainty consumes one attempt and records NEEDS_REVIEW',async()=>{
+ const gh=fakeGithub(),journal=createPublicPilotJournal({
+  token:'SYNTHETIC_NON_SECRET_GITHUB_TOKEN',fetchImpl:gh.fetchImpl
+ });
+ const wave={scopeKey:'heroic:2026-10-22_27:latest:source',
+  reportCode:'SYNTHETIC',reportRevision:1,
+  fightGroups:[{scopeKey:'heroic:2026-10-22_27:latest:source',
+   reportCode:'SYNTHETIC',reportRevision:1,fightId:3,
+   encounterId:3470,difficulty:4,slots:[{
+    name:'Anonymous',rank:1,jobKey:'test',snapshotSha:'a'.repeat(64),
+    totalDps:1000,className:'Hunter',specName:'Marksmanship',
+    startTime:1792600000000
+   }]}]
+ };
+ const out=await executeFresh216PublicPilot({
+  env:env(),journal,wave,sourceSha256,clock:()=>1793450000000,
+  transport:async()=>{throw Error('Synthetic interrupted WCL');}
+ });
+ assert.equal(out.status,'NEEDS_REVIEW');
+ assert.equal(gh.putCount(),2);
+ assert.equal(JSON.parse(gh.raw()).result.incident,
+   'WAVE_TRANSPORT_OR_PROCESSING_EXCEPTION');
+});
