@@ -2,7 +2,7 @@ import test from 'node:test';
 import assert from 'node:assert/strict';
 import {createHash} from 'node:crypto';
 import {
-  captureExactWclResponse,preflightFresh216PublicPilot
+  captureExactWclResponse,preflightFresh216PublicPilot,executePublicPilotOnce
 } from '../tools/run-fresh216-public-pilot-once.mjs';
 import {
   executeFresh216PublicPilot
@@ -69,9 +69,11 @@ const goodSummary={
  archiveCount:1,archiveManifestSha256:'f'.repeat(64),incident:null
 };
 function fakeJournal(order=[]){
+ let lastSummary=null;
  return {
+  lastSummary:()=>lastSummary,
   async reserve(value){order.push('reserve');return {data:value,blobSha:'1'.repeat(40),commitSha:'2'.repeat(40)};},
-  async seal(reserved,summary){order.push('seal');return {
+  async seal(reserved,summary){order.push('seal');lastSummary=summary;return {
    data:{...reserved.data,status:summary.incident===null?'COMPLETED':'NEEDS_REVIEW',result:summary},
    commitSha:'3'.repeat(40)
   };}
@@ -98,6 +100,7 @@ test('exact WCL response bytes are hashed before UTF-8 and JSON parsing',async()
  const captured=await captureExactWclResponse(response);
  assert.equal(captured.responseBodySha256,sha(raw));
  assert.equal(captured.responseBodyByteLength,raw.length);
+ assert.notEqual(captured.responseBodySha256,sha(Buffer.from(JSON.stringify(captured.body),'utf8')));
  assert.equal(captured.parseStatus,'JSON_OK');
  assert.deepEqual(captured.body,{data:{value:7}});
 });
@@ -141,6 +144,8 @@ test('paired rankings are reserved, fetched once, archived, read back, then seal
  assert.equal(result.verifiedSlots,1);
  assert.equal(result.unresolvedSlots,0);
  assert.equal(result.archiveCount,1);
+ assert.equal(journal.lastSummary().responseBodySha256,sha(raw));
+ assert.equal(journal.lastSummary().sourceSlots,1);
 });
 test('OAuth or transport failure before GraphQL dispatch records zero GraphQL calls',async()=>{
  const order=[],journal=fakeJournal(order),store=fakeArchiveStore(order);
@@ -194,6 +199,16 @@ test('GraphQL dispatch marker rejects a second request attempt',async()=>{
  assert.equal(result.attemptedGraphql,1);
  assert.equal(result.status,'NEEDS_REVIEW');
  assert.equal(order.join(','),'reserve,seal');
+});
+
+test('runner refuses missing HMAC key before any GitHub or OAuth request',async()=>{
+ let calls=0;
+ await assert.rejects(executePublicPilotOnce({
+  env:{...validEnv(),FRESH216_EVIDENCE_HMAC_KEY:''},
+  request,diff,privateWave,
+  fetchImpl:async()=>{calls++;throw Error('must not call network');}
+ }),/PILOT_EVIDENCE_HMAC_KEY_MISSING_OR_TOO_SHORT/);
+ assert.equal(calls,0);
 });
 function githubFake(){
  let content=null,puts=0,deny=false;
