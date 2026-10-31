@@ -399,3 +399,139 @@ export function verifyActorProofArchive(archive,{
   };
 }
 export const replayActorProofArchive=verifyActorProofArchive;
+
+export const ACTOR_PROOF_WAVE_MANIFEST_SCHEMA=1;
+export const ACTOR_PROOF_WAVE_MANIFEST_KIND=
+  'FRESH216_REDACTED_ACTOR_PROOF_WAVE_MANIFEST_V1';
+const manifestPayloadKeys=[
+  'schema','kind','keyId','waveSha256','sourceSha256',
+  'requestBodySha256','responseBodySha256','httpStatus','observedPoints',
+  'createdAtMs','archives','verifiedSlots','unresolvedSlots'
+];
+const manifestKeys=[...manifestPayloadKeys,'manifestSha256','manifestMac'];
+const manifestEntryKeys=[
+  'archiveId','archiveSha256','reportToken','fightToken',
+  'reportRevision','fightId','encounterId','difficulty',
+  'verifiedSlots','unresolvedSlots'
+];
+export function buildActorProofWaveManifest({
+  archives,hmacKey,createdAtMs
+}={}){
+  const key=keyBytes(hmacKey);
+  need(Array.isArray(archives)&&archives.length>=1&&archives.length<=8,
+    'ACTOR_WAVE_MANIFEST_ARCHIVE_COUNT');
+  need(Number.isSafeInteger(createdAtMs)&&createdAtMs>0,
+    'ACTOR_WAVE_MANIFEST_TIMESTAMP');
+  const verified=archives.map(a=>verifyActorProofArchive(a,{hmacKey}));
+  const first=archives[0];
+  need(archives.every(a=>
+    a.waveSha256===first.waveSha256&&
+    a.sourceSha256===first.sourceSha256&&
+    a.requestBodySha256===first.requestBodySha256&&
+    a.responseBodySha256===first.responseBodySha256&&
+    a.httpStatus===first.httpStatus&&
+    a.observedPoints===first.observedPoints),
+    'ACTOR_WAVE_MANIFEST_PROVENANCE_DRIFT');
+  const sorted=archives.slice().sort((a,b)=>
+    a.archiveId.localeCompare(b.archiveId));
+  const seen=new Set();
+  for(const a of sorted){
+    need(!seen.has(a.archiveId),'ACTOR_WAVE_MANIFEST_DUPLICATE_ARCHIVE');
+    seen.add(a.archiveId);
+  }
+  const entries=sorted.map(a=>{
+    const v=verified.find(x=>x.archiveId===a.archiveId);
+    return {
+      archiveId:a.archiveId,archiveSha256:a.archiveSha256,
+      reportToken:a.reportToken,fightToken:a.fightToken,
+      reportRevision:a.reportRevision,fightId:a.fightId,
+      encounterId:a.encounterId,difficulty:a.difficulty,
+      verifiedSlots:v.verifiedSlots,unresolvedSlots:v.unresolvedSlots
+    };
+  });
+  const payload={
+    schema:ACTOR_PROOF_WAVE_MANIFEST_SCHEMA,
+    kind:ACTOR_PROOF_WAVE_MANIFEST_KIND,
+    keyId:ACTOR_PROOF_ARCHIVE_KEY_ID,
+    waveSha256:first.waveSha256,sourceSha256:first.sourceSha256,
+    requestBodySha256:first.requestBodySha256,
+    responseBodySha256:first.responseBodySha256,
+    httpStatus:first.httpStatus,observedPoints:first.observedPoints,
+    createdAtMs,archives:entries,
+    verifiedSlots:verified.reduce((n,x)=>n+x.verifiedSlots,0),
+    unresolvedSlots:verified.reduce((n,x)=>n+x.unresolvedSlots,0)
+  };
+  const manifestSha256=shaObject(payload);
+  const manifestMac=mac(key,'fresh216-wave-manifest-v1',manifestSha256);
+  return {...payload,manifestSha256,manifestMac};
+}
+export function verifyActorProofWaveManifest(manifest,{
+  hmacKey,archives
+}={}){
+  const key=keyBytes(hmacKey);
+  need(exactKeys(manifest,manifestKeys)&&
+    manifest.schema===ACTOR_PROOF_WAVE_MANIFEST_SCHEMA&&
+    manifest.kind===ACTOR_PROOF_WAVE_MANIFEST_KIND&&
+    manifest.keyId===ACTOR_PROOF_ARCHIVE_KEY_ID&&
+    validSha(manifest.waveSha256)&&validSha(manifest.sourceSha256)&&
+    validSha(manifest.requestBodySha256)&&
+    validSha(manifest.responseBodySha256)&&manifest.httpStatus===200&&
+    typeof manifest.observedPoints==='number'&&
+    Number.isFinite(manifest.observedPoints)&&manifest.observedPoints>=0&&
+    Number.isSafeInteger(manifest.createdAtMs)&&manifest.createdAtMs>0&&
+    Array.isArray(manifest.archives)&&manifest.archives.length>=1&&
+    manifest.archives.length<=8&&
+    Number.isSafeInteger(manifest.verifiedSlots)&&manifest.verifiedSlots>=0&&
+    Number.isSafeInteger(manifest.unresolvedSlots)&&manifest.unresolvedSlots>=0&&
+    validSha(manifest.manifestSha256)&&validSha(manifest.manifestMac),
+    'ACTOR_WAVE_MANIFEST_SHAPE_INVALID');
+  const seen=new Set();
+  for(const e of manifest.archives){
+    need(exactKeys(e,manifestEntryKeys)&&
+      validSha(e.archiveId)&&validSha(e.archiveSha256)&&
+      validToken(e.reportToken)&&validToken(e.fightToken)&&
+      Number.isSafeInteger(e.reportRevision)&&e.reportRevision>=0&&
+      Number.isSafeInteger(e.fightId)&&e.fightId>0&&
+      Number.isSafeInteger(e.encounterId)&&e.encounterId>0&&
+      Number.isSafeInteger(e.difficulty)&&e.difficulty>0&&
+      Number.isSafeInteger(e.verifiedSlots)&&e.verifiedSlots>=0&&
+      Number.isSafeInteger(e.unresolvedSlots)&&e.unresolvedSlots>=0&&
+      !seen.has(e.archiveId),'ACTOR_WAVE_MANIFEST_ENTRY_INVALID');
+    seen.add(e.archiveId);
+  }
+  const payload={};
+  for(const k of manifestPayloadKeys)payload[k]=manifest[k];
+  const digest=shaObject(payload);
+  need(digest===manifest.manifestSha256,
+    'ACTOR_WAVE_MANIFEST_CONTENT_SHA_MISMATCH');
+  const expected=Buffer.from(mac(key,'fresh216-wave-manifest-v1',digest),'hex');
+  const actual=Buffer.from(manifest.manifestMac,'hex');
+  need(expected.length===actual.length&&timingSafeEqual(expected,actual),
+    'ACTOR_WAVE_MANIFEST_HMAC_INVALID');
+  need(Array.isArray(archives)&&archives.length===manifest.archives.length,
+    'ACTOR_WAVE_MANIFEST_ARCHIVES_REQUIRED');
+  const verified=archives.map(a=>verifyActorProofArchive(a,{hmacKey}));
+  const byId=new Map(archives.map(a=>[a.archiveId,a]));
+  const entries=manifest.archives.map(e=>{
+    const a=byId.get(e.archiveId);
+    need(a&&a.archiveSha256===e.archiveSha256&&
+      a.waveSha256===manifest.waveSha256&&
+      a.sourceSha256===manifest.sourceSha256&&
+      a.requestBodySha256===manifest.requestBodySha256&&
+      a.responseBodySha256===manifest.responseBodySha256&&
+      a.reportToken===e.reportToken&&a.fightToken===e.fightToken&&
+      a.reportRevision===e.reportRevision&&a.fightId===e.fightId&&
+      a.encounterId===e.encounterId&&a.difficulty===e.difficulty,
+      'ACTOR_WAVE_MANIFEST_ARCHIVE_LINK_MISMATCH');
+    return e;
+  });
+  const vCount=verified.reduce((n,x)=>n+x.verifiedSlots,0);
+  const uCount=verified.reduce((n,x)=>n+x.unresolvedSlots,0);
+  need(vCount===manifest.verifiedSlots&&uCount===manifest.unresolvedSlots,
+    'ACTOR_WAVE_MANIFEST_COUNT_MISMATCH');
+  return {
+    valid:true,waveSha256:manifest.waveSha256,
+    manifestSha256:manifest.manifestSha256,
+    archiveCount:entries.length,verifiedSlots:vCount,unresolvedSlots:uCount
+  };
+}
