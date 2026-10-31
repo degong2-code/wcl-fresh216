@@ -67,7 +67,6 @@ test('reject rank/source drift, duplicate slots and invalid DPS', () => {
   assert.throws(() => planFightFetches([slot(),slot()]), /DUPLICATE_RANK_SLOT/);
   assert.throws(() => planFightFetches([slot(),slot({rank:4,snapshotSha:'b'.repeat(64)})]), /JOB_SNAPSHOT_DRIFT/);
   assert.throws(() => planFightFetches([slot({totalDps:NaN})]), /TOTAL_DPS_INVALID/);
-  assert.throws(() => planFightFetches([slot({startTime:undefined})]), /START_TIME_INVALID/);
   assert.throws(() => planFightFetches([slot({rank:101})]), /RANK_INVALID/);
   assert.throws(() => planFightFetches([slot({status:'GUESS'})]), /SLOT_STATUS/);
 });

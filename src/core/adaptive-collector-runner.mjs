@@ -42,7 +42,12 @@ export function prepareAdaptiveNext({slots,state,economics=null,
   const readyReport=readyFetches(state);
   if(readyReport.length){
     const waves=planReportWaves({groups:readyReport}).waves;
-    return {kind:'REPORT_WAVE',wave:waves[0],stats,resumed:true};
+    const wave=waves[0];
+    if(wave.fightGroups.some(g=>g.slots.some(s=>
+      !Number.isFinite(s.startTime)||s.startTime<=0)))
+      return {kind:'NEEDS_REVIEW',stats,
+        incident:'REPORT_SOURCE_START_TIME_MISSING'};
+    return {kind:'REPORT_WAVE',wave,stats,resumed:true};
   }
   const all=new Map();
   for(const p of committedProofs(state)){
@@ -89,6 +94,10 @@ export function prepareAdaptiveNext({slots,state,economics=null,
     !Object.hasOwn(state.entries,groupKey(g)));
   if(unregistered.length){
     const wave=planReportWaves({groups:unregistered}).waves[0];
+    if(wave.fightGroups.some(g=>g.slots.some(s=>
+      !Number.isFinite(s.startTime)||s.startTime<=0)))
+      return {kind:'NEEDS_REVIEW',stats,
+        incident:'REPORT_SOURCE_START_TIME_MISSING'};
     return {kind:'REPORT_WAVE',resumed:false,wave,stats,calibration,
       groups:unregistered};
   }

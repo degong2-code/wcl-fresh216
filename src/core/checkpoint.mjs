@@ -22,7 +22,8 @@ const idFields=(g)=>({
 const slotShape=(s)=>({
   jobKey:s.jobKey,rank:s.rank,snapshotSha:s.snapshotSha,
   totalDps:s.totalDps,className:s.className,specName:s.specName,
-  startTime:s.startTime,name:s.name??''
+  ...(Number.isFinite(s.startTime)?{startTime:s.startTime}:{}),
+  name:s.name??''
 });
 const clone=(o)=>structuredClone(o);
 const numCost=(v)=>v===null||(typeof v==='number'&&Number.isFinite(v)&&v>=0);
