@@ -97,6 +97,7 @@ test('exact Fetch bytes are durably witnessed before wave checkpoint completion'
     assert.equal(witness.responseBodySha256,sha(x.raw));
     assert.deepEqual(witness.responseBodyBytes,x.raw);
     assert.equal(witness.joinedByFight.length,2);
+    assert.deepEqual(pending[0].wave,witness.wave);
     assert.equal(fs.statSync(path.join(x.dirs.privateDir,x.out.witnessRef)).mode&0o077,0);
   }finally{fs.rmSync(x.dirs.root,{recursive:true,force:true});}
 });

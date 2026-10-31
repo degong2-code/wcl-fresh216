@@ -64,18 +64,24 @@ function validateGroup(g){
   }
 }
 function exactSourceMatch(groupSlot,sourceSlot,group){
+  // fetch-plan stores fight identity once at group level. Older archive
+  // fixtures may also repeat it on each slot; if present, those copies must
+  // agree rather than being trusted over the immutable group identity.
   return keyOf(groupSlot)===keyOf(sourceSlot)&&
-    groupSlot.scopeKey===sourceSlot.scopeKey&&
-    groupSlot.reportCode===sourceSlot.reportCode&&
-    groupSlot.fightId===sourceSlot.fightId&&
-    groupSlot.encounterId===sourceSlot.encounterId&&
-    groupSlot.difficulty===sourceSlot.difficulty&&
-    groupSlot.reportCode===group.reportCode&&
-    groupSlot.fightId===group.fightId&&
-    groupSlot.encounterId===group.encounterId&&
-    groupSlot.difficulty===group.difficulty&&
+    group.scopeKey===sourceSlot.scopeKey&&
+    group.reportCode===sourceSlot.reportCode&&
+    group.fightId===sourceSlot.fightId&&
+    group.encounterId===sourceSlot.encounterId&&
+    group.difficulty===sourceSlot.difficulty&&
     (group.reportRevision==null||
       sourceSlot.reportRevision===group.reportRevision)&&
+    (groupSlot.scopeKey==null||groupSlot.scopeKey===group.scopeKey)&&
+    (groupSlot.reportCode==null||groupSlot.reportCode===group.reportCode)&&
+    (groupSlot.fightId==null||groupSlot.fightId===group.fightId)&&
+    (groupSlot.encounterId==null||groupSlot.encounterId===group.encounterId)&&
+    (groupSlot.difficulty==null||groupSlot.difficulty===group.difficulty)&&
+    (groupSlot.reportRevision==null||
+      groupSlot.reportRevision===group.reportRevision)&&
     Object.is(groupSlot.totalDps,sourceSlot.totalDps)&&
     groupSlot.className===sourceSlot.className&&
     groupSlot.specName===sourceSlot.specName&&

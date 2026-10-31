@@ -315,7 +315,8 @@ export function pendingWaveEvidence(state){
   }
   return [...grouped.values()].map(item=>{
     item.wave.fightGroups.sort((a,b)=>
-      a.fightId-b.fightId||a.encounterId-b.encounterId);
+      a.fightId-b.fightId||a.encounterId-b.encounterId||
+      a.difficulty-b.difficulty);
     return item;
   }).sort((a,b)=>a.attemptId.localeCompare(b.attemptId));
 }
