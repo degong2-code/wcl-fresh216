@@ -10,6 +10,7 @@ on:
       - .github/workflows/fresh216-autonomous-host.yml
       - src/**
       - experiments/fresh216-one-wave-public-pilot-20261031.json
+      - experiments/fresh216-one-wave-public-pilot-v2-20261031.json
       - tests/**
       - tools/**
 
@@ -269,7 +270,7 @@ jobs:
       github.event_name == 'push' &&
       github.repository == 'degong2-code/wcl-fresh216' &&
       github.ref == 'refs/heads/work/fresh216-autonomous-host-20261031' &&
-      contains(github.event.head_commit.added, 'experiments/fresh216-one-wave-public-pilot-20261031.json')
+      github.event.head_commit.message == 'chore(fresh216): authorize one-wave public WCL pilot v2'
     environment: fresh216-private-read
     runs-on: ubuntu-latest
     timeout-minutes: 16
