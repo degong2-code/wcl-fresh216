@@ -59,14 +59,10 @@ const mac=(key,domain,value)=>createHmac('sha256',key)
 const token=(key,domain,value)=>'hmac-sha256:v1:'+mac(key,domain,value);
 const validSha=v=>typeof v==='string'&&SHA_RE.test(v);
 const validToken=v=>typeof v==='string'&&TOKEN_RE.test(v);
-const isMaskedName=v=>{
-  const n=norm(v);
-  return !n||n==='anonymous'||/^player\\s*\\([1-9]\\d*\\)$/i.test(n);
-};
 const nameKind=v=>{
   const n=norm(v);
   if(!n||n==='anonymous')return 'ANONYMOUS';
-  if(/^player\\s*\\([1-9]\\d*\\)$/i.test(n))return 'MASKED_LABEL';
+  if(/^player\\s*\\(\\d+\\)$/i.test(n))return 'MASKED_LABEL';
   return 'NAMED';
 };
 const rawActorRef=a=>{
@@ -121,7 +117,7 @@ function validateInput({
     Number.isFinite(observedPoints)&&observedPoints>=0&&
     Number.isSafeInteger(capturedAtMs)&&capturedAtMs>0,
     'ACTOR_ARCHIVE_RESPONSE_PROVENANCE_INVALID');
-  const seen=new Set();
+  const seen=new Set(),seenJobRanks=new Set();
   for(const s of group.slots){
     need(s&&typeof s.jobKey==='string'&&s.jobKey.length>0&&
       Number.isSafeInteger(s.rank)&&s.rank>=1&&s.rank<=100&&
@@ -135,8 +131,10 @@ function validateInput({
       (s.reportRevision==null||s.reportRevision===report.revision),
       'ACTOR_ARCHIVE_SOURCE_SLOT_INVALID');
     const k=JSON.stringify([s.jobKey,s.rank,s.snapshotSha]);
-    need(!seen.has(k),'ACTOR_ARCHIVE_DUPLICATE_SOURCE_SLOT');
-    seen.add(k);
+    const jobRank=JSON.stringify([s.jobKey,s.rank]);
+    need(!seen.has(k)&&!seenJobRanks.has(jobRank),
+      'ACTOR_ARCHIVE_DUPLICATE_SOURCE_SLOT');
+    seen.add(k);seenJobRanks.add(jobRank);
   }
   return {
     overall:findFight(report.overall,group,'overall'),
@@ -232,14 +230,21 @@ const payloadKeys=[
   'overallRoster','bossRoster','outcomes'
 ];
 const archiveKeys=[...payloadKeys,'archiveSha256','archiveMac'];
-const slotKeys=['slotKey','jobKey','rank','snapshotSha256','totalDps',
+const slotKeys=['slotKey','jobKey','rank','snapshotSha','totalDps',
   'className','specName','startTime','nameKind','nameToken'];
 const rosterKeys=['actorToken','identityKind','nameToken','className',
   'specName','amount'];
-const outcomeKeys=['slotKey','jobKey','rank','snapshotSha256','status',
+const outcomeKeys=['slotKey','jobKey','rank','snapshotSha','status',
   'reason','actorToken','identityKind','totalDps','bossDps','proofType'];
 function validateRedactedShape(a){
   need(exactKeys(a,archiveKeys),'ACTOR_ARCHIVE_TOP_LEVEL_FIELDS');
+  need(validSha(a.archiveSha256)&&validSha(a.archiveMac),
+    'ACTOR_ARCHIVE_DIGEST_FIELDS_INVALID');
+  const expectedArchiveId=shaObject([
+    ACTOR_PROOF_ARCHIVE_KIND,a.sourceSha256,a.reportToken,a.fightToken,
+    a.requestBodySha256,a.responseBodySha256
+  ]);
+  need(a.archiveId===expectedArchiveId,'ACTOR_ARCHIVE_ID_MISMATCH');
   need(a.schema===ACTOR_PROOF_ARCHIVE_SCHEMA&&
     a.kind===ACTOR_PROOF_ARCHIVE_KIND&&a.keyId===ACTOR_PROOF_ARCHIVE_KEY_ID&&
     validSha(a.archiveId)&&validSha(a.sourceSha256)&&validSha(a.waveSha256)&&
@@ -318,7 +323,7 @@ export function buildActorProofArchive({
     group,report,sourceSha256,waveSha256,requestBodySha256,
     responseBodySha256,httpStatus,observedPoints,capturedAtMs
   });
-  const scope=[group.scopeKey,sourceSha256,report.code,report.revision,group.fightId];
+  const scope=[group.scopeKey,sourceSha256,report.code,report.revision,group.fightId,group.encounterId,group.difficulty];
   const reportToken=token(key,'fresh216-report-v1',
     [group.scopeKey,sourceSha256,report.code,report.revision]);
   const fightToken=token(key,'fresh216-fight-v1',[
