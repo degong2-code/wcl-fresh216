@@ -2,8 +2,8 @@ import test from 'node:test';
 import assert from 'node:assert/strict';
 import {createHash} from 'node:crypto';
 import {
-  buildActorProofArchive,verifyActorProofArchive,
-  replayActorProofArchive,ACTOR_PROOF_ARCHIVE_KEY_ID
+  buildActorProofArchive,verifyActorProofArchive,buildActorProofWaveManifest,
+  verifyActorProofWaveManifest,replayActorProofArchive,ACTOR_PROOF_ARCHIVE_KEY_ID
 } from '../src/core/fresh216-actor-proof-archive.mjs';
 
 const KEY='SYNTHETIC_ONLY_HMAC_KEY_DO_NOT_USE_IN_PRODUCTION_20261031';
@@ -245,4 +245,53 @@ test('archive key and bounded size are explicit',()=>{
  const a=build();
  assert.equal(a.keyId,'fresh216-evidence-hmac-v1');
  assert.ok(Buffer.byteLength(JSON.stringify(a),'utf8')<512*1024);
+});
+
+test('per-wave manifest binds all fight archives and aggregate proof counts',()=>{
+ const first=build();
+ const second=build({
+  group:group(undefined,{fightId:13}),
+  report:{
+   code:'SYNTHETIC-PRIVATE-REPORT',revision:5,
+   overall:{data:[{...fight([actor(7,'Player (4)',1000)]),fightID:13}]},
+   boss:{data:[{...fight([actor(7,'Player (4)',700)]),fightID:13}]}
+  }
+ });
+ const manifest=buildActorProofWaveManifest({
+  archives:[first,second],hmacKey:KEY,createdAtMs:1793450001000
+ });
+ const v=verifyActorProofWaveManifest(manifest,{
+  hmacKey:KEY,archives:[second,first]
+ });
+ assert.equal(v.valid,true);
+ assert.equal(v.archiveCount,2);
+ assert.equal(v.verifiedSlots,2);
+ assert.equal(v.unresolvedSlots,0);
+ assert.notEqual(first.fightToken,second.fightToken);
+ assert.equal(JSON.stringify(manifest).includes('SYNTHETIC-PRIVATE-REPORT'),false);
+});
+test('wave manifest rejects tampered archive links, missing archives and wrong key',()=>{
+ const first=build();
+ const second=build({
+  group:group(undefined,{fightId:13}),
+  report:{
+   code:'SYNTHETIC-PRIVATE-REPORT',revision:5,
+   overall:{data:[{...fight([actor(7,'Player (4)',1000)]),fightID:13}]},
+   boss:{data:[{...fight([actor(7,'Player (4)',700)]),fightID:13}]}
+  }
+ });
+ const manifest=buildActorProofWaveManifest({
+  archives:[first,second],hmacKey:KEY,createdAtMs:1793450001000
+ });
+ assert.throws(()=>verifyActorProofWaveManifest(manifest,{
+  hmacKey:KEY,archives:[first]
+ }),/ACTOR_WAVE_MANIFEST_ARCHIVES_REQUIRED/);
+ const bad=structuredClone(manifest);
+ bad.archives[0].archiveSha256='f'.repeat(64);
+ assert.throws(()=>verifyActorProofWaveManifest(bad,{
+  hmacKey:KEY,archives:[first,second]
+ }),/ACTOR_WAVE_MANIFEST_CONTENT_SHA_MISMATCH/);
+ assert.throws(()=>verifyActorProofWaveManifest(manifest,{
+  hmacKey:'WRONG_KEY_'.repeat(5),archives:[first,second]
+ }),/ACTOR_WAVE_MANIFEST_HMAC_INVALID/);
 });
