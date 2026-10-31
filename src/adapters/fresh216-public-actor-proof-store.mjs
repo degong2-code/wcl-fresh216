@@ -28,7 +28,7 @@ const readUrl=p=>apiPath(p)+'?ref='+encodeURIComponent(PILOT_JOURNAL.branch);
 const gitBase='https://api.github.com/repos/'+PILOT_JOURNAL.repo+'/git';
 const gitRefUrl=gitBase+'/ref/heads/'+PILOT_JOURNAL.branch;
 const gitBlobSha=content=>createHash('sha1')
-  .update(Buffer.from('blob '+Buffer.byteLength(content,'utf8')+'\\0','utf8'))
+  .update(Buffer.from('blob '+Buffer.byteLength(content,'utf8')+String.fromCharCode(0),'utf8'))
   .update(Buffer.from(content,'utf8')).digest('hex');
 
 export function createPublicActorProofArchiveStore({
@@ -174,13 +174,13 @@ export function createPublicActorProofArchiveStore({
       a.archiveId.localeCompare(b.archiveId));
     const objects=ordered.map(archive=>{
       verifyActorProofArchive(archive,{hmacKey});
-      const content=JSON.stringify(archive,null,2)+'\\n';
+      const content=JSON.stringify(archive,null,2)+String.fromCharCode(10);
       need(Buffer.byteLength(content,'utf8')<=ACTOR_PROOF_ARCHIVE_MAX_BYTES,
         'PUBLIC_ACTOR_ARCHIVE_SIZE_LIMIT');
       return {path:archivePath(archive.archiveId),content,
         blobSha:gitBlobSha(content)};
     });
-    const manifestContent=JSON.stringify(manifest,null,2)+'\\n';
+    const manifestContent=JSON.stringify(manifest,null,2)+String.fromCharCode(10);
     need(Buffer.byteLength(manifestContent,'utf8')<=ACTOR_PROOF_ARCHIVE_MAX_BYTES,
       'PUBLIC_ACTOR_WAVE_MANIFEST_SIZE_LIMIT');
     objects.push({
