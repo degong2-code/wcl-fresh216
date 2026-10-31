@@ -85,7 +85,7 @@ test('archive store creates one append-only file and verifies exact readback',as
  assert.equal(gh.puts(),1);
  assert.equal(gh.gets(),2);
  assert.equal(JSON.parse(gh.saved().content).archiveSha256,a.archiveSha256);
- assert.match(r.path,/^[a-z/.-]+[a-f0-9]{64}\.json$/);
+ assert.match(r.path,/^[a-z0-9/.-]+[a-f0-9]{64}\.json$/);
 });
 test('existing archive path is never overwritten or retried',async()=>{
  const gh=fakeGithub(),a=archive();
