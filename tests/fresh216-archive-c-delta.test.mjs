@@ -8,7 +8,8 @@ import {
   SOURCE_SHA256,keyOf,readCDelta
 } from '../tools/lib/fresh216-c-delta.mjs';
 import {
-  buildFresh216ArchiveCDelta,appendFresh216ArchiveCDelta
+  buildFresh216ArchiveCDelta,appendFresh216ArchiveCDelta,
+  createFresh216ArchiveCDeltaAppender,readFresh216CDeltaParts
 } from '../tools/lib/fresh216-archive-c-delta.mjs';
 
 const sha=v=>createHash('sha256').update(v).digest('hex');
@@ -50,7 +51,9 @@ function fixture(){
   };
   const input={
     bridgeResult,sourceSlots,reportStateCommit:'a'.repeat(40),
-    reportBatchSha256:'b'.repeat(64),deltaIndex:36,
+    reportBatchSha256:'b'.repeat(64),
+    archiveReceipt:{status:'VERIFIED',waveSha256:'d'.repeat(64),
+      manifestSha256:'e'.repeat(64)},deltaIndex:36,
     previousDeltaSha256:'c'.repeat(64),
     priorityByKey:new Map([[key,348]]),existingUnion:new Map()
   };
@@ -63,6 +66,9 @@ test('PR19 bridge proof rows convert losslessly into existing C-delta v1',()=>{
   assert.equal(result.delta.kind,'FRESH216_C_EVIDENCE_DELTA_V1');
   assert.equal(result.delta.sourceSha256,SOURCE_SHA256);
   assert.equal(result.delta.rows[0].evidence.priority,348);
+  assert.equal(result.delta.rows[0].evidence.responseBodySha256,'b'.repeat(64));
+  assert.equal(result.delta.rows[0].evidence.archiveWaveSha256,'d'.repeat(64));
+  assert.equal(result.delta.rows[0].evidence.archiveManifestSha256,'e'.repeat(64));
   const decoded=readCDelta(result.bytes,{
     expectedIndex:36,expectedPreviousSha256:'c'.repeat(64)
   });
@@ -107,5 +113,35 @@ test('create-only append is idempotent and never overwrites an indexed delta',()
     assert.equal(second.reused,true);
     assert.equal(second.deltaSha256,first.deltaSha256);
     assert.equal(fs.readdirSync(dir).length,1);
+  }finally{fs.rmSync(dir,{recursive:true,force:true});}
+});
+
+test('C-delta adapter requires a verified archive manifest receipt',()=>{
+  const f=fixture();delete f.input.archiveReceipt;
+  assert.throws(()=>buildFresh216ArchiveCDelta(f.input),
+    /ARCHIVE_C_DELTA_INPUT_INVALID/);
+});
+test('verified local appender rejects an unpinned base before state-commit lookup',()=>{
+  const f=fixture(),dir=fs.mkdtempSync(path.join(os.tmpdir(),'fresh216-c-appender-'));
+  let commitLookups=0;
+  try{
+    assert.throws(()=>createFresh216ArchiveCDeltaAppender({
+      sourceSlots:f.input.sourceSlots,baseCompressedBytes:Buffer.from('not-the-pinned-base'),
+      deltaDirectory:dir,priorityByKey:f.input.priorityByKey,
+      getReportStateCommit:async()=>{commitLookups++;return 'a'.repeat(40);}
+    }),/ARCHIVE_C_DELTA_APPENDER_CONFIG_INVALID/);
+    assert.equal(commitLookups,0);
+  }finally{fs.rmSync(dir,{recursive:true,force:true});}
+});
+test('delta part loader accepts an empty chain and rejects unknown files or gaps',()=>{
+  const dir=fs.mkdtempSync(path.join(os.tmpdir(),'fresh216-c-parts-'));
+  try{
+    assert.deepEqual(readFresh216CDeltaParts(dir),[]);
+    fs.writeFileSync(path.join(dir,'delta-0001.json.br'),Buffer.from('bad'));
+    assert.throws(()=>readFresh216CDeltaParts(dir),/ARCHIVE_C_DELTA_CHAIN_GAP/);
+    fs.unlinkSync(path.join(dir,'delta-0001.json.br'));
+    fs.writeFileSync(path.join(dir,'untracked.txt'),'x');
+    assert.throws(()=>readFresh216CDeltaParts(dir),
+      /ARCHIVE_C_DELTA_DIRECTORY_UNEXPECTED_FILE/);
   }finally{fs.rmSync(dir,{recursive:true,force:true});}
 });

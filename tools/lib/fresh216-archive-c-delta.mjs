@@ -5,9 +5,10 @@
  */
 import fs from 'node:fs';
 import path from 'node:path';
+import {brotliDecompressSync} from 'node:zlib';
 import {
   SOURCE_SHA256,BASE_UNION_SHA256,shaBytes,shaObject,keyOf,
-  compressCDelta,readCDelta,verifyCProof
+  compressCDelta,readCDelta,verifyCProof,applyCDeltas
 } from './fresh216-c-delta.mjs';
 
 const need=(v,c)=>{if(!v)throw Error(c);};
@@ -21,6 +22,120 @@ const sameProof=(a,b)=>a&&b&&a.bossDps===b.bossDps&&
   PROOF_IDENTITY_FIELDS.every(k=>a.proof?.[k]===b.proof?.[k]);
 const deltaName=i=>'delta-'+String(i).padStart(4,'0')+'.json.br';
 
+const commitSha=v=>typeof v==='string'&&/^[a-f0-9]{40}$/.test(v);
+
+/** Load a contiguous, create-only local delta chain; no ignored extras. */
+export function readFresh216CDeltaParts(deltaDirectory){
+  need(typeof deltaDirectory==='string'&&path.isAbsolute(deltaDirectory)&&
+    fs.existsSync(deltaDirectory)&&
+    fs.lstatSync(deltaDirectory).isDirectory()&&
+    !fs.lstatSync(deltaDirectory).isSymbolicLink(),
+    'ARCHIVE_C_DELTA_DIRECTORY_INVALID');
+  const names=fs.readdirSync(deltaDirectory);
+  const expectedNames=names.filter(x=>/^delta-\d{4}\.json\.br$/.test(x))
+    .sort((a,b)=>Number(a.slice(6,10))-Number(b.slice(6,10)));
+  need(names.length===expectedNames.length,
+    'ARCHIVE_C_DELTA_DIRECTORY_UNEXPECTED_FILE');
+  const parts=[];
+  let previous=null;
+  for(let i=0;i<expectedNames.length;i++){
+    const expected=deltaName(i),name=expectedNames[i];
+    need(name===expected,'ARCHIVE_C_DELTA_CHAIN_GAP');
+    const file=path.join(deltaDirectory,name),stat=fs.lstatSync(file);
+    need(stat.isFile()&&!stat.isSymbolicLink(),
+      'ARCHIVE_C_DELTA_PART_FILE_UNSAFE');
+    const bytes=fs.readFileSync(file);
+    readCDelta(bytes,{expectedIndex:i,expectedPreviousSha256:previous});
+    parts.push(bytes);previous=shaBytes(bytes);
+  }
+  return parts;
+}
+
+/**
+ * Build a private local C-delta appender over the existing immutable base
+ * and append-only chain. Each append is replayed through applyCDeltas before
+ * its receipt is returned. reportStateCommit must come from the caller's
+ * authenticated private state store; this module never fabricates a commit.
+ */
+export function createFresh216ArchiveCDeltaAppender({
+  sourceSlots,baseCompressedBytes,deltaDirectory,priorityByKey,
+  getReportStateCommit
+}={}){
+  need(Array.isArray(sourceSlots)&&sourceSlots.length===21600&&
+    Buffer.isBuffer(baseCompressedBytes)&&
+    shaBytes(baseCompressedBytes)===BASE_UNION_SHA256&&
+    priorityByKey instanceof Map&&
+    typeof getReportStateCommit==='function'&&
+    typeof deltaDirectory==='string'&&path.isAbsolute(deltaDirectory)&&
+    fs.existsSync(deltaDirectory)&&fs.lstatSync(deltaDirectory).isDirectory()&&
+    !fs.lstatSync(deltaDirectory).isSymbolicLink(),
+    'ARCHIVE_C_DELTA_APPENDER_CONFIG_INVALID');
+  const pinnedSlots=Object.freeze(sourceSlots.map(s=>Object.freeze({...s})));
+  const slotMap=new Map();
+  for(const slot of pinnedSlots){
+    const key=keyOf(slot);
+    need(!slotMap.has(key),'ARCHIVE_C_DELTA_SOURCE_DUPLICATE');
+    slotMap.set(key,slot);
+  }
+  need(slotMap.size===21600,'ARCHIVE_C_DELTA_SOURCE_COUNT');
+  const base=JSON.parse(brotliDecompressSync(baseCompressedBytes).toString('utf8'));
+  let parts=readFresh216CDeltaParts(deltaDirectory);
+  let replay=applyCDeltas({
+    base,baseCompressedSha256:BASE_UNION_SHA256,slotMap,parts
+  });
+  let union=replay.union;
+  const append=async({bridgeResult,evidence,archiveReceipt,wave,attemptId,witness}={})=>{
+    need(sha(evidence?.responseBodySha256),
+      'ARCHIVE_C_DELTA_RESPONSE_DIGEST_MISSING');
+    const reportStateCommit=await getReportStateCommit({
+      wave,attemptId,evidence,witness
+    });
+    need(commitSha(reportStateCommit),
+      'ARCHIVE_C_DELTA_REPORT_STATE_COMMIT_INVALID');
+    const built=appendFresh216ArchiveCDelta({
+      bridgeResult,sourceSlots:pinnedSlots,reportStateCommit,
+      reportBatchSha256:evidence.responseBodySha256,archiveReceipt,
+      deltaIndex:parts.length,
+      previousDeltaSha256:parts.length?shaBytes(parts.at(-1)):null,
+      priorityByKey,existingUnion:union,deltaDirectory
+    });
+    if(built.status==='NO_NEW_PROOFS')return built;
+    const bytes=fs.readFileSync(built.file);
+    const decoded=readCDelta(bytes,{
+      expectedIndex:parts.length,
+      expectedPreviousSha256:parts.length?shaBytes(parts.at(-1)):null
+    });
+    const nextParts=[...parts,bytes];
+    const next=applyCDeltas({
+      base,baseCompressedSha256:BASE_UNION_SHA256,
+      slotMap,parts:nextParts
+    });
+    need(next.union.size===union.size+built.addedExactC&&
+      next.applied===replay.applied+built.addedExactC&&
+      decoded.rows.every(row=>{
+        const stored=next.union.get(keyOf(row));
+        return stored&&stored.bossDps===row.bossDps&&
+          JSON.stringify(stored.proof)===JSON.stringify(row.proof);
+      }),
+      'ARCHIVE_C_DELTA_POST_APPEND_REPLAY_FAILED');
+    parts=nextParts;replay=next;union=next.union;
+    return {
+      status:'APPENDED',sourceSha256:SOURCE_SHA256,
+      deltaIndex:built.deltaIndex,deltaSha256:built.deltaSha256,
+      addedExactC:built.addedExactC,totalExactC:union.size,
+      deltaCount:parts.length,applied:replay.applied
+    };
+  };
+  append.snapshot=()=>({
+    sourceSha256:SOURCE_SHA256,baseUnionSha256:BASE_UNION_SHA256,
+    totalExactC:union.size,deltaCount:parts.length,
+    applied:replay.applied,
+    lastDeltaSha256:parts.length?shaBytes(parts.at(-1)):null
+  });
+  return append;
+}
+
+
 /**
  * Build one exact C-delta v1 payload from the already-verified PR19 bridge
  * output. priorityByKey maps immutable A slot keys to pinned recovery-plan
@@ -28,7 +143,7 @@ const deltaName=i=>'delta-'+String(i).padStart(4,'0')+'.json.br';
  * applyCDeltas; identical proofs are skipped and conflicts fail closed.
  */
 export function buildFresh216ArchiveCDelta({
-  bridgeResult,sourceSlots,reportStateCommit,reportBatchSha256,
+  bridgeResult,sourceSlots,reportStateCommit,reportBatchSha256,archiveReceipt,
   deltaIndex,previousDeltaSha256,priorityByKey,existingUnion
 }={}){
   need(bridgeResult?.schema===1&&
@@ -38,6 +153,8 @@ export function buildFresh216ArchiveCDelta({
     Array.isArray(bridgeResult.proofRows)&&
     Array.isArray(sourceSlots)&&sourceSlots.length===21600&&
     commit(reportStateCommit)&&sha(reportBatchSha256)&&
+    archiveReceipt?.status==='VERIFIED'&&
+    sha(archiveReceipt.waveSha256)&&sha(archiveReceipt.manifestSha256)&&
     Number.isSafeInteger(deltaIndex)&&deltaIndex>=0&&
     (previousDeltaSha256===null||sha(previousDeltaSha256))&&
     priorityByKey instanceof Map&&existingUnion instanceof Map,
@@ -73,7 +190,10 @@ export function buildFresh216ArchiveCDelta({
       proof:proofRow.proof,
       evidence:{
         reportStateCommit,batchIndex:deltaIndex,priority,
-        proofSha256:shaObject(proofRow.proof)
+        proofSha256:shaObject(proofRow.proof),
+        responseBodySha256:reportBatchSha256,
+        archiveWaveSha256:archiveReceipt.waveSha256,
+        archiveManifestSha256:archiveReceipt.manifestSha256
       }
     };
     verifyCProof(row,slot);

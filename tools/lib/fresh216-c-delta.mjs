@@ -71,6 +71,15 @@ function validate(delta,{expectedIndex,expectedPreviousSha256}={}){
    row.evidence.priority<=delta.priorityRange[1]&&
    row.evidence.proofSha256===shaObject(row.proof)&&
    !seen.has(k),'C_DELTA_ROW_HASH_OR_DUPLICATE');
+  const provenance=['responseBodySha256','archiveWaveSha256',
+   'archiveManifestSha256'];
+  const provenanceCount=provenance.filter(x=>
+   row.evidence[x]!==undefined).length;
+  need((provenanceCount===0||provenanceCount===3)&&
+   (provenanceCount===0||
+    (provenance.every(x=>sha(row.evidence[x]))&&
+     row.evidence.responseBodySha256===delta.reportBatchSha256)),
+   'C_DELTA_ARCHIVE_PROVENANCE_INVALID');
   seen.add(k);
  }
  return delta;

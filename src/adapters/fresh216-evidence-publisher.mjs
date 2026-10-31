@@ -198,7 +198,7 @@ export function createFresh216EvidencePublisher({
     try{
       delta=await cDeltaAppender({
         bridgeResult,sourceSlots:pinnedSourceSlots,privateProofRows,archives,manifest,
-        archiveReceipt:stored,wave,attemptId,evidence,witness
+        archiveReceipt:{...stored,status:'VERIFIED'},wave,attemptId,evidence,witness
       });
     }catch(_error){
       return {status:'NEEDS_REVIEW',code:'PRIVATE_C_DELTA_APPEND_UNCERTAIN'};
