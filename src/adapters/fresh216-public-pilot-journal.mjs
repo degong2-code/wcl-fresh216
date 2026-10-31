@@ -21,7 +21,7 @@ const WRITE='https://api.github.com/repos/'+PILOT_JOURNAL.repo+'/contents/'+
  PILOT_JOURNAL.path;
 const mandatoryKeys=[
  'httpStatus','observedPoints','requestBodySha256','responseBodySha256',
- 'fightGroups','candidateVerifiedSlots','verifiedSlots','unresolvedSlots',
+ 'fightGroups','sourceSlots','candidateVerifiedSlots','verifiedSlots','unresolvedSlots',
  'archiveCount','archiveManifestSha256','incident'
 ];
 const INCIDENTS=[
@@ -41,7 +41,9 @@ const resultCheck=s=>{
    isSha(s.requestBodySha256)&&
    (s.responseBodySha256===null||isSha(s.responseBodySha256))&&
    Number.isSafeInteger(s.fightGroups)&&s.fightGroups>=0&&s.fightGroups<=4&&
+   Number.isSafeInteger(s.sourceSlots)&&s.sourceSlots>=1&&s.sourceSlots<=2000&&
    Number.isSafeInteger(s.candidateVerifiedSlots)&&s.candidateVerifiedSlots>=0&&
+   s.candidateVerifiedSlots<=s.sourceSlots&&
    Number.isSafeInteger(s.verifiedSlots)&&s.verifiedSlots>=0&&
    Number.isSafeInteger(s.unresolvedSlots)&&s.unresolvedSlots>=0&&
    Number.isSafeInteger(s.archiveCount)&&s.archiveCount>=0&&
@@ -53,7 +55,7 @@ const resultCheck=s=>{
     check(s.httpStatus===200&&s.observedPoints!==null&&
       s.responseBodySha256!==null&&s.archiveCount===s.fightGroups&&
       isSha(s.archiveManifestSha256)&&
-      s.verifiedSlots+s.unresolvedSlots>=1&&
+      s.verifiedSlots+s.unresolvedSlots===s.sourceSlots&&
       s.verifiedSlots<=s.candidateVerifiedSlots,
       'PUBLIC_PILOT_COMPLETION_PROOF_MISSING');
   }
