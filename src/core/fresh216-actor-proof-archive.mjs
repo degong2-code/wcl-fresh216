@@ -434,10 +434,11 @@ export function buildActorProofWaveManifest({
     'ACTOR_WAVE_MANIFEST_PROVENANCE_DRIFT');
   const sorted=archives.slice().sort((a,b)=>
     a.archiveId.localeCompare(b.archiveId));
-  const seen=new Set();
+  const seen=new Set(),seenFights=new Set();
   for(const a of sorted){
-    need(!seen.has(a.archiveId),'ACTOR_WAVE_MANIFEST_DUPLICATE_ARCHIVE');
-    seen.add(a.archiveId);
+    need(!seen.has(a.archiveId)&&!seenFights.has(a.fightToken),
+      'ACTOR_WAVE_MANIFEST_DUPLICATE_ARCHIVE_OR_FIGHT');
+    seen.add(a.archiveId);seenFights.add(a.fightToken);
   }
   const entries=sorted.map(a=>{
     const v=verified.find(x=>x.archiveId===a.archiveId);
@@ -485,7 +486,7 @@ export function verifyActorProofWaveManifest(manifest,{
     Number.isSafeInteger(manifest.unresolvedSlots)&&manifest.unresolvedSlots>=0&&
     validSha(manifest.manifestSha256)&&validSha(manifest.manifestMac),
     'ACTOR_WAVE_MANIFEST_SHAPE_INVALID');
-  const seen=new Set();
+  const seen=new Set(),seenFights=new Set();
   for(const e of manifest.archives){
     need(exactKeys(e,manifestEntryKeys)&&
       validSha(e.archiveId)&&validSha(e.archiveSha256)&&
@@ -496,8 +497,9 @@ export function verifyActorProofWaveManifest(manifest,{
       Number.isSafeInteger(e.difficulty)&&e.difficulty>0&&
       Number.isSafeInteger(e.verifiedSlots)&&e.verifiedSlots>=0&&
       Number.isSafeInteger(e.unresolvedSlots)&&e.unresolvedSlots>=0&&
-      !seen.has(e.archiveId),'ACTOR_WAVE_MANIFEST_ENTRY_INVALID');
-    seen.add(e.archiveId);
+      !seen.has(e.archiveId)&&!seenFights.has(e.fightToken),
+      'ACTOR_WAVE_MANIFEST_ENTRY_INVALID');
+    seen.add(e.archiveId);seenFights.add(e.fightToken);
   }
   const payload={};
   for(const k of manifestPayloadKeys)payload[k]=manifest[k];
