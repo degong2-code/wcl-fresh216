@@ -55,8 +55,7 @@ jobs:
     if: >-
       github.event_name == 'push' &&
       github.repository == 'degong2-code/wcl-fresh216' &&
-      (github.ref == 'refs/heads/work/fresh216-autonomous-host-20261031' ||
-       github.ref == 'refs/heads/work/fresh216-public-actor-proof-livewire-20261031')
+      github.ref == 'refs/heads/work/fresh216-autonomous-host-20261031'
     environment: fresh216-private-read
     runs-on: ubuntu-latest
     timeout-minutes: 12
