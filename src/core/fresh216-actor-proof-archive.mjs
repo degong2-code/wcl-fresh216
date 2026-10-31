@@ -176,14 +176,20 @@ function replayRows(payload){
       actorToken:null,identityKind:null,totalDps:s.totalDps,
       bossDps:null,proofType:null
     });
+    // Preserve the canonical resolver's order: establish a unique
+    // TotalDPS candidate across the full roster BEFORE class/spec/name checks.
+    // Filtering first could turn a genuinely ambiguous DPS match into a false
+    // actor attribution when another specialization has the same amount.
     const candidates=payload.overallRoster.filter(a=>
-      a.amount!==null&&Math.abs(a.amount-s.totalDps)<=0.005&&
-      norm(a.className)===norm(s.className)&&
-      norm(a.specName)===norm(s.specName)&&
-      (s.nameToken===null||a.nameToken===s.nameToken));
+      a.amount!==null&&Math.abs(a.amount-s.totalDps)<=0.005);
     if(candidates.length===0)return unresolved('NO_TOTAL_DPS_MATCH');
     if(candidates.length!==1)return unresolved('AMBIGUOUS_TOTAL_DPS_MATCH');
     const candidate=candidates[0];
+    if(norm(candidate.className)!==norm(s.className)||
+      norm(candidate.specName)!==norm(s.specName))
+      return unresolved('CLASS_SPEC_MISMATCH');
+    if(s.nameToken!==null&&candidate.nameToken!==s.nameToken)
+      return unresolved('NAME_TOKEN_MISMATCH');
     if(!validToken(candidate.actorToken))
       return unresolved('ACTOR_IDENTITY_UNAVAILABLE');
     if(s.nameKind!=='NAMED'&&
