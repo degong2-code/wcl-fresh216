@@ -90,7 +90,7 @@ if(process.argv[1]?.endsWith('/run-fresh216-public-pilot-once.mjs')){
   const file=e.FRESH216_PRIVATE_PILOT_WAVE_FILE;
   need(typeof file==='string'&&path.isAbsolute(file)&&
    file.startsWith(path.resolve(e.RUNNER_TEMP??'/tmp')+path.sep)&&
-   fs.statSync(file).mode&0o077===0,
+   (fs.statSync(file).mode&0o077)===0,
    'PILOT_PRIVATE_WAVE_NOT_PROTECTED');
   const wave=JSON.parse(fs.readFileSync(file,'utf8'));
   const request=JSON.parse(fs.readFileSync(REQUEST,'utf8'));
