@@ -8,10 +8,11 @@ import {buildActorProofWaveManifest,verifyActorProofArchive,
   from '../src/core/fresh216-actor-proof-archive.mjs';
 import {createFresh216EvidencePublisher}
   from '../src/adapters/fresh216-evidence-publisher.mjs';
+import {SOURCE_SHA256} from '../tools/lib/fresh216-c-delta.mjs';
 
 const sha=v=>createHash('sha256').update(v).digest('hex');
 const KEY='SYNTHETIC_EVIDENCE_PUBLISHER_HMAC_KEY_NEVER_USE_IN_PRODUCTION_20261031';
-const SOURCE='a'.repeat(64),SCOPE='heroic:2026-10-22_27:latest:source';
+const SOURCE=SOURCE_SHA256,SCOPE='heroic:2026-10-22_27:latest:source';
 const REPORT='SYNTHETIC-REPORT',REVISION=5,FIGHT=3,
   ENCOUNTER=3470,DIFFICULTY=4,START=1792594801000;
 function fixture(){

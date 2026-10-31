@@ -11,6 +11,8 @@ import {createHash} from 'node:crypto';
 import {JsonCheckpointStore} from './json-checkpoint-store.mjs';
 import {createPrivateWaveWitnessStore} from './private-wave-witness-store.mjs';
 import {createFresh216EvidencePublisher} from './fresh216-evidence-publisher.mjs';
+import {SOURCE_SHA256 as C_SOURCE_SHA256}
+  from '../../tools/lib/fresh216-c-delta.mjs';
 import {newCheckpoint,checkpointStats,recoverCheckpoint} from '../core/checkpoint.mjs';
 import {runOneAdaptiveStep} from '../core/adaptive-collector-runner.mjs';
 import {makeFreshDatedHeroicManifest,runOneFreshCohortBatch,
@@ -26,18 +28,44 @@ const fileName='fresh216-checkpoint.json';
 /** Wire the existing adaptive host to its private witness and evidence adapters.
  * This factory performs no WCL/OAuth or public/private Git writes.
  */
-export function createPrivateFresh216EvidenceHooks({
-  privateDir,repoRoot,sourceSlots,expectedSourceSha256,expectedScopeKey,
-  hmacKey,archiveStore,cDeltaAppender
+export function derivePinnedFresh216SourceSlots({
+  sourceState,expectedSourceSha256,expectedScopeKey,
+  sourceExporter=exportVerifiedFreshCohort
 }={}){
+  need(sourceState?.version===0&&
+    sourceState.sourceRequests&&typeof sourceState.sourceRequests==='object'&&
+    shaObject(sourceState.sourceRequests)===expectedSourceSha256&&
+    typeof sourceExporter==='function',
+    'PRIVATE_FRESH216_A_SOURCE_ATTESTATION_INVALID');
+  const exported=sourceExporter(sourceState,
+    makeFreshDatedHeroicManifest(expectedScopeKey));
+  need(Array.isArray(exported?.slots)&&exported.slots.length===21600,
+    'PRIVATE_FRESH216_A_SOURCE_EXPORT_INVALID');
+  return exported.slots;
+}
+export function createPrivateFresh216EvidenceHooks({
+  privateDir,repoRoot,sourceState,sourceSlots=null,
+  sourceExporter=exportVerifiedFreshCohort,
+  expectedSourceSha256,expectedScopeKey,hmacKey,archiveStore,cDeltaAppender
+}={}){
+  need(expectedSourceSha256===C_SOURCE_SHA256,
+    'PRIVATE_FRESH216_C_SOURCE_SHA_DRIFT');
+  const pinnedSourceSlots=derivePinnedFresh216SourceSlots({
+    sourceState,expectedSourceSha256,expectedScopeKey,sourceExporter
+  });
+  if(sourceSlots!==null)
+    need(shaObject(sourceSlots)===shaObject(pinnedSourceSlots),
+      'PRIVATE_FRESH216_A_SOURCE_SLOT_DRIFT');
   const witnessStore=createPrivateWaveWitnessStore({
     privateDir,repoRoot,sourceSha256:expectedSourceSha256
   });
   const evidencePublisher=createFresh216EvidencePublisher({
-    sourceSlots,expectedSourceSha256,expectedScopeKey,hmacKey,
+    sourceSlots:pinnedSourceSlots,expectedSourceSha256,expectedScopeKey,hmacKey,
     archiveStore,cDeltaAppender
   });
   return {
+    sourceSlots:pinnedSourceSlots,
+    sourceSlotsSha256:shaObject(pinnedSourceSlots),
     witnessStore,
     onVerifiedWave:input=>witnessStore.persist(input),
     witnessReader:ref=>witnessStore.read(ref),

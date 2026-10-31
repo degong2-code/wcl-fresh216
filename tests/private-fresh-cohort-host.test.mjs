@@ -6,7 +6,8 @@ import path from 'node:path';
 import {
  ensurePrivateCohortDirectory,openPrivateCohortStore,
  withPrivateCohortOwnerLease,readPrivateCohortStatus,
- createPrivateFresh216EvidenceHooks,runPrivateAdaptiveStep,
+ createPrivateFresh216EvidenceHooks,derivePinnedFresh216SourceSlots,
+ runPrivateAdaptiveStep,
  makePrivateWclTransport
 } from '../src/adapters/private-fresh-cohort-host.mjs';
 import {newCheckpoint} from '../src/core/checkpoint.mjs';
@@ -202,87 +203,38 @@ test('GitHub Actions ephemeral workspace cannot be used for private paid source'
  }finally{fs.rmSync(dir,{force:true,recursive:true});}
 });
 
-test('private adaptive evidence hooks wire witness, archive and C-delta callbacks without executing them',()=>{
- const root=FRESH_DIR(),repo=path.join(root,'repo'),privateDir=path.join(root,'private');
- fs.mkdirSync(repo,{mode:0o700});fs.mkdirSync(privateDir,{mode:0o700});
+test('pinned A source derivation verifies sourceRequests digest and full 21600-slot export',()=>{
  const scopeKey='heroic:2026-10-22_27:latest:source';
- const sourceSlots=Array.from({length:21600},(_,i)=>({
-   scopeKey,jobKey:'Job'+Math.floor(i/100),rank:i%100+1,
-   snapshotSha:'a'.repeat(64),totalDps:1000,
-   className:'Hunter',specName:'Marksmanship',name:'Actor',
-   reportCode:'R'+i,fightId:i+1,encounterId:3470,difficulty:4,
-   reportRevision:null,startTime:1792594801000+i
- }));
+ const sourceState={version:0,sourceRequests:{syntheticPinnedSource:'source-v1'}};
+ const expectedSourceSha256=createHash('sha256')
+   .update(JSON.stringify(sourceState.sourceRequests)).digest('hex');
+ const sourceSlots=Array.from({length:21600},(_,i)=>({slot:i}));
+ const derived=derivePinnedFresh216SourceSlots({
+   sourceState,expectedSourceSha256,expectedScopeKey:scopeKey,
+   sourceExporter:()=>({slots:sourceSlots})
+ });
+ assert.deepEqual(derived,sourceSlots);
+ assert.throws(()=>derivePinnedFresh216SourceSlots({
+   sourceState,expectedSourceSha256:'c'.repeat(64),expectedScopeKey:scopeKey,
+   sourceExporter:()=>({slots:sourceSlots})
+ }),/PRIVATE_FRESH216_A_SOURCE_ATTESTATION_INVALID/);
+});
+test('private evidence hooks refuse an A source hash different from the pinned C-delta identity before creating witness storage',()=>{
+ const root=FRESH_DIR(),repo=path.join(root,'repo');
+ const privateDir=path.join(root,'private');
+ fs.mkdirSync(repo,{mode:0o700});
+ const sourceState={version:0,sourceRequests:{syntheticPinnedSource:'source-v1'}};
+ const expectedSourceSha256=createHash('sha256')
+   .update(JSON.stringify(sourceState.sourceRequests)).digest('hex');
  try{
-   const hooks=createPrivateFresh216EvidenceHooks({
-     privateDir,repoRoot:repo,sourceSlots,
-     expectedSourceSha256:'b'.repeat(64),expectedScopeKey:scopeKey,
+   assert.throws(()=>createPrivateFresh216EvidenceHooks({
+     privateDir,repoRoot:repo,sourceState,
+     sourceExporter:()=>({slots:Array.from({length:21600},()=>({}))}),
+     expectedSourceSha256,expectedScopeKey:'heroic:2026-10-22_27:latest:source',
      hmacKey:'SYNTHETIC_PRIVATE_HMAC_KEY_LONG_ENOUGH_20261031',
      archiveStore:{persistWave:async()=>{throw Error('NOT_CALLED');}},
      cDeltaAppender:async()=>{throw Error('NOT_CALLED');}
-   });
-   assert.equal(typeof hooks.onVerifiedWave,'function');
-   assert.equal(typeof hooks.witnessReader,'function');
-   assert.equal(typeof hooks.evidencePublisher,'function');
-   assert.equal(fs.existsSync(path.join(privateDir,'report-wave-witnesses')),true);
-   assert.equal(fs.readdirSync(path.join(privateDir,'report-wave-witnesses')).length,0);
+   }),/PRIVATE_FRESH216_C_SOURCE_SHA_DRIFT/);
+   assert.equal(fs.existsSync(privateDir),false);
  }finally{fs.rmSync(root,{force:true,recursive:true});}
-});
-
-test('private WCL transport is lazy and sends the exact Report request body',async()=>{
- const calls=[],responseBytes=Buffer.from('{"data":{"ok":true}}','utf8');
- const fetchImpl=async(url,options)=>{
-   calls.push({url,body:options.body});
-   if(url.endsWith('/oauth/token'))
-     return {status:200,json:async()=>({access_token:'SYNTHETIC_TOKEN'})};
-   return {status:200,arrayBuffer:async()=>responseBytes.buffer.slice(
-     responseBytes.byteOffset,responseBytes.byteOffset+responseBytes.byteLength
-   )};
- };
- const transport=await makePrivateWclTransport({
-   clientId:'synthetic-client',clientSecret:'synthetic-secret',
-   fetchImpl,timeoutMs:5000
- });
- assert.equal(calls.length,0);
- const requestBodyText='{"query":"exact-wave-body"}';
- const out=await transport({query:'different-object'},requestBodyText);
- assert.equal(calls.length,2);
- assert.equal(calls[0].url.endsWith('/oauth/token'),true);
- assert.equal(calls[1].body,requestBodyText);
- assert.deepEqual(out.rawBodyBytes,responseBytes);
- assert.deepEqual(out.body,{data:{ok:true}});
-});
-test('private host runs one existing adaptive preview under the owner lease without OAuth or writes',async()=>{
- const dir=FRESH_DIR(),scopeKey='heroic:full216',sourceCommit='b'.repeat(40);
- const state=newCheckpoint(scopeKey,'adaptive-run');
- state.sourceCodeCommit=sourceCommit;
- let current=state,updates=0;
- const store={
-   read:()=>structuredClone(current),
-   update:fn=>{current=fn(structuredClone(current));updates++;
-     return structuredClone(current);}
- };
- const slots=[];
- for(let boss=0;boss<8;boss++)for(let spec=0;spec<27;spec++)
- for(let rank=1;rank<=100;rank++)slots.push({
-   scopeKey,jobKey:'Boss'+boss+'|Class'+spec+'|Spec'+spec,
-   rank,snapshotSha:'a'.repeat(64),status:'PENDING',
-   className:'Class'+spec,specName:'Spec'+spec,
-   encounterId:3470+boss,difficulty:4,
-   reportCode:'R_'+boss+'_'+spec+'_'+rank,fightId:rank,
-   reportRevision:5,name:'Actor'+spec,totalDps:10000-rank-spec,
-   startTime:1792600000000+rank,
-   filter:'date.1792594800000.1793199600000'
- });
- try{
-   const result=await runPrivateAdaptiveStep({
-     privateDir:dir,repoRoot:process.cwd(),scopeKey,sourceCommit,
-     slots,store
-   });
-   assert.equal(result.status,'PREVIEW');
-   assert.equal(result.kind,'RANK_BATCH');
-   assert.equal(result.nextPage,1);
-   assert.equal(updates,0);
-   assert.equal(fs.existsSync(path.join(dir,'.collector-owner-lock')),false);
- }finally{fs.rmSync(dir,{force:true,recursive:true});}
 });

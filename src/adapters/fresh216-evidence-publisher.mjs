@@ -17,6 +17,8 @@ import {
 } from '../core/fresh216-actor-proof-archive.mjs';
 import {buildFresh216CProofRowsFromActorArchives}
   from '../core/fresh216-archive-to-c.mjs';
+import {SOURCE_SHA256 as C_SOURCE_SHA256}
+  from '../../tools/lib/fresh216-c-delta.mjs';
 
 const need=(v,c)=>{if(!v)throw Error(c);};
 const shaBytes=v=>createHash('sha256').update(v).digest('hex');
@@ -78,6 +80,7 @@ export function createFresh216EvidencePublisher({
   archiveStore,cDeltaAppender
 }={}){
   need(validSha(expectedSourceSha256)&&
+    expectedSourceSha256===C_SOURCE_SHA256&&
     typeof expectedScopeKey==='string'&&expectedScopeKey&&
     typeof hmacKey==='string'&&Buffer.byteLength(hmacKey,'utf8')>=32&&
     archiveStore&&typeof archiveStore.persistWave==='function'&&
