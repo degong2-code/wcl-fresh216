@@ -4,8 +4,8 @@
  *
  * The public archive alone is intentionally insufficient for C: raw
  * reportCode/actorRef remain private. This bridge joins the two evidence
- * planes by recomputing the archive's scoped HMAC tokens and requiring exact
- * source-slot and BossDPS parity before emitting any C proof.
+ * planes by recomputing scoped HMAC tokens and requiring exact A-slot and
+ * BossDPS parity before emitting any C proof.
  */
 import {createHash} from 'node:crypto';
 import {
@@ -19,19 +19,33 @@ const keyOf=s=>JSON.stringify([s.jobKey,s.rank,s.snapshotSha]);
 const slotHash=s=>createHash('sha256').update(JSON.stringify([
   s.jobKey,s.rank,s.snapshotSha
 ])).digest('hex');
+const norm=v=>String(v??'').trim().toLowerCase();
 const masked=v=>{
-  const n=String(v??'').trim().toLowerCase();
+  const n=norm(v);
   return !n||n==='anonymous'||/^player[ ]*[(][0-9]+[)]$/i.test(n);
 };
-const groupId=g=>JSON.stringify([
-  g.scopeKey,g.reportCode,g.reportRevision??null,g.fightId,
-  g.encounterId,g.difficulty
-]);
 const sameIdentity=(a,b)=>a.scopeKey===b.scopeKey&&
   a.reportCode===b.reportCode&&a.fightId===b.fightId&&
   a.encounterId===b.encounterId&&a.difficulty===b.difficulty&&
   (a.reportRevision==null||a.reportRevision===b.reportRevision);
 
+function validateSourceSlot(s){
+  need(s&&typeof s.scopeKey==='string'&&s.scopeKey&&
+    typeof s.jobKey==='string'&&s.jobKey&&
+    Number.isSafeInteger(s.rank)&&s.rank>=1&&s.rank<=100&&
+    sha(s.snapshotSha)&&typeof s.className==='string'&&s.className&&
+    typeof s.specName==='string'&&s.specName&&
+    typeof s.totalDps==='number'&&Number.isFinite(s.totalDps)&&
+    s.totalDps>0&&typeof s.reportCode==='string'&&s.reportCode&&
+    Number.isSafeInteger(s.fightId)&&s.fightId>0&&
+    Number.isSafeInteger(s.encounterId)&&s.encounterId>0&&
+    Number.isSafeInteger(s.difficulty)&&s.difficulty>0&&
+    Number.isFinite(s.startTime)&&s.startTime>0&&
+    typeof s.name==='string'&&
+    (s.reportRevision==null||
+      Number.isSafeInteger(s.reportRevision)&&s.reportRevision>=0),
+    'ARCHIVE_TO_C_SOURCE_SLOT_INVALID');
+}
 function validateGroup(g){
   need(g&&typeof g.scopeKey==='string'&&g.scopeKey&&
     typeof g.reportCode==='string'&&g.reportCode&&
@@ -44,65 +58,78 @@ function validateGroup(g){
     'ARCHIVE_TO_C_GROUP_INVALID');
   const seen=new Set();
   for(const s of g.slots){
-    need(s&&typeof s.jobKey==='string'&&s.jobKey&&
-      Number.isSafeInteger(s.rank)&&s.rank>=1&&s.rank<=100&&
-      sha(s.snapshotSha)&&typeof s.className==='string'&&s.className&&
-      typeof s.specName==='string'&&s.specName&&
-      typeof s.totalDps==='number'&&Number.isFinite(s.totalDps)&&
-      s.totalDps>0&&Number.isFinite(s.startTime)&&s.startTime>0&&
-      typeof s.name==='string',
-      'ARCHIVE_TO_C_SOURCE_SLOT_INVALID');
     const k=keyOf(s);
-    need(!seen.has(k),'ARCHIVE_TO_C_DUPLICATE_SOURCE_SLOT');
+    need(!seen.has(k),'ARCHIVE_TO_C_DUPLICATE_GROUP_SLOT');
     seen.add(k);
   }
 }
-
-function sameArchiveSlot(a,s,hmacKey,archive){
-  const refs=deriveActorProofArchiveTokens({
-    hmacKey,scopeKey:archive.scopeKey,sourceSha256:archive.sourceSha256,
-    reportCode:archive._reportCode,reportRevision:archive.reportRevision,
-    fightId:archive.fightId,encounterId:archive.encounterId,
-    difficulty:archive.difficulty,actorName:s.name
-  });
-  need(a.slotKey===keyOf(s)&&a.jobKey===s.jobKey&&
-    a.rank===s.rank&&a.snapshotSha===s.snapshotSha&&
-    Object.is(a.totalDps,s.totalDps)&&
-    a.className===s.className&&a.specName===s.specName&&
-    Object.is(a.startTime,s.startTime)&&
-    a.nameKind===refs.nameKind&&a.nameToken===refs.nameToken,
-    'ARCHIVE_TO_C_SOURCE_SLOT_DRIFT');
+function exactSourceMatch(groupSlot,sourceSlot,group){
+  return keyOf(groupSlot)===keyOf(sourceSlot)&&
+    groupSlot.scopeKey===sourceSlot.scopeKey&&
+    groupSlot.reportCode===sourceSlot.reportCode&&
+    groupSlot.fightId===sourceSlot.fightId&&
+    groupSlot.encounterId===sourceSlot.encounterId&&
+    groupSlot.difficulty===sourceSlot.difficulty&&
+    groupSlot.reportCode===group.reportCode&&
+    groupSlot.fightId===group.fightId&&
+    groupSlot.encounterId===group.encounterId&&
+    groupSlot.difficulty===group.difficulty&&
+    (group.reportRevision==null||
+      sourceSlot.reportRevision===group.reportRevision)&&
+    Object.is(groupSlot.totalDps,sourceSlot.totalDps)&&
+    groupSlot.className===sourceSlot.className&&
+    groupSlot.specName===sourceSlot.specName&&
+    Object.is(groupSlot.startTime,sourceSlot.startTime)&&
+    groupSlot.name===sourceSlot.name;
 }
 
 export function buildFresh216CProofRowsFromActorArchives({
-  groups,archives,manifest,privateProofRows,hmacKey,
+  groups,archives,manifest,sourceSlots,privateProofRows,hmacKey,
   expectedSourceSha256,expectedScopeKey
 }={}){
   need(Array.isArray(groups)&&groups.length>=1&&groups.length<=8&&
     Array.isArray(archives)&&archives.length===groups.length&&
+    Array.isArray(sourceSlots)&&sourceSlots.length===21600&&
     Array.isArray(privateProofRows)&&sha(expectedSourceSha256)&&
     typeof expectedScopeKey==='string'&&expectedScopeKey&&
     typeof hmacKey==='string'&&Buffer.byteLength(hmacKey,'utf8')>=32,
     'ARCHIVE_TO_C_INPUT_INVALID');
-  const groupById=new Map();
-  const sourceByKey=new Map();
-  for(const g of groups){
-    validateGroup(g);
-    need(g.scopeKey===expectedScopeKey&&!groupById.has(groupId(g)),
-      'ARCHIVE_TO_C_GROUP_SCOPE_OR_DUPLICATE');
-    groupById.set(groupId(g),g);
-    for(const s of g.slots){
-      const k=keyOf(s);
-      need(!sourceByKey.has(k),'ARCHIVE_TO_C_SOURCE_SLOT_COLLISION');
-      sourceByKey.set(k,{group:g,slot:s});
+
+  const allSourceByKey=new Map(),namedCounts=new Map();
+  for(const slot of sourceSlots){
+    validateSourceSlot(slot);
+    const k=keyOf(slot);
+    need(!allSourceByKey.has(k),'ARCHIVE_TO_C_A_SOURCE_DUPLICATE');
+    allSourceByKey.set(k,slot);
+    if(!masked(slot.name)){
+      const nameKey=JSON.stringify([
+        slot.jobKey,slot.reportCode,slot.fightId,norm(slot.name)
+      ]);
+      namedCounts.set(nameKey,(namedCounts.get(nameKey)??0)+1);
     }
   }
+
+  const groupSlotByKey=new Map();
+  for(const group of groups){
+    validateGroup(group);
+    need(group.scopeKey===expectedScopeKey,
+      'ARCHIVE_TO_C_GROUP_SCOPE_DRIFT');
+    for(const slot of group.slots){
+      const k=keyOf(slot),source=allSourceByKey.get(k);
+      need(source&&exactSourceMatch(slot,source,group)&&
+        !groupSlotByKey.has(k),
+        'ARCHIVE_TO_C_GROUP_NOT_IN_IMMUTABLE_A');
+      groupSlotByKey.set(k,{group,slot:source});
+    }
+  }
+
   const manifestCheck=verifyActorProofWaveManifest(manifest,{
     hmacKey,archives
   });
   need(manifest.sourceSha256===expectedSourceSha256&&
     manifest.archives.length===groups.length,
     'ARCHIVE_TO_C_MANIFEST_SOURCE_OR_COUNT');
+
   const archiveByFight=new Map();
   for(const archive of archives){
     const verified=verifyActorProofArchive(archive,{
@@ -115,44 +142,45 @@ export function buildFresh216CProofRowsFromActorArchives({
       archive.httpStatus===200&&
       !archiveByFight.has(archive.fightToken),
       'ARCHIVE_TO_C_ARCHIVE_PROVENANCE_OR_DUPLICATE');
-    const matches=groups.filter(g=>{
-      if(g.fightId!==archive.fightId||
-         g.encounterId!==archive.encounterId||
-         g.difficulty!==archive.difficulty||
-         (g.reportRevision!=null&&g.reportRevision!==archive.reportRevision))
-        return false;
+    const matches=groups.filter(group=>{
+      if(group.fightId!==archive.fightId||
+         group.encounterId!==archive.encounterId||
+         group.difficulty!==archive.difficulty||
+         (group.reportRevision!=null&&
+          group.reportRevision!==archive.reportRevision))return false;
       const refs=deriveActorProofArchiveTokens({
-        hmacKey,scopeKey:g.scopeKey,sourceSha256:expectedSourceSha256,
-        reportCode:g.reportCode,reportRevision:archive.reportRevision,
-        fightId:g.fightId,encounterId:g.encounterId,
-        difficulty:g.difficulty
+        hmacKey,scopeKey:group.scopeKey,
+        sourceSha256:expectedSourceSha256,reportCode:group.reportCode,
+        reportRevision:archive.reportRevision,fightId:group.fightId,
+        encounterId:group.encounterId,difficulty:group.difficulty
       });
       return refs.reportToken===archive.reportToken&&
         refs.fightToken===archive.fightToken;
     });
     need(matches.length===1,'ARCHIVE_TO_C_REPORT_FIGHT_SCOPE_MISMATCH');
     const group=matches[0];
-    need(!archiveByFight.has(archive.fightToken),
-      'ARCHIVE_TO_C_DUPLICATE_FIGHT');
     const groupSlots=new Map(group.slots.map(s=>[keyOf(s),s]));
     need(archive.slots.length===groupSlots.size,
       'ARCHIVE_TO_C_ARCHIVE_SLOT_COUNT');
-    for(const a of archive.slots){
-      const s=groupSlots.get(JSON.stringify([
-        a.jobKey,a.rank,a.snapshotSha
+    for(const archivedSlot of archive.slots){
+      const slot=groupSlots.get(JSON.stringify([
+        archivedSlot.jobKey,archivedSlot.rank,archivedSlot.snapshotSha
       ]));
-      need(s,'ARCHIVE_TO_C_ARCHIVE_SLOT_NOT_IN_SOURCE');
-      // Bind each archived slot to the exact immutable A values and HMAC name.
+      need(slot,'ARCHIVE_TO_C_ARCHIVE_SLOT_NOT_IN_SOURCE');
       const refs=deriveActorProofArchiveTokens({
-        hmacKey,scopeKey:group.scopeKey,sourceSha256:expectedSourceSha256,
-        reportCode:group.reportCode,reportRevision:archive.reportRevision,
-        fightId:group.fightId,encounterId:group.encounterId,
-        difficulty:group.difficulty,actorName:s.name
+        hmacKey,scopeKey:group.scopeKey,
+        sourceSha256:expectedSourceSha256,reportCode:group.reportCode,
+        reportRevision:archive.reportRevision,fightId:group.fightId,
+        encounterId:group.encounterId,difficulty:group.difficulty,
+        actorName:slot.name
       });
-      need(a.slotKey===keyOf(s)&&Object.is(a.totalDps,s.totalDps)&&
-        a.className===s.className&&a.specName===s.specName&&
-        Object.is(a.startTime,s.startTime)&&
-        a.nameKind===refs.nameKind&&a.nameToken===refs.nameToken,
+      need(archivedSlot.slotKey===slotHash(slot)&&
+        Object.is(archivedSlot.totalDps,slot.totalDps)&&
+        archivedSlot.className===slot.className&&
+        archivedSlot.specName===slot.specName&&
+        Object.is(archivedSlot.startTime,slot.startTime)&&
+        archivedSlot.nameKind===refs.nameKind&&
+        archivedSlot.nameToken===refs.nameToken,
         'ARCHIVE_TO_C_SOURCE_SLOT_DRIFT');
     }
     need(archive.outcomes.length===group.slots.length&&
@@ -166,10 +194,9 @@ export function buildFresh216CProofRowsFromActorArchives({
     need(row&&typeof row==='object'&&row.identity&&row.proof&&
       typeof row.jobKey==='string'&&Number.isSafeInteger(row.rank)&&
       sha(row.snapshotSha),'ARCHIVE_TO_C_PRIVATE_PROOF_SHAPE');
-    const k=keyOf(row);
-    need(!privateByKey.has(k),'ARCHIVE_TO_C_DUPLICATE_PRIVATE_PROOF');
-    const source=sourceByKey.get(k);
-    need(source&&sameIdentity(row.identity,source.group),
+    const k=keyOf(row),source=groupSlotByKey.get(k);
+    need(!privateByKey.has(k)&&source&&
+      sameIdentity(row.identity,source.group),
       'ARCHIVE_TO_C_PRIVATE_PROOF_IDENTITY');
     privateByKey.set(k,row);
   }
@@ -181,15 +208,17 @@ export function buildFresh216CProofRowsFromActorArchives({
       const k=JSON.stringify([
         outcome.jobKey,outcome.rank,outcome.snapshotSha
       ]);
-      const source=sourceByKey.get(k);
-      need(source&&source.group===group&&!covered.has(k),
+      const source=groupSlotByKey.get(k);
+      need(source&&source.group===group&&
+        outcome.slotKey===slotHash(source.slot)&&!covered.has(k),
         'ARCHIVE_TO_C_OUTCOME_SOURCE_COVERAGE');
       covered.add(k);
       const privateRow=privateByKey.get(k);
       if(outcome.status!=='VERIFIED'){
         if(privateRow)withheld.push(k);
         unresolved.push({jobKey:outcome.jobKey,rank:outcome.rank,
-          snapshotSha:outcome.snapshotSha,reason:outcome.reason});
+          snapshotSha:outcome.snapshotSha,
+          reason:outcome.reason??'ARCHIVE_UNRESOLVED'});
         continue;
       }
       need(privateRow,'ARCHIVE_TO_C_PRIVATE_PROOF_MISSING');
@@ -210,27 +239,40 @@ export function buildFresh216CProofRowsFromActorArchives({
           Object.is(proof.sourceStartTime,slot.startTime)),
         'ARCHIVE_TO_C_CANONICAL_PROOF_DIVERGENCE');
       const refs=deriveActorProofArchiveTokens({
-        hmacKey,scopeKey:group.scopeKey,sourceSha256:expectedSourceSha256,
-        reportCode:group.reportCode,reportRevision:archive.reportRevision,
-        fightId:group.fightId,encounterId:group.encounterId,
-        difficulty:group.difficulty,actorRef:proof.actorRef,
-        actorName:slot.name
+        hmacKey,scopeKey:group.scopeKey,
+        sourceSha256:expectedSourceSha256,reportCode:group.reportCode,
+        reportRevision:archive.reportRevision,fightId:group.fightId,
+        encounterId:group.encounterId,difficulty:group.difficulty,
+        actorRef:proof.actorRef,actorName:slot.name
       });
       need(refs.reportToken===archive.reportToken&&
         refs.fightToken===archive.fightToken&&
         refs.actorToken===outcome.actorToken,
         'ARCHIVE_TO_C_HMAC_ACTOR_BINDING_MISMATCH');
+
       const isMasked=masked(slot.name);
       if(isMasked){
-        need(/^id:[1-9]\\d*$/.test(proof.actorRef)||
+        need(/^id:[1-9][0-9]*$/.test(proof.actorRef)||
           /^name:player[ ]*[(][1-9][0-9]*[)]$/i.test(proof.actorRef),
           'ARCHIVE_TO_C_MASKED_ACTOR_NOT_STABLE');
+      }else{
+        const nameKey=JSON.stringify([
+          slot.jobKey,slot.reportCode,slot.fightId,norm(slot.name)
+        ]);
+        if(namedCounts.get(nameKey)!==1){
+          withheld.push(k);
+          unresolved.push({jobKey:outcome.jobKey,rank:outcome.rank,
+            snapshotSha:outcome.snapshotSha,
+            reason:'NAMED_SOURCE_IDENTITY_NOT_UNIQUE'});
+          continue;
+        }
       }
       const discovery={
         kind:isMasked?'REPORT_DUAL_RANKINGS_MASKED':'REPORT_DUAL_RANKINGS',
         evidenceSha256:archive.responseProjectionSha256
       };
-      need(sha(discovery.evidenceSha256),'ARCHIVE_TO_C_RESPONSE_PROJECTION_SHA');
+      need(sha(discovery.evidenceSha256),
+        'ARCHIVE_TO_C_RESPONSE_PROJECTION_SHA');
       if(proof.discovery!=null)
         need(JSON.stringify(proof.discovery)===JSON.stringify(discovery),
           'ARCHIVE_TO_C_DISCOVERY_DRIFT');
@@ -244,10 +286,8 @@ export function buildFresh216CProofRowsFromActorArchives({
       });
     }
   }
-  need(covered.size===sourceByKey.size,
+  need(covered.size===groupSlotByKey.size,
     'ARCHIVE_TO_C_INCOMPLETE_SOURCE_COVERAGE');
-  need(privateByKey.size===privateProofRows.length,
-    'ARCHIVE_TO_C_PRIVATE_PROOF_DUPLICATE');
   return {
     schema:1,kind:'FRESH216_PRIVATE_ARCHIVE_TO_C_PROOF_ROWS_V1',
     sourceSha256:expectedSourceSha256,
@@ -257,7 +297,8 @@ export function buildFresh216CProofRowsFromActorArchives({
     responseBodySha256:manifest.responseBodySha256,
     observedPoints:manifest.observedPoints,
     archiveCount:manifestCheck.archiveCount,
-    sourceSlots:sourceByKey.size,
+    totalSourceSlots:sourceSlots.length,
+    sourceSlots:groupSlotByKey.size,
     candidateVerifiedSlots:privateByKey.size,
     verifiedSlots:proofRows.length,
     unresolvedSlots:unresolved.length,
