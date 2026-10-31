@@ -17,7 +17,7 @@ const sha=v=>typeof v==='string'&&/^[a-f0-9]{64}$/.test(v);
 const keyOf=s=>JSON.stringify([s.jobKey,s.rank,s.snapshotSha]);
 const masked=v=>{
   const n=String(v??'').trim().toLowerCase();
-  return !n||n==='anonymous'||/^player\\s*\\(\\d+\\)$/i.test(n);
+  return !n||n==='anonymous'||/^player[ ]*[(][0-9]+[)]$/i.test(n);
 };
 const groupId=g=>JSON.stringify([
   g.scopeKey,g.reportCode,g.reportRevision??null,g.fightId,
@@ -219,7 +219,7 @@ export function buildFresh216CProofRowsFromActorArchives({
       const isMasked=masked(slot.name);
       if(isMasked){
         need(/^id:[1-9]\\d*$/.test(proof.actorRef)||
-          /^name:player\\s*\\([1-9]\\d*\\)$/i.test(proof.actorRef),
+          /^name:player[ ]*[(][1-9][0-9]*[)]$/i.test(proof.actorRef),
           'ARCHIVE_TO_C_MASKED_ACTOR_NOT_STABLE');
       }
       const discovery={
