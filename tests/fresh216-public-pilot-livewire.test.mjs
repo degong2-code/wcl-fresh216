@@ -211,13 +211,14 @@ test('runner refuses missing HMAC key before any GitHub or OAuth request',async(
  assert.equal(calls,0);
 });
 function githubFake(){
- let content=null,puts=0,deny=false;
+ let content=null,puts=0,deny=false,corrupt=false;
  const blob=x=>createHash('sha1').update('blob '+Buffer.byteLength(x)+'\0').update(x).digest('hex');
  const fetchImpl=async(_url,init={})=>{
   if((init.method??'GET')==='GET'){
    if(content===null)return {status:404};
    return {status:200,json:async()=>({
-    sha:blob(content),encoding:'base64',content:Buffer.from(content).toString('base64')
+    sha:corrupt?'0'.repeat(40):blob(content),encoding:'base64',
+    content:Buffer.from(content).toString('base64')
    })};
   }
   puts++;
@@ -231,7 +232,8 @@ function githubFake(){
    content:{sha:blob(content)},commit:{sha:String(puts).padStart(40,'a')}
   })};
  };
- return {fetchImpl,raw:()=>content,puts:()=>puts,deny:()=>{deny=true;}};
+ return {fetchImpl,raw:()=>content,puts:()=>puts,deny:()=>{deny=true;},
+  corruptReadback:()=>{corrupt=true;}};
 }
 test('public journal reserves once and only completes with full archive accounting',async()=>{
  const gh=githubFake();
@@ -246,6 +248,43 @@ test('public journal reserves once and only completes with full archive accounti
  assert.equal(sealed.data.status,'COMPLETED');
  assert.equal(sealed.data.result.sourceSlots,1);
  assert.equal(gh.puts(),2);
+});
+
+test('denied reservation write blocks before any WCL transport call',async()=>{
+ const gh=githubFake();gh.deny();
+ const journal=createPublicPilotJournal({token:env.GITHUB_TOKEN,fetchImpl:gh.fetchImpl});
+ let calls=0;
+ await assert.rejects(executeFresh216PublicPilot({
+  env:validEnv(),journal,wave,sourceSha256:SOURCE,
+  clock:()=>1793450000000,actorArchiveStore:fakeArchiveStore(),
+  hmacKey:KEY,transport:async()=>{calls++;throw Error('must not dispatch');}
+ }),/PUBLIC_PILOT_GITHUB_WRITE_UNCONFIRMED_STOP/);
+ assert.equal(calls,0);
+ assert.equal(gh.puts(),1);
+});
+test('post-transport journal write failure leaves durable IN_FLIGHT and never retries',async()=>{
+ const gh=githubFake();
+ const journal=createPublicPilotJournal({token:env.GITHUB_TOKEN,fetchImpl:gh.fetchImpl});
+ const reservation=makePilotReservation({
+  env:validEnv(),waveSha256:'a'.repeat(64),sourceSha256:SOURCE,nowMs:1793450000000
+ });
+ const reserved=await journal.reserve(reservation);
+ gh.deny();
+ await assert.rejects(journal.seal(reserved,goodSummary),
+  /PUBLIC_PILOT_GITHUB_WRITE_UNCONFIRMED_STOP/);
+ assert.equal(JSON.parse(gh.raw()).status,'IN_FLIGHT');
+ assert.equal(gh.puts(),2);
+});
+test('reservation readback mismatch stops before WCL dispatch',async()=>{
+ const gh=githubFake();gh.corruptReadback();
+ const journal=createPublicPilotJournal({token:env.GITHUB_TOKEN,fetchImpl:gh.fetchImpl});
+ const reservation=makePilotReservation({
+  env:validEnv(),waveSha256:'a'.repeat(64),sourceSha256:SOURCE,nowMs:1793450000000
+ });
+ await assert.rejects(journal.reserve(reservation),
+  /PUBLIC_PILOT_READBACK_MISMATCH_STOP/);
+ assert.equal(JSON.parse(gh.raw()).status,'IN_FLIGHT');
+ assert.equal(gh.puts(),1);
 });
 test('journal rejects incomplete or malformed archive receipts',async()=>{
  const gh=githubFake();
