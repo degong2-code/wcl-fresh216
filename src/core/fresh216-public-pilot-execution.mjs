@@ -47,19 +47,25 @@ export async function executeFresh216PublicPilot({
  const reserved=await journal.reserve(reservation);
  let response=null,incident=null,observedPoints=null,
    verifiedSlots=0,unresolvedSlots=0,candidateVerifiedSlots=0,
-   archiveCount=0,archiveManifestSha256=null,transportCalled=false;
+   archiveCount=0,archiveManifestSha256=null,graphqlAttempted=false,
+   stage='TRANSPORT';
  try {
-   transportCalled=true;
-   response=await transport(query,requestBodyText);
+   const markGraphqlAttempt=()=>{
+     fail(!graphqlAttempted,'PUBLIC_PILOT_GRAPHQL_LIMIT_EXCEEDED');
+     graphqlAttempted=true;
+   };
+   response=await transport(query,requestBodyText,{markGraphqlAttempt});
    if(!isSha(response?.responseBodySha256)){
      incident='RAW_RESPONSE_BYTES_UNAVAILABLE';
    }else{
+     stage='DECODE';
      const decoded=decodeRankingsWave(wave,response?.httpStatus,response?.body);
      observedPoints=decoded.observedPoints;
      if(decoded.status!=='OK'){
        incident=ALLOW_INCIDENT.has(decoded.status)?
          decoded.status:'RESPONSE_NOT_PERSISTABLE';
      }else{
+       stage='ARCHIVE';
        const capturedAtMs=clock();
        const archives=[];
        for(const {group,report} of decoded.results){
@@ -93,7 +99,9 @@ export async function executeFresh216PublicPilot({
      }
    }
  }catch{
-   incident=incident??'ACTOR_ARCHIVE_BUILD_OR_STORE_FAILED';
+   incident=incident??(stage==='TRANSPORT'?
+     'WAVE_TRANSPORT_OR_PROCESSING_EXCEPTION':
+     'ACTOR_ARCHIVE_BUILD_OR_STORE_FAILED');
  }
  if(observedPoints===null)incident=incident??'WCL_POINTS_UNOBSERVED';
  const summary={
@@ -107,7 +115,7 @@ export async function executeFresh216PublicPilot({
    archiveCount,archiveManifestSha256,incident
  };
  const sealed=await journal.seal(reserved,summary);
- return {status:sealed.data.status,attemptedGraphql:transportCalled?1:0,
+ return {status:sealed.data.status,attemptedGraphql:graphqlAttempted?1:0,
    observedPoints,candidateVerifiedSlots,verifiedSlots,unresolvedSlots,
    archiveCount,archiveManifestSha256,evidenceCommit:sealed.commitSha};
 }
