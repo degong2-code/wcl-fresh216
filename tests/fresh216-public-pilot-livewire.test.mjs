@@ -147,6 +147,31 @@ test('paired rankings are reserved, fetched once, archived, read back, then seal
  assert.equal(journal.lastSummary().responseBodySha256,sha(raw));
  assert.equal(journal.lastSummary().sourceSlots,1);
 });
+
+test('cross-specialization duplicate TotalDPS remains unresolved through the live archive path',async()=>{
+ const ambiguous=structuredClone(body);
+ const overall=ambiguous.data.reportData.report.o0.data[0].roles.dps.characters;
+ const boss=ambiguous.data.reportData.report.b0.data[0].roles.dps.characters;
+ overall.push({id:8,name:'Player (2)',class:'Mage',spec:'Arcane',amount:1000});
+ boss.push({id:8,name:'Player (2)',class:'Mage',spec:'Arcane',amount:600});
+ const order=[],journal=fakeJournal(order),store=fakeArchiveStore(order);
+ const raw=Buffer.from(JSON.stringify(ambiguous),'utf8');
+ const result=await executeFresh216PublicPilot({
+  env:validEnv(),journal,wave,sourceSha256:SOURCE,
+  clock:()=>1793450000000,actorArchiveStore:store,hmacKey:KEY,
+  transport:async(_q,_b,{markGraphqlAttempt})=>{
+   markGraphqlAttempt();return {
+    httpStatus:200,body:ambiguous,responseBodySha256:sha(raw)
+   };
+  }
+ });
+ assert.equal(result.status,'COMPLETED');
+ assert.equal(result.candidateVerifiedSlots,0);
+ assert.equal(result.verifiedSlots,0);
+ assert.equal(result.unresolvedSlots,1);
+ assert.equal(result.archiveCount,1);
+ assert.equal(order.join(','),'reserve,archive,seal');
+});
 test('OAuth or transport failure before GraphQL dispatch records zero GraphQL calls',async()=>{
  const order=[],journal=fakeJournal(order),store=fakeArchiveStore(order);
  const result=await executeFresh216PublicPilot({
