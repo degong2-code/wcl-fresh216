@@ -167,8 +167,8 @@ export function createPrivateWaveWitnessStore({
         const existing=fs.readFileSync(target);
         need(shaBytes(existing)===witnessSha256,
           'PRIVATE_WAVE_WITNESS_EXISTING_CONFLICT');
-        return {schema:1,sourceSha256,waveSha256:witness.waveSha256,
-          witnessRef:ref,witnessSha256,reused:true};
+        return {schema:1,sourceSha256,waveId:witness.wave.waveId,
+          waveSha256:witness.waveSha256,witnessRef:ref,witnessSha256,reused:true};
       }
       throw error;
     }
