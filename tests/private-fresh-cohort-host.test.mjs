@@ -6,8 +6,10 @@ import path from 'node:path';
 import {
  ensurePrivateCohortDirectory,openPrivateCohortStore,
  withPrivateCohortOwnerLease,readPrivateCohortStatus,
- createPrivateFresh216EvidenceHooks
+ createPrivateFresh216EvidenceHooks,runPrivateAdaptiveStep,
+ makePrivateWclTransport
 } from '../src/adapters/private-fresh-cohort-host.mjs';
+import {newCheckpoint} from '../src/core/checkpoint.mjs';
 import {executePrivateCohortCli,privateSourceIdentity,SCOPE}
   from '../tools/run-private-fresh216.mjs';
 
@@ -225,4 +227,61 @@ test('private adaptive evidence hooks wire witness, archive and C-delta callback
    assert.equal(fs.existsSync(path.join(privateDir,'report-wave-witnesses')),true);
    assert.equal(fs.readdirSync(path.join(privateDir,'report-wave-witnesses')).length,0);
  }finally{fs.rmSync(root,{force:true,recursive:true});}
+});
+
+test('private WCL transport is lazy and sends the exact Report request body',async()=>{
+ const calls=[],responseBytes=Buffer.from('{"data":{"ok":true}}','utf8');
+ const fetchImpl=async(url,options)=>{
+   calls.push({url,body:options.body});
+   if(url.endsWith('/oauth/token'))
+     return {status:200,json:async()=>({access_token:'SYNTHETIC_TOKEN'})};
+   return {status:200,arrayBuffer:async()=>responseBytes.buffer.slice(
+     responseBytes.byteOffset,responseBytes.byteOffset+responseBytes.byteLength
+   )};
+ };
+ const transport=await makePrivateWclTransport({
+   clientId:'synthetic-client',clientSecret:'synthetic-secret',
+   fetchImpl,timeoutMs:5000
+ });
+ assert.equal(calls.length,0);
+ const requestBodyText='{"query":"exact-wave-body"}';
+ const out=await transport({query:'different-object'},requestBodyText);
+ assert.equal(calls.length,2);
+ assert.equal(calls[0].url.endsWith('/oauth/token'),true);
+ assert.equal(calls[1].body,requestBodyText);
+ assert.deepEqual(out.rawBodyBytes,responseBytes);
+ assert.deepEqual(out.body,{data:{ok:true}});
+});
+test('private host runs one existing adaptive preview under the owner lease without OAuth or writes',async()=>{
+ const dir=FRESH_DIR(),scopeKey='heroic:full216',sourceCommit='b'.repeat(40);
+ const state=newCheckpoint(scopeKey,'adaptive-run');
+ state.sourceCodeCommit=sourceCommit;
+ let current=state,updates=0;
+ const store={
+   read:()=>structuredClone(current),
+   update:fn=>{current=fn(structuredClone(current));updates++;
+     return structuredClone(current);}
+ };
+ const slots=[];
+ for(let boss=0;boss<8;boss++)for(let spec=0;spec<27;spec++)
+ for(let rank=1;rank<=100;rank++)slots.push({
+   scopeKey,jobKey:'Boss'+boss+'|Class'+spec+'|Spec'+spec,
+   rank,snapshotSha:'a'.repeat(64),status:'PENDING',
+   className:'Class'+spec,specName:'Spec'+spec,
+   encounterId:3470+boss,difficulty:4,
+   reportCode:'R_'+boss+'_'+spec+'_'+rank,fightId:rank,
+   reportRevision:5,name:'Actor'+spec,totalDps:10000-rank-spec,
+   startTime:1792600000000+rank
+ });
+ try{
+   const result=await runPrivateAdaptiveStep({
+     privateDir:dir,repoRoot:process.cwd(),scopeKey,sourceCommit,
+     slots,store
+   });
+   assert.equal(result.status,'PREVIEW');
+   assert.equal(result.kind,'RANK_BATCH');
+   assert.equal(result.nextPage,1);
+   assert.equal(updates,0);
+   assert.equal(fs.existsSync(path.join(dir,'.collector-owner-lock')),false);
+ }finally{fs.rmSync(dir,{force:true,recursive:true});}
 });

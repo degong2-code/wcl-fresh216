@@ -12,6 +12,7 @@ import {JsonCheckpointStore} from './json-checkpoint-store.mjs';
 import {createPrivateWaveWitnessStore} from './private-wave-witness-store.mjs';
 import {createFresh216EvidencePublisher} from './fresh216-evidence-publisher.mjs';
 import {newCheckpoint,checkpointStats,recoverCheckpoint} from '../core/checkpoint.mjs';
+import {runOneAdaptiveStep} from '../core/adaptive-collector-runner.mjs';
 import {makeFreshDatedHeroicManifest,runOneFreshCohortBatch,
   nextFreshCohortBatch,exportVerifiedFreshCohort
 } from '../core/fresh-cohort-source.mjs';
@@ -125,7 +126,11 @@ export async function withPrivateCohortOwnerLease(privateDir,operation){
   finally{fs.rmdirSync(lease);}
 }
 
-/** Obtain OAuth before starting a charged source-request checkpoint. */
+/**
+ * Lazy OAuth transport: construction is network-free. The first transport
+ * invocation occurs only after the runner has durably marked its operation
+ * IN_FLIGHT, so an OAuth/HTTP ambiguity cannot precede the checkpoint.
+ */
 export async function makePrivateWclTransport({
   clientId,clientSecret,fetchImpl=fetch,timeoutMs=45000
 }={}){
@@ -135,27 +140,35 @@ export async function makePrivateWclTransport({
     timeoutMs>=1000&&timeoutMs<=120000,
     'PRIVATE_WCL_TRANSPORT_CONFIG_INVALID');
   const credentials=Buffer.from(clientId+':'+clientSecret).toString('base64');
-  let auth;
-  try{
-    auth=await fetchImpl('https://www.warcraftlogs.com/oauth/token',{
-      method:'POST',redirect:'error',signal:AbortSignal.timeout(timeoutMs),
-      headers:{Authorization:'Basic '+credentials,
-        'Content-Type':'application/x-www-form-urlencoded'},
-      body:'grant_type=client_credentials'
-    });
-  }catch{fail('PRIVATE_WCL_OAUTH_NETWORK_UNKNOWN');}
-  need(auth?.status===200,'PRIVATE_WCL_OAUTH_REFUSED');
-  const token=await auth.json().catch(()=>null);
-  need(typeof token?.access_token==='string'&&token.access_token.length>0,
-    'PRIVATE_WCL_OAUTH_RESPONSE_INVALID');
-  return async query=>{
+  let tokenPromise=null;
+  const acquireToken=async()=>{
+    let auth;
+    try{
+      auth=await fetchImpl('https://www.warcraftlogs.com/oauth/token',{
+        method:'POST',redirect:'error',signal:AbortSignal.timeout(timeoutMs),
+        headers:{Authorization:'Basic '+credentials,
+          'Content-Type':'application/x-www-form-urlencoded'},
+        body:'grant_type=client_credentials'
+      });
+    }catch{fail('PRIVATE_WCL_OAUTH_NETWORK_UNKNOWN');}
+    need(auth?.status===200,'PRIVATE_WCL_OAUTH_REFUSED');
+    const token=await auth.json().catch(()=>null);
+    need(typeof token?.access_token==='string'&&token.access_token.length>0,
+      'PRIVATE_WCL_OAUTH_RESPONSE_INVALID');
+    return token.access_token;
+  };
+  return async (query,requestBodyText)=>{
+    if(!tokenPromise)tokenPromise=acquireToken();
+    const token=await tokenPromise;
+    const bodyText=typeof requestBodyText==='string'?
+      requestBodyText:JSON.stringify(query);
     let response;
     try{
       response=await fetchImpl('https://www.warcraftlogs.com/api/v2/client',{
         method:'POST',redirect:'error',signal:AbortSignal.timeout(timeoutMs),
-        headers:{Authorization:'Bearer '+token.access_token,
+        headers:{Authorization:'Bearer '+token,
           'Content-Type':'application/json'},
-        body:JSON.stringify(query)
+        body:bodyText
       });
     }catch{fail('PRIVATE_WCL_GRAPHQL_NETWORK_UNKNOWN');}
     let rawBodyBytes=null,body=null;
@@ -168,10 +181,40 @@ export async function makePrivateWclTransport({
       // collection rejects this path because it lacks exact Fetch bytes.
       body=await response.json().catch(()=>null);
     }
-    // Exact Fetch body bytes stay in the private witness path only.
     return {httpStatus:response.status,body,
       ...(rawBodyBytes?{rawBodyBytes}:{})};
   };
+}
+
+/**
+ * One private owner-serialized step through the existing adaptive engine.
+ * The caller supplies the same pinned 21,600 A slots, atomic checkpoint,
+ * lazy transport and evidence hooks; this host adds no scheduler or journal.
+ */
+export async function runPrivateAdaptiveStep({
+  privateDir,repoRoot,scopeKey,sourceCommit,slots,store,
+  mode='preview',approved=false,transport=null,admissionPolicy=null,
+  hooks=null,archivePublishApproved=false,economics=null,
+  batchPages=3,recentPages=3,clock=Date.now
+}={}){
+  const folder=ensurePrivateCohortDirectory(privateDir,repoRoot);
+  need(typeof scopeKey==='string'&&scopeKey&&
+    typeof sourceCommit==='string'&&sourceCommit&&
+    Array.isArray(slots)&&slots.length===21600&&
+    store&&typeof store.read==='function'&&
+    typeof store.update==='function',
+    'PRIVATE_ADAPTIVE_HOST_CONFIG_INVALID');
+  assertState(store.read(),scopeKey,sourceCommit);
+  return withPrivateCohortOwnerLease(folder,()=>runOneAdaptiveStep({
+    slots,store,mode,approved,
+    rankTransport:transport,reportTransport:transport,
+    admissionPolicy,
+    onVerifiedWave:hooks?.onVerifiedWave??null,
+    archivePublishApproved,
+    witnessReader:hooks?.witnessReader??null,
+    evidencePublisher:hooks?.evidencePublisher??null,
+    economics,batchPages,recentPages,clock
+  }));
 }
 /**
  * Exact one-request progress primitive. Full-run modes call repeatedly but
