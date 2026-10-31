@@ -8,7 +8,7 @@ import path from 'node:path';
 import {brotliDecompressSync} from 'node:zlib';
 import {
   SOURCE_SHA256,BASE_UNION_SHA256,shaBytes,shaObject,keyOf,
-  compressCDelta,readCDelta,verifyCProof,applyCDeltas
+  compressCDelta,readCDelta,verifyCProof,applyCDeltas,countExactUy
 } from './fresh216-c-delta.mjs';
 
 const need=(v,c)=>{if(!v)throw Error(c);};
@@ -141,6 +141,11 @@ export function createFresh216ArchiveCDeltaAppender({
     applied:replay.applied,
     lastDeltaSha256:parts.length?shaBytes(parts.at(-1)):null
   });
+  // Aggregate-only diagnostics; never expose the private C union or proof rows.
+  append.countExactUy=jobs=>countExactUy(union,jobs);
+  append.reportStateCommits=()=>[...new Set(
+    parts.map(bytes=>readCDelta(bytes).reportStateCommit)
+  )].sort();
   return append;
 }
 
