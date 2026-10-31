@@ -95,7 +95,7 @@ function fakeArchiveStore(order=[],{fail=false}={}){
 }
 const validEnv=()=>({...env});
 test('exact WCL response bytes are hashed before UTF-8 and JSON parsing',async()=>{
- const raw=Buffer.from('{"data":{"value":7}}','utf8');
+ const raw=Buffer.from('{"data": { "value": 7 }}','utf8');
  const response=new Response(raw,{status:200,headers:{'content-type':'application/json'}});
  const captured=await captureExactWclResponse(response);
  assert.equal(captured.responseBodySha256,sha(raw));
