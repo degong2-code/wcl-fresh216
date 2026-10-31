@@ -15,7 +15,7 @@ Each fight archive binds:
 - the unique amount/class/spec/name match, stable report-local actor identity, collision checks and resulting BossDPS;
 - observed WCL points, HTTP status and capture time.
 
-The replay rules retain the current strict behavior: one TotalDPS candidate within 0.005, matching class/spec, matching name token when the source slot is named or has a `Player(n)` label, stable positive report-local actor ID or stable `Player(n)` for a masked slot, exactly one actor in each roster, and exactly one source-slot claim per actor. Missing or ambiguous identity remains `UNRESOLVED`; it is never converted to zero.
+The replay rules retain the current strict behavior: first require exactly one candidate across the full TotalDPS roster within 0.005, then check class/spec, then the name token when the source slot is named or has a `Player(n)` label; require a stable positive report-local actor ID or stable `Player(n)` for a masked slot, exactly one actor in each roster, and exactly one source-slot claim per actor. Candidate uniqueness is deliberately evaluated before class/spec/name filtering to match `resolveExactBossDps`; otherwise a duplicate amount across specializations could be incorrectly disambiguated. Before any public archive write, the live runner independently replays the archive and requires every archive-VERIFIED `(jobKey, rank, snapshotSha)` to be an exact subset of the canonical join's verified slots with identical BossDPS. The masked crosswalk is also checked as an exact slot subset, not merely by count. Missing or ambiguous identity remains `UNRESOLVED`; it is never converted to zero.
 
 ## Privacy and pseudonymization
 
