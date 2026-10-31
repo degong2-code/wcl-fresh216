@@ -65,6 +65,43 @@ const nameKind=v=>{
   if(/^player\s*\(\d+\)$/i.test(n))return 'MASKED_LABEL';
   return 'NAMED';
 };
+/**
+ * Derive the exact domain-separated HMAC references used by archive v1.
+ * This is intended for a PRIVATE replay adapter that binds raw proof rows
+ * to redacted archive outcomes. Never log or publish actor tokens alongside
+ * raw actor identifiers.
+ */
+export function deriveActorProofArchiveTokens({
+  hmacKey,scopeKey,sourceSha256,reportCode,reportRevision,
+  fightId,encounterId,difficulty,actorRef=null,actorName=null
+}={}){
+  const key=keyBytes(hmacKey);
+  need(typeof scopeKey==='string'&&scopeKey.length>0&&
+    validSha(sourceSha256)&&typeof reportCode==='string'&&reportCode.length>0&&
+    Number.isSafeInteger(reportRevision)&&reportRevision>=0&&
+    Number.isSafeInteger(fightId)&&fightId>0&&
+    Number.isSafeInteger(encounterId)&&encounterId>0&&
+    Number.isSafeInteger(difficulty)&&difficulty>0&&
+    (actorRef===null||typeof actorRef==='string'&&actorRef.length>0)&&
+    (actorName===null||typeof actorName==='string'),
+    'ACTOR_ARCHIVE_TOKEN_SCOPE_INVALID');
+  const scope=[scopeKey,sourceSha256,reportCode,reportRevision,
+    fightId,encounterId,difficulty];
+  const rawName=norm(actorName);
+  return {
+    reportToken:token(key,'fresh216-report-v1',
+      [scopeKey,sourceSha256,reportCode,reportRevision]),
+    fightToken:token(key,'fresh216-fight-v1',[
+      scopeKey,sourceSha256,reportCode,reportRevision,
+      fightId,encounterId,difficulty
+    ]),
+    actorToken:actorRef===null?null:
+      token(key,'fresh216-actor-v1',[...scope,actorRef]),
+    nameToken:rawName&&rawName!=='anonymous'?
+      token(key,'fresh216-actor-name-v1',[...scope,rawName]):null,
+    nameKind:nameKind(actorName)
+  };
+}
 const rawActorRef=a=>{
   const raw=a?.id;
   const id=(typeof raw==='number'||typeof raw==='string')?Number(raw):NaN;
