@@ -33,7 +33,19 @@ function validateSourceSlots(sourceSlots,expectedScopeKey){
     need(slot?.scopeKey===expectedScopeKey&&
       typeof slot.jobKey==='string'&&slot.jobKey&&
       Number.isSafeInteger(slot.rank)&&slot.rank>=1&&slot.rank<=100&&
-      validSha(slot.snapshotSha)&&!seen.has(key),
+      validSha(slot.snapshotSha)&&
+      typeof slot.className==='string'&&slot.className&&
+      typeof slot.specName==='string'&&slot.specName&&
+      typeof slot.totalDps==='number'&&Number.isFinite(slot.totalDps)&&
+      slot.totalDps>0&&typeof slot.reportCode==='string'&&slot.reportCode&&
+      Number.isSafeInteger(slot.fightId)&&slot.fightId>0&&
+      Number.isSafeInteger(slot.encounterId)&&slot.encounterId>0&&
+      Number.isSafeInteger(slot.difficulty)&&slot.difficulty>0&&
+      Number.isFinite(slot.startTime)&&slot.startTime>0&&
+      typeof slot.name==='string'&&
+      (slot.reportRevision==null||
+        Number.isSafeInteger(slot.reportRevision)&&slot.reportRevision>=0)&&
+      !seen.has(key),
       'EVIDENCE_PUBLISHER_A_SOURCE_INVALID');
     seen.add(key);
   }

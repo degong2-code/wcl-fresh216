@@ -208,7 +208,8 @@ test('private adaptive evidence hooks wire witness, archive and C-delta callback
    scopeKey,jobKey:'Job'+Math.floor(i/100),rank:i%100+1,
    snapshotSha:'a'.repeat(64),totalDps:1000,
    className:'Hunter',specName:'Marksmanship',name:'Actor',
-   startTime:1792594801000+i
+   reportCode:'R'+i,fightId:i+1,encounterId:3470,difficulty:4,
+   reportRevision:null,startTime:1792594801000+i
  }));
  try{
    const hooks=createPrivateFresh216EvidenceHooks({
