@@ -48,7 +48,9 @@ Even for future archives, the redacted projection plus HMAC allows independent r
 - `tests/fresh216-actor-proof-archive.test.mjs`: synthetic paired-roster replay, stable masked identity, cross-report/fight domain separation, duplicate/collision rejection, wrong revision/scope, tampering and wave-manifest linkage.
 - `tests/fresh216-public-actor-proof-store.test.mjs`: create-only persistence, readback, no retry, tamper detection, partial wave failure and no premature manifest.
 - All tests use synthetic fixtures. No WCL request, production HMAC secret, raw actor data or Google Sheets access is used by these tests.
-- Latest isolated-branch Actions run: [#41159996942](https://github.com/degong2-code/wcl-fresh216/actions/runs/41159996942) **SUCCESS**; `offline-core=success`, `private-evidence-inventory=skipped`, `public-one-wave-wcl-pilot=skipped`. The WCL job remains constrained to the separately approved protected branch and exact one-time request commit; the livewire feature branch cannot trigger it.
+- Synthetic regression coverage after the canonical-proof parity correction: 15 livewire/execution cases + 20 archive replay/privacy cases + 8 append-only store/manifest cases = **43 cases**. Latest feature-branch code CI [#41162225992](https://github.com/degong2-code/wcl-fresh216/actions/runs/41162225992) **SUCCESS**; a later documentation-only commit was merged with the same tested code.
+- PR #17 was merged into `work/fresh216-autonomous-host-20261031` at `6c961f912af580836a09a79d68672ccf84e43232`.
+- Post-merge base Actions [#41162426241](https://github.com/degong2-code/wcl-fresh216/actions/runs/41162426241) **SUCCESS**: `offline-core=success`, `private-evidence-inventory=success` (read-only), `public-one-wave-wcl-pilot=skipped`. No WCL request or actor archive publication occurred in this run.
 
 ## Promotion boundary
 
