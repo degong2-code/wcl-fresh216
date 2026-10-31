@@ -23,6 +23,7 @@ const fail=x=>{throw Error(x);};
 const need=(x,c)=>{if(!x)fail(c);};
 const under=(p,base)=>p===base||p.startsWith(base+path.sep);
 const sha=x=>typeof x==='string'&&/^[0-9a-f]{40}$/.test(x);
+const shaObject=x=>createHash('sha256').update(JSON.stringify(x)).digest('hex');
 const fileName='fresh216-checkpoint.json';
 
 /** Wire the existing adaptive host to its private witness and evidence adapters.
