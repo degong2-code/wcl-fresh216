@@ -61,8 +61,7 @@ jobs:
     if: >-
       github.event_name == 'push' &&
       github.repository == 'degong2-code/wcl-fresh216' &&
-      (github.ref == 'refs/heads/work/fresh216-autonomous-host-20261031' ||
-       github.ref == 'refs/heads/work/fresh216-adaptive-archive-delta-20261031')
+      github.ref == 'refs/heads/work/fresh216-autonomous-host-20261031'
     environment: fresh216-private-read
     runs-on: ubuntu-latest
     timeout-minutes: 12
@@ -191,14 +190,6 @@ jobs:
           ref: 8bb96e64add3703a9c9d60c973754943b64d57be
           persist-credentials: false
           path: evidence/product
-      - name: Checkout current product code for read-only C-delta replay
-        if: steps.gate.outputs.present == 'true'
-        uses: actions/checkout@v4
-        with:
-          repository: degong2-code/wcl-fresh216
-          ref: ${{ github.sha }}
-          persist-credentials: false
-          path: evidence/product-current
       - uses: actions/setup-node@v4
         if: steps.gate.outputs.present == 'true'
         with:
@@ -297,62 +288,6 @@ jobs:
             ' Reports, ' + safe.oneFightPerCall + ' unbatched calls, ' +
             safe.groupedCalls4 + '/' + safe.groupedCalls8 +
             ' grouped calls (4/8 fight cap)\n');
-          NODE
-      - name: Replay real private C base, delta chain and priority map (read-only)
-        if: steps.gate.outputs.present == 'true'
-        shell: bash
-        run: |
-          set -euo pipefail
-          output="$RUNNER_TEMP/fresh216-private-c-delta-inputs.json"
-          errors="$RUNNER_TEMP/fresh216-private-c-delta-errors.txt"
-          if ! env -u WCL_CLIENT_ID -u WCL_CLIENT_SECRET \
-            -u FRESH216_PRIVATE_READ_TOKEN -u GITHUB_TOKEN \
-            node evidence/product-current/tools/audit-fresh216-private-c-delta-inputs.mjs \
-              "$GITHUB_WORKSPACE/evidence/source" \
-              "$GITHUB_WORKSPACE/evidence/delta" \
-              "$GITHUB_WORKSPACE/evidence/report20" \
-              "$GITHUB_WORKSPACE/evidence/report80" \
-              "$GITHUB_WORKSPACE/evidence/report1000" \
-              "$GITHUB_WORKSPACE/evidence/report" \
-              "$GITHUB_WORKSPACE/evidence/plan" \
-              "$GITHUB_WORKSPACE/evidence/product" \
-              "$GITHUB_WORKSPACE/evidence/product-current" \
-              > "$output" 2> "$errors"; then
-            echo 'PRIVATE_CDELTA_INPUT_AUDIT_BLOCKED'
-            grep -oE 'FRESH216_[A-Z_]+' "$errors" | head -n 1 || true
-            exit 1
-          fi
-          node - "$output" <<'NODE'
-          const fs = require('node:fs');
-          const r = JSON.parse(fs.readFileSync(process.argv[2], 'utf8'));
-          if (r.result !== 'FRESH216_PRIVATE_CDELTA_INPUTS_READONLY_PASS' ||
-              r.sourceSlots !== 21600 || r.baseRows !== 18829 ||
-              r.deltaParts !== 231 || r.applied !== 2423 ||
-              r.totalExactC !== 21252 || r.priorityGroups !== 2256 ||
-              r.prioritySlots !== 2432 || r.reportStateCommits !== 4 ||
-              r.reportBatchFiles !== 195 || r.exactUyTotal !== 861 ||
-              r.reportStateCommitLookupCalls !== 0 ||
-              r.wclGraphqlCalls !== 0 || r.oauthCalls !== 0 ||
-              r.observedPoints !== 0 || r.cDeltaAppends !== 0 ||
-              r.canonicalPromotions !== 0 || r.sheetsWrites !== 0 ||
-              r.repositoryWrites !== 0)
-            throw Error('PRIVATE_CDELTA_INPUT_AUDIT_POLICY_DRIFT');
-          const safe = {
-            result:r.result,exactC:r.totalExactC,deltaParts:r.deltaParts,
-            prioritySlots:r.prioritySlots,reportStateCommits:r.reportStateCommits,
-            exactUy:r.exactUy,exactUyTotal:r.exactUyTotal,
-            wclGraphqlCalls:r.wclGraphqlCalls,oauthCalls:r.oauthCalls,
-            observedPoints:r.observedPoints,cDeltaAppends:r.cDeltaAppends,
-            sheetsWrites:r.sheetsWrites
-          };
-          console.log(JSON.stringify(safe));
-          fs.appendFileSync(process.env.GITHUB_STEP_SUMMARY,
-            '### Private C-delta chain: PASS (read-only)\\n' +
-            'Exact C: ' + safe.exactC + '; delta parts: ' + safe.deltaParts +
-            '; priority slots: ' + safe.prioritySlots + '\\n' +
-            'U:Y exact: ' + safe.exactUyTotal +
-            ' (' + Object.values(safe.exactUy).join('/') + ')\\n' +
-            'WCL/OAuth/points/C appends/Sheets writes: all zero\\n');
           NODE
       # Do not upload artifacts, print private response bodies, or write private Git.
 

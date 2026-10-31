@@ -138,9 +138,13 @@ test('verified local appender rejects an unpinned base before state-commit looku
     assert.equal(commitLookups,0);
   }finally{fs.rmSync(dir,{recursive:true,force:true});}
 });
-test('delta part loader accepts an empty chain and rejects unknown files or gaps',()=>{
+test('delta part loader allows only the four existing private metadata receipts',()=>{
   const dir=fs.mkdtempSync(path.join(os.tmpdir(),'fresh216-c-parts-'));
   try{
+    for(const name of [
+      'delta20-receipt.json','report21to100-delta-receipt.json',
+      'report1000pt-delta-receipt.json','report-remaining-delta-receipt.json'
+    ])fs.writeFileSync(path.join(dir,name),'{}');
     assert.deepEqual(readFresh216CDeltaParts(dir),[]);
     fs.writeFileSync(path.join(dir,'delta-0001.json.br'),Buffer.from('bad'));
     assert.throws(()=>readFresh216CDeltaParts(dir),/ARCHIVE_C_DELTA_CHAIN_GAP/);

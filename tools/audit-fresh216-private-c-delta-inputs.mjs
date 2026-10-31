@@ -44,9 +44,6 @@ const SOURCE_BLOB_SHA='780afe4498adc07c1477021d4d41a5792972a431';
 const BASE_BLOB_SHA='0875784cf74ad1de48165e705be1036b93824e23';
 const PLAN_BLOB_SHA='89d43e811b3125bf13844e8c0760859856916f07';
 const REPORT_BATCHES=195;
-const REPORT_COMMITS=[
-  PIN.report20,PIN.report80,PIN.report1000,PIN.reportRemaining
-].sort();
 
 const [sourceRoot,deltaRoot,report20Root,report80Root,
   report1000Root,reportRemainingRoot,planRoot,
@@ -73,7 +70,8 @@ assertRoot(report1000Root,PIN.report1000,'FRESH216_CDELTA_REPORT1000');
 assertRoot(reportRemainingRoot,PIN.reportRemaining,'FRESH216_CDELTA_REPORT_REMAINING');
 assertRoot(planRoot,PIN.plan,'FRESH216_CDELTA_PLAN');
 assertRoot(productBaselineRoot,PIN.productBaseline,'FRESH216_CDELTA_PRODUCT_BASELINE');
-const currentProductHead=process.env.GITHUB_SHA;
+const currentProductHead=process.env.FRESH216_PRODUCT_CODE_SHA||
+  git(productCurrentRoot,'rev-parse','HEAD');
 need(typeof currentProductHead==='string'&&/^[a-f0-9]{40}$/.test(currentProductHead),
   'FRESH216_CDELTA_CURRENT_PRODUCT_SHA_MISSING');
 assertRoot(productCurrentRoot,currentProductHead,'FRESH216_CDELTA_PRODUCT_CURRENT');

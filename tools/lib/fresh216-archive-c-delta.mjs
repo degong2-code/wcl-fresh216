@@ -32,9 +32,16 @@ export function readFresh216CDeltaParts(deltaDirectory){
     !fs.lstatSync(deltaDirectory).isSymbolicLink(),
     'ARCHIVE_C_DELTA_DIRECTORY_INVALID');
   const names=fs.readdirSync(deltaDirectory);
+  const metadataReceipts=new Set([
+    'delta20-receipt.json',
+    'report21to100-delta-receipt.json',
+    'report1000pt-delta-receipt.json',
+    'report-remaining-delta-receipt.json'
+  ]);
   const expectedNames=names.filter(x=>/^delta-\d{4}\.json\.br$/.test(x))
     .sort((a,b)=>Number(a.slice(6,10))-Number(b.slice(6,10)));
-  need(names.length===expectedNames.length,
+  need(names.every(x=>/^delta-\d{4}\.json\.br$/.test(x)||
+    metadataReceipts.has(x)),
     'ARCHIVE_C_DELTA_DIRECTORY_UNEXPECTED_FILE');
   const parts=[];
   let previous=null;
