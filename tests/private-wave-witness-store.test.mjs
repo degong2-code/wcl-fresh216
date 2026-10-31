@@ -52,7 +52,7 @@ test('private witness persists exact bytes and reopens with immutable identity',
     assert.equal(first.waveId,f.wave.waveId);
     assert.equal(first.reused,false);
     const read=f.store.read(first.witnessRef);
-    assert.equal(read.waveId,f.wave.waveId);
+    assert.equal(read.wave.waveId,f.wave.waveId);
     assert.equal(read.waveSha256,first.waveSha256);
     assert.equal(read.witnessSha256,first.witnessSha256);
     assert.deepEqual(read.responseBodyBytes,f.input.responseBodyBytes);
@@ -75,7 +75,7 @@ test('create-only race receipt retains wave identity required by Report-wave che
     const receipt=f.store.persist(f.input);
     assert.equal(receipt.reused,true);
     assert.equal(receipt.waveId,f.wave.waveId);
-    assert.equal(f.store.read(receipt.witnessRef).waveId,f.wave.waveId);
+    assert.equal(f.store.read(receipt.witnessRef).wave.wave.waveId,f.wave.waveId);
   }finally{
     fs.linkSync=original;
     fs.rmSync(f.root,{recursive:true,force:true});
