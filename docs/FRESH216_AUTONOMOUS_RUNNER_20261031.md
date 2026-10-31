@@ -1,28 +1,28 @@
 # Fresh216 — autonomous GitHub runner (no Work, no user-side terminal)
 
-> **2026-10-31 integration update:** PR [#21](https://github.com/degong2-code/wcl-fresh216/pull/21) remains OPEN/DRAFT on \`work/fresh216-adaptive-archive-delta-20261031\`, current reviewed head \`121a6833a631717b7584b21e8b1c5b70e1c36cce\`. The offline implementation now connects the existing adaptive one-step runner, Report-wave checkpoint, private raw-byte witness, atomic public archive/manifest publisher, PR #19 Archive-to-C bridge, and existing C-delta v1 adapter contract. It does **not** activate collection or promotion.
+> **2026-10-31 integration update:** PR [#21](https://github.com/degong2-code/wcl-fresh216/pull/21) remains OPEN/DRAFT on `work/fresh216-adaptive-archive-delta-20261031`, current code head `5c85eb0e4aef84ba655ea09f0d9c4424698fbe82`. The offline implementation now connects the existing adaptive one-step runner, Report-wave checkpoint, private raw-byte witness, atomic public archive/manifest publisher, PR #19 Archive-to-C bridge, and existing C-delta v1 adapter contract. It does **not** activate collection or promotion.
 
 ## 2026-10-31 current integration status
 
 ### Verified
 - Public Offline Core Actions [#41184977305](https://github.com/degong2-code/wcl-fresh216/actions/runs/41184977305): **SUCCESS**, 56/56 offline test suites, zero failures.
 - Dedicated C-delta adapter Actions [#41183603570](https://github.com/degong2-code/wcl-fresh216/actions/runs/41183603570): **SUCCESS**; existing codec 3/3 and archive adapter 4/4 synthetic tests.
-- \`runPrivateAdaptiveStep\` invokes the existing \`runOneAdaptiveStep\` under the private single-owner lease; it creates no second scheduler or checkpoint.
-- \`makePrivateWclTransport\` is lazy. Constructing it performs no network call; OAuth exchange begins only when the runner invokes the transport after its durable IN_FLIGHT transition. Report-wave request text is sent unchanged, and Fetch response bytes are retained for private witness hashing.
-- \`derivePinnedFresh216SourceSlots\` verifies \`sha256(sourceState.sourceRequests) === SOURCE_SHA256\`, re-exports the immutable A slots with \`exportVerifiedFreshCohort\`, and rejects a caller-supplied slot projection that differs.
-- \`createPrivateFresh216EvidenceHooks\` requires the existing C-delta source identity before constructing the private witness and evidence publisher.
-- The private witness store uses create-only persistence and exact readback; its EEXIST race receipt preserves \`waveId\` so the same Report-wave checkpoint can reconcile idempotently.
+- `runPrivateAdaptiveStep` invokes the existing `runOneAdaptiveStep` under the private single-owner lease; it creates no second scheduler or checkpoint.
+- `makePrivateWclTransport` is lazy. Constructing it performs no network call; OAuth exchange begins only when the runner invokes the transport after its durable IN_FLIGHT transition. Report-wave request text is sent unchanged, and Fetch response bytes are retained for private witness hashing.
+- `derivePinnedFresh216SourceSlots` verifies `sha256(sourceState.sourceRequests) === SOURCE_SHA256`, re-exports the immutable A slots with `exportVerifiedFreshCohort`, and rejects a caller-supplied slot projection that differs.
+- `createPrivateFresh216EvidenceHooks` requires the existing C-delta source identity before constructing the private witness and evidence publisher.
+- The private witness store uses create-only persistence and exact readback; its EEXIST race receipt preserves `waveId` so the same Report-wave checkpoint can reconcile idempotently.
 - The public product branch contains the C-delta v1 codec and adapter source plus synthetic tests solely to use the approved public-repository Actions allowance. No private A/B/C rows, raw WCL responses, credentials, tokens, or real actor evidence were copied.
 
 ### Explicitly not executed
-- \`public-one-wave-wcl-pilot\` and \`private-evidence-inventory\` were skipped on the current PR branch.
+- `public-one-wave-wcl-pilot` and `private-evidence-inventory` were skipped on the current PR branch.
 - New WCL GraphQL requests: **0**; OAuth exchanges: **0**; observed new WCL points: **0**.
 - Public actor archive writes: **0**; C-delta appends: **0**; canonical C promotions: **0**; Sheets/GAS writes: **0**; Secret changes: **0**.
 - The private repository's Actions runner could not be allocated (jobs had no runner and no steps). This was an execution-environment failure, not a code-test failure; the same codec/adapter source and synthetic suites passed in the public product repo.
 
 ### Remaining gates before calling the engine integration complete
-1. Implement a concrete private \`cDeltaAppender\` that loads and verifies the pinned 18,829-row C base and the existing 231-part candidate chain, the priority map, and authentic report-state commit provenance.
-2. Append only to an isolated private candidate, update the chain idempotently, then independently replay the full A/C union and all 216 U:Y contracts. Canonical C remains immutable.
+1. The concrete `createFresh216ArchiveCDeltaAppender` now verifies the pinned compressed base and contiguous existing delta chain, performs create-only append, and replays the full C union with `applyCDeltas` before returning. New rows bind response-body SHA, archive-wave SHA and archive-manifest SHA; legacy C-delta v1 rows remain readable.
+2. The host still must load the real base bytes and existing 231-part candidate chain from the pinned private source, derive the verified priority map, and provide `getReportStateCommit` from an authenticated private state store. Those real private inputs have not been wired or exercised; public tests cover synthetic bridge/adapter contracts and fail-closed base preflight only.
 3. Load the immutable A source checkpoint from the pinned private source commit and provision/verify the persistent private Linux volume; offline source derivation and host wrapper tests are not evidence of a provisioned production host.
 4. Verify the dedicated HMAC key presence/minimum length without disclosing its value.
 5. Only after the offline gates pass, request a new exact-scope v4 WCL authorization. C promotion and Sheets publication remain separate approvals.
