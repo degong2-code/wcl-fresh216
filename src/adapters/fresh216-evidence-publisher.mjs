@@ -159,7 +159,9 @@ export function createFresh216EvidencePublisher({
       stored=await archiveStore.persistWave(archives,{
         createdAtMs:witness.capturedAtMs
       });
-    }catch(_error){
+    }catch(error){
+      if(error?.message==='PUBLIC_ACTOR_WAVE_WRITE_NOT_ATTEMPTED')
+        return {status:'PENDING',code:'PUBLIC_ARCHIVE_WRITE_NOT_ATTEMPTED'};
       return {status:'NEEDS_REVIEW',code:'PUBLIC_ARCHIVE_WRITE_OR_READBACK_UNCERTAIN'};
     }
     const expectedSlots=wave.fightGroups.reduce((n,g)=>n+g.slots.length,0);

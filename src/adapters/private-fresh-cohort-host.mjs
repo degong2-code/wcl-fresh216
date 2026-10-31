@@ -9,6 +9,8 @@ import fs from 'node:fs';
 import path from 'node:path';
 import {createHash} from 'node:crypto';
 import {JsonCheckpointStore} from './json-checkpoint-store.mjs';
+import {createPrivateWaveWitnessStore} from './private-wave-witness-store.mjs';
+import {createFresh216EvidencePublisher} from './fresh216-evidence-publisher.mjs';
 import {newCheckpoint,checkpointStats,recoverCheckpoint} from '../core/checkpoint.mjs';
 import {makeFreshDatedHeroicManifest,runOneFreshCohortBatch,
   nextFreshCohortBatch,exportVerifiedFreshCohort
@@ -19,6 +21,29 @@ const need=(x,c)=>{if(!x)fail(c);};
 const under=(p,base)=>p===base||p.startsWith(base+path.sep);
 const sha=x=>typeof x==='string'&&/^[0-9a-f]{40}$/.test(x);
 const fileName='fresh216-checkpoint.json';
+
+/** Wire the existing adaptive host to its private witness and evidence adapters.
+ * This factory performs no WCL/OAuth or public/private Git writes.
+ */
+export function createPrivateFresh216EvidenceHooks({
+  privateDir,repoRoot,sourceSlots,expectedSourceSha256,expectedScopeKey,
+  hmacKey,archiveStore,cDeltaAppender
+}={}){
+  const witnessStore=createPrivateWaveWitnessStore({
+    privateDir,repoRoot,sourceSha256:expectedSourceSha256
+  });
+  const evidencePublisher=createFresh216EvidencePublisher({
+    sourceSlots,expectedSourceSha256,expectedScopeKey,hmacKey,
+    archiveStore,cDeltaAppender
+  });
+  return {
+    witnessStore,
+    onVerifiedWave:input=>witnessStore.persist(input),
+    witnessReader:ref=>witnessStore.read(ref),
+    evidencePublisher
+  };
+}
+
 const assertState=(state,scopeKey,sourceCommit)=>{
   need(state?.schema===1&&state.scopeKey===scopeKey&&
     state.sourceCodeCommit===sourceCommit,

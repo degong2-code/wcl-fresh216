@@ -139,7 +139,7 @@ export function createPublicActorProofArchiveStore({
         'PUBLIC_ACTOR_ARCHIVE_SIZE_LIMIT');
       return {path:file.path,mode:'100644',type:'blob',content:text};
     });
-    let commitShaWritten=null;
+    let commitShaWritten=null,refUpdateAttempted=false;
     try{
       const refUrl='https://api.github.com/repos/'+PILOT_JOURNAL.repo+
         '/git/ref/heads/'+PILOT_JOURNAL.branch;
@@ -178,6 +178,7 @@ export function createPublicActorProofArchiveStore({
       const commitData=await commitResponse.json().catch(()=>null);
       need(commitSha(commitData?.sha),'PUBLIC_ACTOR_WAVE_COMMIT_SHAPE');
       commitShaWritten=commitData.sha;
+      refUpdateAttempted=true;
       await http(
         'https://api.github.com/repos/'+PILOT_JOURNAL.repo+
         '/git/refs/heads/'+PILOT_JOURNAL.branch,
@@ -211,7 +212,9 @@ export function createPublicActorProofArchiveStore({
       readbacks.set(file.path,back);
     }
     if(!allFiles.every(x=>readbacks.has(x.path))){
-      throw Error('PUBLIC_ACTOR_WAVE_COMMIT_UNCONFIRMED_STOP');
+      throw Error(refUpdateAttempted?
+        'PUBLIC_ACTOR_WAVE_COMMIT_UNCONFIRMED_STOP':
+        'PUBLIC_ACTOR_WAVE_WRITE_NOT_ATTEMPTED');
     }
     return summarizeWave(readbacks,archiveFiles,manifestFile,
       commitShaWritten,false,existing);

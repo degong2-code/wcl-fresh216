@@ -5,7 +5,8 @@ import os from 'node:os';
 import path from 'node:path';
 import {
  ensurePrivateCohortDirectory,openPrivateCohortStore,
- withPrivateCohortOwnerLease,readPrivateCohortStatus
+ withPrivateCohortOwnerLease,readPrivateCohortStatus,
+ createPrivateFresh216EvidenceHooks
 } from '../src/adapters/private-fresh-cohort-host.mjs';
 import {executePrivateCohortCli,privateSourceIdentity,SCOPE}
   from '../tools/run-private-fresh216.mjs';
@@ -197,4 +198,30 @@ test('GitHub Actions ephemeral workspace cannot be used for private paid source'
    }),/PRIVATE_HOST_ACTIONS_VOLUME_NOT_ATTESTED/);
    assert.equal(fs.existsSync(path.join(dir,'fresh216-checkpoint.json')),false);
  }finally{fs.rmSync(dir,{force:true,recursive:true});}
+});
+
+test('private adaptive evidence hooks wire witness, archive and C-delta callbacks without executing them',()=>{
+ const root=FRESH_DIR(),repo=path.join(root,'repo'),privateDir=path.join(root,'private');
+ fs.mkdirSync(repo,{mode:0o700});fs.mkdirSync(privateDir,{mode:0o700});
+ const scopeKey='heroic:2026-10-22_27:latest:source';
+ const sourceSlots=Array.from({length:21600},(_,i)=>({
+   scopeKey,jobKey:'Job'+Math.floor(i/100),rank:i%100+1,
+   snapshotSha:'a'.repeat(64),totalDps:1000,
+   className:'Hunter',specName:'Marksmanship',name:'Actor',
+   startTime:1792594801000+i
+ }));
+ try{
+   const hooks=createPrivateFresh216EvidenceHooks({
+     privateDir,repoRoot:repo,sourceSlots,
+     expectedSourceSha256:'b'.repeat(64),expectedScopeKey:scopeKey,
+     hmacKey:'SYNTHETIC_PRIVATE_HMAC_KEY_LONG_ENOUGH_20261031',
+     archiveStore:{persistWave:async()=>{throw Error('NOT_CALLED');}},
+     cDeltaAppender:async()=>{throw Error('NOT_CALLED');}
+   });
+   assert.equal(typeof hooks.onVerifiedWave,'function');
+   assert.equal(typeof hooks.witnessReader,'function');
+   assert.equal(typeof hooks.evidencePublisher,'function');
+   assert.equal(fs.existsSync(path.join(privateDir,'report-wave-witnesses')),true);
+   assert.equal(fs.readdirSync(path.join(privateDir,'report-wave-witnesses')).length,0);
+ }finally{fs.rmSync(root,{force:true,recursive:true});}
 });

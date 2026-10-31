@@ -141,7 +141,10 @@ export async function runOneAdaptiveStep({
         evidence:next.publication.evidence,witness
       });
     }catch(_error){
-      return {kind:'ARCHIVE_PUBLISH',status:'PENDING',attempted:false,
+      store.update(s=>markWaveEvidenceNeedsReview(s,
+        next.publication.wave,next.publication.attemptId,
+        'EVIDENCE_PUBLISHER_EXECUTION_FAILED'));
+      return {kind:'ARCHIVE_PUBLISH',status:'NEEDS_REVIEW',attempted:false,
         witnessRef:next.publication.evidence.witnessRef};
     }
     if(published?.status==='NEEDS_REVIEW'){
