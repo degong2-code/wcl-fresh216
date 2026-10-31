@@ -75,7 +75,7 @@ test('create-only race receipt retains wave identity required by Report-wave che
     const receipt=f.store.persist(f.input);
     assert.equal(receipt.reused,true);
     assert.equal(receipt.waveId,f.wave.waveId);
-    assert.equal(f.store.read(receipt.witnessRef).wave.wave.waveId,f.wave.waveId);
+    assert.equal(f.store.read(receipt.witnessRef).wave.waveId,f.wave.waveId);
   }finally{
     fs.linkSync=original;
     fs.rmSync(f.root,{recursive:true,force:true});
