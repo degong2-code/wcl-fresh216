@@ -93,10 +93,10 @@ function witnessRoot(privateWitnessDir,repoRoot){
     'PRIVATE_GITHUB_WITNESS_FOLDER_UNSAFE');
   return {real,folder};
 }
-function witnessBytes(file,expected){
+function witnessBytes(file,expected,{requirePrivateMode=true}={}){
   need(fs.existsSync(file)&&fs.lstatSync(file).isFile()&&
     !fs.lstatSync(file).isSymbolicLink()&&
-    (fs.statSync(file).mode&0o077)===0&&
+    (!requirePrivateMode||(fs.statSync(file).mode&0o077)===0)&&
     fs.statSync(file).size>0&&
     fs.statSync(file).size<=MAX_WITNESS_BYTES,
     'PRIVATE_GITHUB_WITNESS_FILE_UNSAFE');
@@ -220,6 +220,9 @@ export function commitState({
           if(fs.existsSync(folder))
             need(!fs.lstatSync(folder).isSymbolicLink(),
               'PRIVATE_GITHUB_WITNESS_GIT_FOLDER_UNSAFE');
+          fs.mkdirSync(path.dirname(output),{recursive:true,mode:0o700});
+          need(fs.realpathSync(path.dirname(output))===path.dirname(output),
+            'PRIVATE_GITHUB_WITNESS_GIT_FOLDER_UNSAFE');
           writeExclusive(output,bytes);
         }
         staged.push(relative);
@@ -276,7 +279,9 @@ export function restoreGitAdaptiveWitnesses({
   let restored=0;
   for(const [ref,digest] of witnesses){
     const from=path.join(root,WITNESS_PREFIX,ref);
-    const bytes=witnessBytes(from,digest);
+    // Git checkout restores tracked blobs with ordinary worktree modes.
+    // Their SHA must be verified; the private local copy is always 0600.
+    const bytes=witnessBytes(from,digest,{requirePrivateMode:false});
     const target=path.join(real,ref);
     if(fs.existsSync(target)){
       need(sha256(witnessBytes(target,digest))===digest,

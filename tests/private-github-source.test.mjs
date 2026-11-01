@@ -5,6 +5,7 @@ import path from 'node:path';
 import os from 'node:os';
 import {execFileSync} from 'node:child_process';
 import {createHash} from 'node:crypto';
+import {brotliCompressSync,brotliDecompressSync} from 'node:zlib';
 import {
   makeGitDurableStore,commitState,restoreGitAdaptiveWitnesses,
   runGitHubPrivateSource,PRIVATE_REPO,STATE_BRANCH,STATE_PATH,
@@ -202,7 +203,7 @@ test('adaptive PENDING checkpoint and compressed private witness commit together
           'refs/heads/'+branch])+'\trefs/heads/'+branch;
       return git(['-C',cwd,...args]);
     };
-    const bytes=Buffer.from('BROTLI_SYNTHETIC_BYTES_ONLY');
+    const bytes=brotliCompressSync(Buffer.from('SYNTHETIC_PRIVATE_RESPONSE_NO_ACTORS'));
     const digest=createHash('sha256').update(bytes).digest('hex');
     fs.writeFileSync(path.join(privateDir,ref),bytes,{mode:0o600});
     const state={schema:1,scopeKey:'synthetic:scope',
@@ -223,13 +224,20 @@ test('adaptive PENDING checkpoint and compressed private witness commit together
       {recursive:true,force:true});
     fs.mkdirSync(path.join(privateDir,'report-wave-witnesses'),
       {mode:0o700});
+    const cloned=path.join(temp,'fresh-runner-checkout');
+    git(['clone','-b',branch,remote,cloned]);
+    // Emulate a fresh default Git checkout which is not mode 0600.
+    fs.chmodSync(path.join(cloned,privatePath),0o644);
     const restored=restoreGitAdaptiveWitnesses({
-      stateRoot:root,privateWitnessDir:privateDir
+      stateRoot:cloned,privateWitnessDir:privateDir
     });
     assert.deepEqual(restored,{restored:1,pending:1});
     assert.deepEqual(fs.readFileSync(path.join(privateDir,ref)),bytes);
+    assert.equal(brotliDecompressSync(fs.readFileSync(
+      path.join(privateDir,ref))).toString('utf8'),
+      'SYNTHETIC_PRIVATE_RESPONSE_NO_ACTORS');
     assert.deepEqual(restoreGitAdaptiveWitnesses({
-      stateRoot:root,privateWitnessDir:privateDir
+      stateRoot:cloned,privateWitnessDir:privateDir
     }),{restored:0,pending:1});
   }finally{fs.rmSync(temp,{recursive:true,force:true});}
 });
