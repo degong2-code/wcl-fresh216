@@ -95,7 +95,7 @@ test('adaptive Git state can be remote-committed and reopened on synthetic bare 
     g(['-C',root,'push',remote,'HEAD:refs/heads/'+branch]);
     const testGit=(cwd,args)=>{
       if(args[0]==='push'){
-        return g(['-C',cwd,'push',remote,args[3]]);
+        return g(['-C',cwd,'push',remote,args[2]]);
       }
       if(args[0]==='ls-remote'){
         const remoteHead=g(['--git-dir',remote,'rev-parse',
@@ -155,7 +155,6 @@ test('remote push failure never allows a paid request after local checkpoint tra
     const state={schema:1,scopeKey:'synthetic:scope',
       runId:'synthetic',version:1,status:'ACTIVE',entries:{}};
     fs.writeFileSync(local,JSON.stringify(state)+'\n');
-    let outgoing=0;
     const failPush=(cwd,args)=>{
       if(args[0]==='push')throw Error('SYNTHETIC_GIT_PUSH_OFFLINE');
       if(args[0]==='ls-remote')return remoteBefore+'\trefs/heads/'+branch;
@@ -164,8 +163,6 @@ test('remote push failure never allows a paid request after local checkpoint tra
     assert.throws(()=>commitState({stateRoot:root,source:local,
       version:1,target:'adaptive',gitCommand:failPush}),
       /PRIVATE_GITHUB_STATE_WRITE_OR_VERIFY_FAILED/);
-    if(false) outgoing++;
-    assert.equal(outgoing,0);
     assert.equal(g(['--git-dir',remote,'rev-parse',
       'refs/heads/'+branch]),remoteBefore);
   }finally{fs.rmSync(temp,{recursive:true,force:true});}
