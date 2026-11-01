@@ -27,42 +27,128 @@ const doGit=(root,...args)=>{
   try{return git(root,...args);}catch{fail('PRIVATE_GITHUB_STATE_WRITE_OR_VERIFY_FAILED');}
 };
 const cleanGit=value=>typeof value==='string'&&/^[0-9a-f]{40}$/.test(value);
-const privatePath=root=>path.join(root,STATE_PATH);
+/**
+ * One existing Git-backed store, with an explicit allowlist for A-source and
+ * adaptive Report-wave state. GitHub Actions runners can be ephemeral; the
+ * ONLY authoritative checkpoint is the remote private Git branch.
+ *
+ * A writable checkout must be private; no public Actions GITHUB_TOKEN can
+ * write the private repository. Never treat a read-only checkout as writable.
+ */
+export const ADAPTIVE_STATE_BRANCH='work/fresh216-private-adaptive-state';
+export const ADAPTIVE_STATE_PATH=
+  'projects/wcl-fresh216/private-adaptive/report-wave-checkpoint.json';
+const stateTargets=Object.freeze({
+  source:Object.freeze({branch:STATE_BRANCH,file:STATE_PATH}),
+  adaptive:Object.freeze({
+    branch:ADAPTIVE_STATE_BRANCH,file:ADAPTIVE_STATE_PATH
+  })
+});
+const stateTarget=target=>{
+  const spec=Object.hasOwn(stateTargets,target)?stateTargets[target]:null;
+  need(spec,'PRIVATE_GITHUB_STATE_TARGET_INVALID');
+  return spec;
+};
+const privatePath=(root,target='source')=>
+  path.join(root,stateTarget(target).file);
+const readRemoteHead=(run,spec)=>{
+  const fields=run('ls-remote','--heads','origin',
+    'refs/heads/'+spec.branch).split(/\s+/);
+  need(cleanGit(fields[0])&&
+    fields[1]==='refs/heads/'+spec.branch,
+    'PRIVATE_GITHUB_STATE_REMOTE_REF_INVALID');
+  return fields[0];
+};
 
-export function makeGitDurableStore({localStore,stateRoot,persist=commitState}={}){
+export function makeGitDurableStore({
+  localStore,stateRoot,persist=commitState,target='source'
+}={}){
+  stateTarget(target);
   need(localStore&&typeof localStore.read==='function'&&
     typeof localStore.update==='function'&&
+    typeof localStore.filePath==='string'&&
+    path.isAbsolute(localStore.filePath)&&
     typeof stateRoot==='string'&&path.isAbsolute(stateRoot)&&
     typeof persist==='function','PRIVATE_GITHUB_STORE_INVALID');
   return {
     read:()=>localStore.read(),
     update:transition=>{
+      // The existing JsonCheckpointStore has already used fsync+rename and
+      // rejected concurrent writers. A failed remote push MUST throw before
+      // an HTTP transport callback can observe successful store.update().
       const state=localStore.update(transition);
-      // In-flight request cannot begin until remote commit is confirmed.
-      persist({stateRoot,source:localStore.filePath,version:state.version});
+      persist({stateRoot,source:localStore.filePath,
+        version:state.version,target});
       return state;
     }
   };
 }
 
-export function commitState({stateRoot,source,version}){
-  need(Number.isSafeInteger(version)&&version>=0,
-    'PRIVATE_GITHUB_VERSION_INVALID');
-  const dst=privatePath(stateRoot);
+export function commitState({
+  stateRoot,source,version,target='source',
+  gitCommand=(root,args)=>git(root,...args)
+}={}){
+  const spec=stateTarget(target);
+  need(Number.isSafeInteger(version)&&version>=0&&
+    typeof stateRoot==='string'&&path.isAbsolute(stateRoot)&&
+    typeof source==='string'&&path.isAbsolute(source)&&
+    typeof gitCommand==='function',
+    'PRIVATE_GITHUB_STATE_CONFIG_INVALID');
+  let root;
+  try{
+    root=fs.realpathSync(stateRoot);
+    need(fs.statSync(root).isDirectory()&&
+      fs.lstatSync(source).isFile()&&
+      !fs.lstatSync(source).isSymbolicLink(),
+      'PRIVATE_GITHUB_STATE_SOURCE_UNSAFE');
+    const src=fs.realpathSync(source);
+    need(src!==root&&!src.startsWith(root+path.sep),
+      'PRIVATE_GITHUB_STATE_SOURCE_MUST_BE_OUTSIDE_GIT');
+    const state=JSON.parse(fs.readFileSync(src,'utf8'));
+    need(state?.schema===1&&state.version===version&&
+      typeof state.scopeKey==='string'&&state.scopeKey&&
+      typeof state.runId==='string'&&state.runId,
+      'PRIVATE_GITHUB_STATE_VERSION_INVALID');
+  }catch(error){
+    if(/^PRIVATE_GITHUB_/.test(error?.message??''))throw error;
+    fail('PRIVATE_GITHUB_STATE_SOURCE_INVALID');
+  }
+  const run=(...args)=>{
+    try{return String(gitCommand(root,args)).trim();}
+    catch{fail('PRIVATE_GITHUB_STATE_WRITE_OR_VERIFY_FAILED');}
+  };
+  need(run('rev-parse','--show-toplevel')===root&&
+    run('symbolic-ref','--short','HEAD')===spec.branch,
+    'PRIVATE_GITHUB_STATE_BRANCH_DRIFT');
+  need(/(?:^|[:/])degong2-code\/ai-project-lab(?:\.git)?$/.test(
+    run('remote','get-url','origin')),
+    'PRIVATE_GITHUB_STATE_REMOTE_MISMATCH');
+  need(run('status','--porcelain','--untracked-files=all')==='',
+    'PRIVATE_GITHUB_STATE_DIRTY');
+  const before=run('rev-parse','HEAD');
+  need(cleanGit(before)&&readRemoteHead(run,spec)===before,
+    'PRIVATE_GITHUB_STATE_STALE_REMOTE');
+  const dst=privatePath(root,target);
+  need(!fs.existsSync(dst)||(
+    fs.lstatSync(dst).isFile()&&!fs.lstatSync(dst).isSymbolicLink()),
+    'PRIVATE_GITHUB_STATE_DESTINATION_UNSAFE');
   fs.mkdirSync(path.dirname(dst),{recursive:true,mode:0o700});
   fs.copyFileSync(source,dst);
   fs.chmodSync(dst,0o600);
-  doGit(stateRoot,'add','--',STATE_PATH);
-  // Git metadata contains no player, fight, report or credential.
-  doGit(stateRoot,'-c','user.name=Fresh216 State',
+  run('add','--',spec.file);
+  // Never sweep in untracked files or unrelated changes.
+  need(run('diff','--cached','--name-only')===spec.file,
+    'PRIVATE_GITHUB_STATE_STAGING_DRIFT');
+  run('-c','user.name=Fresh216 State',
     '-c','user.email=fresh216-state@users.noreply.github.com',
     'commit','-m','fresh216: checkpoint version '+version);
-  doGit(stateRoot,'push','origin','HEAD:refs/heads/'+STATE_BRANCH);
-  const current=doGit(stateRoot,'rev-parse','HEAD');
-  const remote=doGit(stateRoot,'ls-remote','--heads','origin',STATE_BRANCH)
-    .split(/\s+/)[0];
-  need(cleanGit(current)&&current===remote,
+  const current=run('rev-parse','HEAD');
+  need(cleanGit(current)&&run('rev-parse','HEAD^')===before,
+    'PRIVATE_GITHUB_STATE_COMMIT_DRIFT');
+  run('push','origin','HEAD:refs/heads/'+spec.branch);
+  need(readRemoteHead(run,spec)===current,
     'PRIVATE_GITHUB_STATE_REMOTE_CONFIRMATION_FAILED');
+  return current;
 }
 
 export async function runGitHubPrivateSource({
