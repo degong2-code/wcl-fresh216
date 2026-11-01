@@ -7,6 +7,7 @@
 import fs from 'node:fs';
 import path from 'node:path';
 import {execFileSync} from 'node:child_process';
+import {createHash} from 'node:crypto';
 import {fileURLToPath} from 'node:url';
 import {
   openPrivateCohortStore,readPrivateCohortStatus,collectPrivateCohort,
@@ -27,6 +28,7 @@ const doGit=(root,...args)=>{
   try{return git(root,...args);}catch{fail('PRIVATE_GITHUB_STATE_WRITE_OR_VERIFY_FAILED');}
 };
 const cleanGit=value=>typeof value==='string'&&/^[0-9a-f]{40}$/.test(value);
+const sha256=bytes=>createHash('sha256').update(bytes).digest('hex');
 /**
  * One existing Git-backed store, with an explicit allowlist for A-source and
  * adaptive Report-wave state. GitHub Actions runners can be ephemeral; the
@@ -51,6 +53,67 @@ const stateTarget=target=>{
 };
 const privatePath=(root,target='source')=>
   path.join(root,stateTarget(target).file);
+
+const WITNESS_PREFIX='projects/wcl-fresh216/private-adaptive';
+const MAX_WITNESS_BYTES=16*1024*1024;
+const validWitnessRef=ref=>typeof ref==='string'&&
+  /^report-wave-witnesses\/[a-f0-9]{64}\.json\.br$/.test(ref);
+const validDigest=digest=>typeof digest==='string'&&
+  /^[a-f0-9]{64}$/.test(digest);
+const under=(p,root)=>p===root||p.startsWith(root+path.sep);
+const pendingWitnesses=state=>{
+  const out=new Map();
+  for(const entry of Object.values(state.entries??{})){
+    const e=entry?.evidence;
+    if(e?.status!=='PENDING')continue;
+    need(validWitnessRef(e.witnessRef)&&
+      validDigest(e.witnessSha256),
+      'PRIVATE_GITHUB_WITNESS_METADATA_INVALID');
+    const old=out.get(e.witnessRef);
+    need(!old||old===e.witnessSha256,
+      'PRIVATE_GITHUB_WITNESS_DUPLICATE_CONFLICT');
+    out.set(e.witnessRef,e.witnessSha256);
+  }
+  return [...out.entries()].sort(([a],[b])=>a.localeCompare(b));
+};
+function witnessRoot(privateWitnessDir,repoRoot){
+  need(typeof privateWitnessDir==='string'&&
+    path.isAbsolute(privateWitnessDir)&&
+    !fs.lstatSync(privateWitnessDir).isSymbolicLink(),
+    'PRIVATE_GITHUB_WITNESS_DIRECTORY_INVALID');
+  const real=fs.realpathSync(privateWitnessDir);
+  need(fs.statSync(real).isDirectory()&&
+    (fs.statSync(real).mode&0o077)===0&&
+    !under(real,repoRoot)&&!under(repoRoot,real),
+    'PRIVATE_GITHUB_WITNESS_DIRECTORY_UNSAFE');
+  const folder=path.join(real,'report-wave-witnesses');
+  need(fs.existsSync(folder)&&fs.statSync(folder).isDirectory()&&
+    !fs.lstatSync(folder).isSymbolicLink()&&
+    (fs.statSync(folder).mode&0o077)===0,
+    'PRIVATE_GITHUB_WITNESS_FOLDER_UNSAFE');
+  return {real,folder};
+}
+function witnessBytes(file,expected){
+  need(fs.existsSync(file)&&fs.lstatSync(file).isFile()&&
+    !fs.lstatSync(file).isSymbolicLink()&&
+    (fs.statSync(file).mode&0o077)===0&&
+    fs.statSync(file).size>0&&
+    fs.statSync(file).size<=MAX_WITNESS_BYTES,
+    'PRIVATE_GITHUB_WITNESS_FILE_UNSAFE');
+  const bytes=fs.readFileSync(file);
+  need(sha256(bytes)===expected,
+    'PRIVATE_GITHUB_WITNESS_BYTES_DRIFT');
+  return bytes;
+}
+function writeExclusive(file,bytes){
+  fs.mkdirSync(path.dirname(file),{recursive:true,mode:0o700});
+  const fd=fs.openSync(file,'wx',0o600);
+  try{fs.writeFileSync(fd,bytes);fs.fsyncSync(fd);}
+  finally{fs.closeSync(fd);}
+  const dir=fs.openSync(path.dirname(file),'r');
+  try{fs.fsyncSync(dir);}finally{fs.closeSync(dir);}
+}
+
 const readRemoteHead=(run,spec)=>{
   const fields=run('ls-remote','--heads','origin',
     'refs/heads/'+spec.branch).split(/\s+/);
@@ -61,7 +124,8 @@ const readRemoteHead=(run,spec)=>{
 };
 
 export function makeGitDurableStore({
-  localStore,stateRoot,persist=commitState,target='source'
+  localStore,stateRoot,persist=commitState,target='source',
+  privateWitnessDir=null
 }={}){
   stateTarget(target);
   need(localStore&&typeof localStore.read==='function'&&
@@ -78,14 +142,14 @@ export function makeGitDurableStore({
       // an HTTP transport callback can observe successful store.update().
       const state=localStore.update(transition);
       persist({stateRoot,source:localStore.filePath,
-        version:state.version,target});
+        version:state.version,target,privateWitnessDir});
       return state;
     }
   };
 }
 
 export function commitState({
-  stateRoot,source,version,target='source',
+  stateRoot,source,version,target='source',privateWitnessDir=null,
   gitCommand=(root,args)=>git(root,...args)
 }={}){
   const spec=stateTarget(target);
@@ -94,7 +158,7 @@ export function commitState({
     typeof source==='string'&&path.isAbsolute(source)&&
     typeof gitCommand==='function',
     'PRIVATE_GITHUB_STATE_CONFIG_INVALID');
-  let root;
+  let root,validatedState;
   try{
     root=fs.realpathSync(stateRoot);
     need(fs.statSync(root).isDirectory()&&
@@ -104,10 +168,10 @@ export function commitState({
     const src=fs.realpathSync(source);
     need(src!==root&&!src.startsWith(root+path.sep),
       'PRIVATE_GITHUB_STATE_SOURCE_MUST_BE_OUTSIDE_GIT');
-    const state=JSON.parse(fs.readFileSync(src,'utf8'));
-    need(state?.schema===1&&state.version===version&&
-      typeof state.scopeKey==='string'&&state.scopeKey&&
-      typeof state.runId==='string'&&state.runId,
+    validatedState=JSON.parse(fs.readFileSync(src,'utf8'));
+    need(validatedState?.schema===1&&validatedState.version===version&&
+      typeof validatedState.scopeKey==='string'&&validatedState.scopeKey&&
+      typeof validatedState.runId==='string'&&validatedState.runId,
       'PRIVATE_GITHUB_STATE_VERSION_INVALID');
   }catch(error){
     if(/^PRIVATE_GITHUB_/.test(error?.message??''))throw error;
@@ -133,11 +197,43 @@ export function commitState({
     fs.lstatSync(dst).isFile()&&!fs.lstatSync(dst).isSymbolicLink()),
     'PRIVATE_GITHUB_STATE_DESTINATION_UNSAFE');
   fs.mkdirSync(path.dirname(dst),{recursive:true,mode:0o700});
+  const staged=[spec.file];
+  // Record exact, already-compressed private response witnesses in the SAME
+  // private Git commit as the PENDING checkpoint transition. The format is
+  // unchanged; never copy a report response or witness to public Git.
+  if(target==='adaptive'){
+    const witnesses=pendingWitnesses(validatedState);
+    if(witnesses.length){
+      const {real}=witnessRoot(privateWitnessDir,root);
+      for(const [ref,digest] of witnesses){
+        const input=path.join(real,ref);
+        const bytes=witnessBytes(input,digest);
+        const relative=WITNESS_PREFIX+'/'+ref;
+        const output=path.join(root,relative);
+        if(fs.existsSync(output)){
+          need(fs.lstatSync(output).isFile()&&
+            !fs.lstatSync(output).isSymbolicLink()&&
+            sha256(fs.readFileSync(output))===digest,
+            'PRIVATE_GITHUB_WITNESS_EXISTING_DRIFT');
+        }else{
+          const folder=path.dirname(output);
+          if(fs.existsSync(folder))
+            need(!fs.lstatSync(folder).isSymbolicLink(),
+              'PRIVATE_GITHUB_WITNESS_GIT_FOLDER_UNSAFE');
+          writeExclusive(output,bytes);
+        }
+        staged.push(relative);
+      }
+    }
+  }
   fs.copyFileSync(source,dst);
   fs.chmodSync(dst,0o600);
-  run('add','--',spec.file);
-  // Never sweep in untracked files or unrelated changes.
-  need(run('diff','--cached','--name-only')===spec.file,
+  run('add','--',...staged);
+  // Never sweep unrelated paths, even if the witness set is large.
+  const actual=run('diff','--cached','--name-only')
+    .split('\n').filter(Boolean).sort();
+  need(actual.includes(spec.file)&&
+    actual.every(file=>staged.includes(file)),
     'PRIVATE_GITHUB_STATE_STAGING_DRIFT');
   run('-c','user.name=Fresh216 State',
     '-c','user.email=fresh216-state@users.noreply.github.com',
@@ -149,6 +245,48 @@ export function commitState({
   need(readRemoteHead(run,spec)===current,
     'PRIVATE_GITHUB_STATE_REMOTE_CONFIRMATION_FAILED');
   return current;
+}
+
+/**
+ * Restore only private PENDING witness bytes from an already checked-out
+ * adaptive Git branch into the ephemeral private working directory.
+ * The existing createPrivateWaveWitnessStore.read then verifies the
+ * original compressed format, response bytes, wave and canonical joins.
+ * This adapter performs NO Git writes, OAuth, WCL, or C publication.
+ */
+export function restoreGitAdaptiveWitnesses({
+  stateRoot,privateWitnessDir
+}={}){
+  need(typeof stateRoot==='string'&&path.isAbsolute(stateRoot),
+    'PRIVATE_GITHUB_RESTORE_ROOT_INVALID');
+  const root=fs.realpathSync(stateRoot);
+  const stateFile=privatePath(root,'adaptive');
+  need(fs.existsSync(stateFile)&&
+    fs.lstatSync(stateFile).isFile()&&
+    !fs.lstatSync(stateFile).isSymbolicLink(),
+    'PRIVATE_GITHUB_RESTORE_STATE_MISSING');
+  const state=JSON.parse(fs.readFileSync(stateFile,'utf8'));
+  need(state?.schema===1&&
+    typeof state.scopeKey==='string'&&
+    typeof state.runId==='string',
+    'PRIVATE_GITHUB_RESTORE_STATE_INVALID');
+  const witnesses=pendingWitnesses(state);
+  if(!witnesses.length)return {restored:0,pending:0};
+  const {real}=witnessRoot(privateWitnessDir,root);
+  let restored=0;
+  for(const [ref,digest] of witnesses){
+    const from=path.join(root,WITNESS_PREFIX,ref);
+    const bytes=witnessBytes(from,digest);
+    const target=path.join(real,ref);
+    if(fs.existsSync(target)){
+      need(sha256(witnessBytes(target,digest))===digest,
+        'PRIVATE_GITHUB_RESTORE_WITNESS_CONFLICT');
+    }else{
+      writeExclusive(target,bytes);
+      restored++;
+    }
+  }
+  return {restored,pending:witnesses.length};
 }
 
 export async function runGitHubPrivateSource({

@@ -130,3 +130,33 @@ private storage before any live collector can be authorized.
 The new Git writer tests use **synthetic local bare Git remotes only**.
 No private repo modifications, live WCL, OAuth, HMAC Secret, C appends or
 Sheets writes occur during this verification.
+
+
+## Private compressed witness persistence in the SAME remote checkpoint commit
+
+The generic adaptive target now supports an optional \`privateWitnessDir\`
+pointing to the existing create-only Brotli witness store (0700).
+When a checkpoint has \`evidence.status=PENDING\`, \`commitState\`:
+1. Collects unique allowlisted \`report-wave-witnesses/<SHA>.json.br\`
+   references from the existing checkpoint entries and their exact SHA-256s.
+2. Checks that every local private compressed witness exists, has 0600
+   permissions and matches its digest. No public raw bytes or new format.
+3. Stages the checkpoint plus only those compressed witness paths under
+   \`projects/wcl-fresh216/private-adaptive/\`.
+4. Commits both in a single private Git commit and confirms the remote
+   HEAD before returning to the caller.
+5. On an ephemeral runner restart, \`restoreGitAdaptiveWitnesses\`
+   recovers only pending witnesses to a new 0700 private directory,
+   with digest verification and create-only writes; the existing private
+   witness reader still independently validates the underlying wave.
+
+This removes the need for a persistent VM **for these two state objects**
+when a write-authorized private Git remote is available. It is tested only
+with synthetic local bare Git fixtures. GitHub Actions private write
+authorization and a real boot/status-only run remain separate gates.
+
+A crash after the external request but before the response and checkpoint
+are durably committed remains indeterminate: the remote still shows
+IN_FLIGHT and must block automatic retry. Do not describe this design as
+eliminating uncertainty of a billed HTTP request. Git does not itself make
+the WCL API transaction atomic.

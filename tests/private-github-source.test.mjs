@@ -4,8 +4,10 @@ import fs from 'node:fs';
 import path from 'node:path';
 import os from 'node:os';
 import {execFileSync} from 'node:child_process';
+import {createHash} from 'node:crypto';
 import {
-  makeGitDurableStore,commitState,runGitHubPrivateSource,PRIVATE_REPO,STATE_BRANCH,STATE_PATH,
+  makeGitDurableStore,commitState,restoreGitAdaptiveWitnesses,
+  runGitHubPrivateSource,PRIVATE_REPO,STATE_BRANCH,STATE_PATH,
   ADAPTIVE_STATE_BRANCH,ADAPTIVE_STATE_PATH
 } from '../tools/run-private-github-fresh216.mjs';
 
@@ -165,5 +167,113 @@ test('remote push failure never allows a paid request after local checkpoint tra
       /PRIVATE_GITHUB_STATE_WRITE_OR_VERIFY_FAILED/);
     assert.equal(g(['--git-dir',remote,'rev-parse',
       'refs/heads/'+branch]),remoteBefore);
+  }finally{fs.rmSync(temp,{recursive:true,force:true});}
+});
+
+
+test('adaptive PENDING checkpoint and compressed private witness commit together and survive runner restart',()=>{
+  const temp=fs.mkdtempSync(path.join(os.tmpdir(),'fresh216-git-witness-'));
+  const root=path.join(temp,'work'),remote=path.join(temp,'origin.git');
+  const privateDir=path.join(temp,'private'),src=path.join(temp,'src.json');
+  const branch=ADAPTIVE_STATE_BRANCH,ref='report-wave-witnesses/'+
+    'a'.repeat(64)+'.json.br';
+  const privatePath='projects/wcl-fresh216/private-adaptive/'+ref;
+  const git=(args)=>execFileSync('git',args,{
+    encoding:'utf8',stdio:['ignore','pipe','pipe'],timeout:15000
+  }).trim();
+  try{
+    fs.mkdirSync(root);
+    fs.mkdirSync(privateDir,{mode:0o700});
+    fs.mkdirSync(path.join(privateDir,'report-wave-witnesses'),{mode:0o700});
+    git(['init','--bare',remote]);
+    git(['-C',root,'init','-b',branch]);
+    git(['-C',root,'config','user.name','Synthetic Tester']);
+    git(['-C',root,'config','user.email','synthetic@example.invalid']);
+    git(['-C',root,'remote','add','origin',
+      'https://github.com/degong2-code/ai-project-lab.git']);
+    fs.writeFileSync(path.join(root,'README.md'),'synthetic only\n');
+    git(['-C',root,'add','README.md']);
+    git(['-C',root,'commit','-m','synthetic initial']);
+    git(['-C',root,'push',remote,'HEAD:refs/heads/'+branch]);
+    const testGit=(cwd,args)=>{
+      if(args[0]==='push')return git(['-C',cwd,'push',remote,args[2]]);
+      if(args[0]==='ls-remote')
+        return git(['--git-dir',remote,'rev-parse',
+          'refs/heads/'+branch])+'\trefs/heads/'+branch;
+      return git(['-C',cwd,...args]);
+    };
+    const bytes=Buffer.from('BROTLI_SYNTHETIC_BYTES_ONLY');
+    const digest=createHash('sha256').update(bytes).digest('hex');
+    fs.writeFileSync(path.join(privateDir,ref),bytes,{mode:0o600});
+    const state={schema:1,scopeKey:'synthetic:scope',
+      runId:'synthetic-remote',version:5,status:'ACTIVE',
+      sourceRequests:{},rankRequests:{},
+      entries:{one:{status:'COMPLETED',evidence:{
+        status:'PENDING',witnessRef:ref,witnessSha256:digest
+      }}}};
+    fs.writeFileSync(src,JSON.stringify(state)+'\n',{mode:0o600});
+    const commit=commitState({stateRoot:root,source:src,version:5,
+      target:'adaptive',privateWitnessDir:privateDir,gitCommand:testGit});
+    assert.equal(git(['--git-dir',remote,'rev-parse',
+      'refs/heads/'+branch]),commit);
+    assert.deepEqual(fs.readFileSync(path.join(root,privatePath)),bytes);
+    assert.deepEqual(JSON.parse(fs.readFileSync(
+      path.join(root,ADAPTIVE_STATE_PATH),'utf8')),state);
+    fs.rmSync(path.join(privateDir,'report-wave-witnesses'),
+      {recursive:true,force:true});
+    fs.mkdirSync(path.join(privateDir,'report-wave-witnesses'),
+      {mode:0o700});
+    const restored=restoreGitAdaptiveWitnesses({
+      stateRoot:root,privateWitnessDir:privateDir
+    });
+    assert.deepEqual(restored,{restored:1,pending:1});
+    assert.deepEqual(fs.readFileSync(path.join(privateDir,ref)),bytes);
+    assert.deepEqual(restoreGitAdaptiveWitnesses({
+      stateRoot:root,privateWitnessDir:privateDir
+    }),{restored:0,pending:1});
+  }finally{fs.rmSync(temp,{recursive:true,force:true});}
+});
+
+test('missing private witness refuses PENDING checkpoint remote commit',()=>{
+  const temp=fs.mkdtempSync(path.join(os.tmpdir(),'fresh216-git-missing-'));
+  const root=path.join(temp,'work'),remote=path.join(temp,'origin.git');
+  const privateDir=path.join(temp,'private'),src=path.join(temp,'src.json');
+  const branch=ADAPTIVE_STATE_BRANCH;
+  const git=(args)=>execFileSync('git',args,{
+    encoding:'utf8',stdio:['ignore','pipe','pipe'],timeout:15000
+  }).trim();
+  try{
+    fs.mkdirSync(root);
+    fs.mkdirSync(privateDir,{mode:0o700});
+    fs.mkdirSync(path.join(privateDir,'report-wave-witnesses'),{mode:0o700});
+    git(['init','--bare',remote]);
+    git(['-C',root,'init','-b',branch]);
+    git(['-C',root,'config','user.name','Synthetic Tester']);
+    git(['-C',root,'config','user.email','synthetic@example.invalid']);
+    git(['-C',root,'remote','add','origin',
+      'https://github.com/degong2-code/ai-project-lab.git']);
+    fs.writeFileSync(path.join(root,'README.md'),'synthetic only\n');
+    git(['-C',root,'add','README.md']);
+    git(['-C',root,'commit','-m','synthetic initial']);
+    git(['-C',root,'push',remote,'HEAD:refs/heads/'+branch]);
+    const before=git(['--git-dir',remote,'rev-parse',
+      'refs/heads/'+branch]);
+    const state={schema:1,scopeKey:'synthetic:scope',
+      runId:'synthetic',version:3,status:'ACTIVE',
+      entries:{one:{evidence:{status:'PENDING',
+        witnessRef:'report-wave-witnesses/'+'b'.repeat(64)+'.json.br',
+        witnessSha256:'a'.repeat(64)}}}};
+    fs.writeFileSync(src,JSON.stringify(state)+'\n');
+    const testGit=(cwd,args)=>{
+      if(args[0]==='ls-remote')return before+'\trefs/heads/'+branch;
+      if(args[0]==='push')throw Error('SHOULD_NOT_PUSH');
+      return git(['-C',cwd,...args]);
+    };
+    assert.throws(()=>commitState({
+      stateRoot:root,source:src,version:3,target:'adaptive',
+      privateWitnessDir:privateDir,gitCommand:testGit
+    }),/PRIVATE_GITHUB_WITNESS_FILE_UNSAFE/);
+    assert.equal(git(['--git-dir',remote,'rev-parse',
+      'refs/heads/'+branch]),before);
   }finally{fs.rmSync(temp,{recursive:true,force:true});}
 });
