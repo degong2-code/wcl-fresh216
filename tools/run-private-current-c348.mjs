@@ -21,7 +21,7 @@ import {
 } from './run-private-github-fresh216.mjs';
 
 const need=(ok,code)=>{if(!ok)throw Error(code);};
-const PRODUCT_COMMIT='cfaee808298d91bfbfb04d6ce13fa03499fe568c';
+const PRODUCT_COMMIT=process.env.FRESH216_APPROVED_PRODUCT_SHA;
 const SOURCE_COMMIT='39573a118f2a57f9dc6758936e9d73e9aa6cebf5';
 const C_COMMIT='d56befacce6ff8062878ed3a4edec6a55cd91b07';
 const PRIORITY_COMMIT='811c4e67878f9b70e420fccb4ecf84301d211223';
@@ -60,7 +60,8 @@ async function run(){
   const cRoot=checkoutRoot(cIn,C_COMMIT,'FRESH216_RECOVERY_C');
   const priorityRoot=checkoutRoot(priorityIn,PRIORITY_COMMIT,'FRESH216_RECOVERY_PRIORITY');
   const stateRoot=fs.realpathSync(stateIn);
-  need(git(productRoot,'rev-parse','HEAD')===PRODUCT_COMMIT&&
+  need(typeof PRODUCT_COMMIT==='string'&&/^[a-f0-9]{40}$/.test(PRODUCT_COMMIT)&&
+    git(productRoot,'rev-parse','HEAD')===PRODUCT_COMMIT&&
     git(productRoot,'status','--porcelain','--untracked-files=all')===''&&
     git(stateRoot,'symbolic-ref','--short','HEAD')===ADAPTIVE_STATE_BRANCH&&
     git(stateRoot,'status','--porcelain','--untracked-files=all')==='',
