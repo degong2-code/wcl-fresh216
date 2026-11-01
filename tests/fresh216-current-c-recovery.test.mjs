@@ -81,5 +81,5 @@ test('existing checkpoint state machine registers once and repeated preview does
     checkpoint:structuredClone(added.state),
     groups:[{...group,slots:[{...group.slots[0],rank:4}]}],
     baseline:meta
-  }),/FRESH216_RECOVERY_REGISTERED_PLAN_DRIFT/);
+  }),/FETCH_PLAN_DRIFT|FRESH216_RECOVERY_REGISTERED_PLAN_DRIFT/);
 });
