@@ -152,11 +152,7 @@ the attested boss/spec roster.
   explicitly supply `bossJobsPerRequest:9` for independent B9 planning
   and bounded journal execution after a complete source.
 
-**Verification criteria:** old B8 replay tests, new A9→B9 and A8→B9
-journal tests, remote-write-before-HTTP failure, points uncertainty,
-cross-B-size plan drift, legacy B8 seal-less readback, and A8→B9
-pipeline KPI/restart test. CI passage must be verified independently;
-a successful implementation commit alone is *not* proof.
+**Verification completed:** [GitHub Actions #41463119103](https://github.com/degong2-code/wcl-fresh216/actions/runs/41463119103) **SUCCESS; 74/74 offline suites PASS** at code commit `104c402dd4fff8ca26ed0c7c64e2d3ec4ab47190`. Passed existing B8 replay tests and new A9→B9, A8→B9, A9→B8 journal tests; remote-write-before-HTTP failure, points uncertainty, cross-B-size plan drift, legacy B8 seal-less readback, and A8→B9 pipeline KPI/restart tests. These tests simulate WCL responses; they are not actual new-scope B/C WCL collection.
 
 **Not yet completed:** an owner-reviewed *private* B9 execution host,
 live B/C WCL evidence for the new A scope, new-cohort exact C completion,
