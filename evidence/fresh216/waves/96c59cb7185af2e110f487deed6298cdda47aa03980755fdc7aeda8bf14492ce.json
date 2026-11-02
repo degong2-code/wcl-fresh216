@@ -1,0 +1,30 @@
+{
+  "schema": 1,
+  "kind": "FRESH216_REDACTED_ACTOR_PROOF_WAVE_MANIFEST_V1",
+  "keyId": "fresh216-evidence-hmac-v1",
+  "waveSha256": "96c59cb7185af2e110f487deed6298cdda47aa03980755fdc7aeda8bf14492ce",
+  "sourceSha256": "e7b1cd1956655f39b065f8b02a4dd836878a6b7dc08f4b2ff0a1a77f9db52654",
+  "requestBodySha256": "fdfd9e7936e0cc851071719358be3db6a2c30647bfcdbbc326a3e48eee251edd",
+  "responseBodySha256": "4d117f8d35e1f8448b51dc48996e0e41b3c10b4000cf83d591b7e5db717f27e0",
+  "httpStatus": 200,
+  "observedPoints": 4,
+  "createdAtMs": 1793630000000,
+  "archives": [
+    {
+      "archiveId": "4a47cc0da11aaac65fdf2c130eba779d62005c46f3373f79c02a95678295dc34",
+      "archiveSha256": "47e3193623ef89404f0efd1a87e7ae2b7204e1220540b8666bb1a96af986b895",
+      "reportToken": "hmac-sha256:v1:d4c1f43c7e3d675f3741153cb7474e0765ed83542197c2a8b7b0fddc16730017",
+      "fightToken": "hmac-sha256:v1:8786f26846db4573567a507648d5b1aa6d396ba0f47218b475c8131a3d5f00c7",
+      "reportRevision": 31,
+      "fightId": 15,
+      "encounterId": 12813,
+      "difficulty": 10,
+      "verifiedSlots": 1,
+      "unresolvedSlots": 0
+    }
+  ],
+  "verifiedSlots": 1,
+  "unresolvedSlots": 0,
+  "manifestSha256": "944b5d61013ee3225f620500314bd9aad783813821d892345fa5c2e4610ecbba",
+  "manifestMac": "d76ab999d61249bf2bd602276d0f6c5257804b6e5f2258d459052fab70d0a319"
+}

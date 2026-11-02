@@ -1,0 +1,104 @@
+{
+  "schema": 1,
+  "kind": "FRESH216_REDACTED_ACTOR_PROOF_ARCHIVE_V1",
+  "keyId": "fresh216-evidence-hmac-v1",
+  "archiveId": "4a47cc0da11aaac65fdf2c130eba779d62005c46f3373f79c02a95678295dc34",
+  "scopeKey": "engine-test:2026-11-02:SELF_DERIVED_NONCANONICAL",
+  "sourceSha256": "e7b1cd1956655f39b065f8b02a4dd836878a6b7dc08f4b2ff0a1a77f9db52654",
+  "waveSha256": "96c59cb7185af2e110f487deed6298cdda47aa03980755fdc7aeda8bf14492ce",
+  "requestBodySha256": "fdfd9e7936e0cc851071719358be3db6a2c30647bfcdbbc326a3e48eee251edd",
+  "responseBodySha256": "4d117f8d35e1f8448b51dc48996e0e41b3c10b4000cf83d591b7e5db717f27e0",
+  "responseProjectionSha256": "b69f921cc8da98f23649217fa2b9d290edf3f595e40c5d8e90fb9575b5e6352c",
+  "httpStatus": 200,
+  "observedPoints": 4,
+  "capturedAtMs": 1793630000000,
+  "reportToken": "hmac-sha256:v1:d4c1f43c7e3d675f3741153cb7474e0765ed83542197c2a8b7b0fddc16730017",
+  "fightToken": "hmac-sha256:v1:8786f26846db4573567a507648d5b1aa6d396ba0f47218b475c8131a3d5f00c7",
+  "reportRevision": 31,
+  "fightId": 15,
+  "encounterId": 12813,
+  "difficulty": 10,
+  "slots": [
+    {
+      "slotKey": "32ab3f9501073875a929e48c8814fda33fb3bfb856ff537dce12aed2de247e2b",
+      "jobKey": "ENGINE_TEST_ONLY|Druid|Balance",
+      "rank": 1,
+      "snapshotSha": "9f342a2bee46b5c8123e11fd816e40814cdd1ce06c4c38aa83d8ad04090aec79",
+      "totalDps": 129420.29392001033,
+      "className": "Druid",
+      "specName": "Balance",
+      "startTime": 1792594801000,
+      "nameKind": "NAMED",
+      "nameToken": "hmac-sha256:v1:dee01dae66a35e401c094dbe4037857636363f20192eee194efa046b63eb1fba"
+    }
+  ],
+  "overallRoster": [
+    {
+      "actorToken": "hmac-sha256:v1:3cf2e62c8ba1358dc3525cf57b608fdaedc31b49721f31358bf9878be929d9d9",
+      "identityKind": "REPORT_ACTOR_ID",
+      "nameToken": "hmac-sha256:v1:dee01dae66a35e401c094dbe4037857636363f20192eee194efa046b63eb1fba",
+      "className": "Druid",
+      "specName": "Balance",
+      "amount": 129420.29392001033
+    },
+    {
+      "actorToken": "hmac-sha256:v1:bed04f7f12433895a926afdfdf442c802d51990db5e733c6027e1bb4983eeb08",
+      "identityKind": "REPORT_ACTOR_ID",
+      "nameToken": "hmac-sha256:v1:aa51f892efd2717d23de5c6f9e9b67184d53ae97c621132fd5e0cb28019c810a",
+      "className": "Rogue",
+      "specName": "Subtlety",
+      "amount": 157383.09064999223
+    },
+    {
+      "actorToken": "hmac-sha256:v1:0119632a4f979412188e20a8b7a2861484e3eac6036fb95ad2ba9f11eec2cf96",
+      "identityKind": "REPORT_ACTOR_ID",
+      "nameToken": "hmac-sha256:v1:7398d30617c80d141952a6ffcd25a96a82d79ee2ceea29b336aaa876aa8b4534",
+      "className": "Warlock",
+      "specName": "Demonology",
+      "amount": 160345.49430000782
+    }
+  ],
+  "bossRoster": [
+    {
+      "actorToken": "hmac-sha256:v1:3cf2e62c8ba1358dc3525cf57b608fdaedc31b49721f31358bf9878be929d9d9",
+      "identityKind": "REPORT_ACTOR_ID",
+      "nameToken": "hmac-sha256:v1:dee01dae66a35e401c094dbe4037857636363f20192eee194efa046b63eb1fba",
+      "className": "Druid",
+      "specName": "Balance",
+      "amount": 18609.653860002756
+    },
+    {
+      "actorToken": "hmac-sha256:v1:bed04f7f12433895a926afdfdf442c802d51990db5e733c6027e1bb4983eeb08",
+      "identityKind": "REPORT_ACTOR_ID",
+      "nameToken": "hmac-sha256:v1:aa51f892efd2717d23de5c6f9e9b67184d53ae97c621132fd5e0cb28019c810a",
+      "className": "Rogue",
+      "specName": "Subtlety",
+      "amount": 25731.239439994097
+    },
+    {
+      "actorToken": "hmac-sha256:v1:0119632a4f979412188e20a8b7a2861484e3eac6036fb95ad2ba9f11eec2cf96",
+      "identityKind": "REPORT_ACTOR_ID",
+      "nameToken": "hmac-sha256:v1:7398d30617c80d141952a6ffcd25a96a82d79ee2ceea29b336aaa876aa8b4534",
+      "className": "Warlock",
+      "specName": "Demonology",
+      "amount": 18342.263940006495
+    }
+  ],
+  "outcomes": [
+    {
+      "slotKey": "32ab3f9501073875a929e48c8814fda33fb3bfb856ff537dce12aed2de247e2b",
+      "jobKey": "ENGINE_TEST_ONLY|Druid|Balance",
+      "rank": 1,
+      "snapshotSha": "9f342a2bee46b5c8123e11fd816e40814cdd1ce06c4c38aa83d8ad04090aec79",
+      "status": "VERIFIED",
+      "reason": null,
+      "actorToken": "hmac-sha256:v1:3cf2e62c8ba1358dc3525cf57b608fdaedc31b49721f31358bf9878be929d9d9",
+      "identityKind": "REPORT_ACTOR_ID",
+      "totalDps": 129420.29392001033,
+      "bossDps": 18609.653860002756,
+      "proofType": "EXACT_SAME_FIGHT_ACTOR"
+    }
+  ],
+  "archiveSha256": "47e3193623ef89404f0efd1a87e7ae2b7204e1220540b8666bb1a96af986b895",
+  "archiveMac": "725a3b2b6418270da7b9fc4fd39617525518712e7eefaca64c6261413b54a577"
+}
