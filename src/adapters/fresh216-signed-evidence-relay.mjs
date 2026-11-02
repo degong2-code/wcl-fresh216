@@ -224,14 +224,15 @@ export function validatePublicRelayApproval({
   githubContext=process.env
 }={}){
   need(exact(approval,['schema','kind','privateStageCommit',
-    'waveSha256','reviewedWorkflowCommit'])&&
+    'waveSha256','reviewedWorkflowCommit','expectedPublicEvidenceHead'])&&
     approval.schema===1&&
     approval.kind===PUBLIC_RELAY_APPROVAL_KIND&&
     is40(approval.privateStageCommit)&&
     approval.privateStageCommit===approvedPrivateStageCommit&&
     is64(approval.waveSha256)&&
     approval.waveSha256===waveSha256&&
-    is40(approval.reviewedWorkflowCommit),
+    is40(approval.reviewedWorkflowCommit)&&
+    is40(approval.expectedPublicEvidenceHead),
     'SIGNED_RELAY_EXACT_OWNER_APPROVAL_MISSING');
   need(githubContext?.GITHUB_ACTIONS==='true'&&
     githubContext.GITHUB_REPOSITORY==='degong2-code/wcl-fresh216'&&
@@ -242,7 +243,8 @@ export function validatePublicRelayApproval({
     'SIGNED_RELAY_UNTRUSTED_PUBLIC_WORKFLOW_CONTEXT');
   return {
     privateStageCommit:approvedPrivateStageCommit,waveSha256,
-    reviewedWorkflowCommit:approval.reviewedWorkflowCommit
+    reviewedWorkflowCommit:approval.reviewedWorkflowCommit,
+    expectedPublicEvidenceHead:approval.expectedPublicEvidenceHead
   };
 }
 
@@ -259,7 +261,7 @@ export async function publishPinnedPrivateSignedWave({
 }={}){
   need(publicationApproved===true,
     'SIGNED_RELAY_PUBLICATION_NOT_AUTHORIZED');
-  validatePublicRelayApproval({
+  const approved=validatePublicRelayApproval({
     approval:approvedPublication,approvedPrivateStageCommit,
     waveSha256,githubContext
   });
@@ -279,7 +281,8 @@ export async function publishPinnedPrivateSignedWave({
   const receipt=await store.persistWave(archives,{
     preSignedManifest:manifest,
     approvedPrivateStageCommit,checkedOutPrivateStageCommit:
-      staged.fromPrivateCommit
+      staged.fromPrivateCommit,
+    expectedPublicEvidenceHead:approved.expectedPublicEvidenceHead
   });
   need(receipt.manifestSha256===manifest.manifestSha256&&
     receipt.archiveCount===staged.archiveCount&&
