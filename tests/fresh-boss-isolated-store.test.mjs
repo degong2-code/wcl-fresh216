@@ -9,6 +9,8 @@ import {createIsolatedBossCheckpoint,makeIsolatedBossStore}
   from '../src/core/fresh-boss-isolated-store.mjs';
 import {runOneFreshBossWave}
   from '../src/core/fresh-boss-wave-journal.mjs';
+import {validatePrivateBossOneRequest}
+  from '../tools/run-private-engine-boss-one.mjs';
 const scope='boss:isolated-A-original';
 const manifest=makeFreshDatedHeroicManifest(scope);
 const sourceHead='a'.repeat(40);
@@ -269,4 +271,42 @@ test('A8 and A9 can each feed B8 or B9 without duplicating A bytes in Git',()=>{
       assert.equal(Object.keys(raw.sourceRequests).length,0);
     }
   }
+});
+
+test('private B-one host accepts only an exact owner-pinned GitHub request',()=>{
+  const env={GITHUB_ACTIONS:'true',GITHUB_EVENT_NAME:'push',
+    GITHUB_REPOSITORY:'degong2-code/ai-project-lab',
+    GITHUB_REF:'refs/heads/work/fresh216-private-actions'};
+  const productHead='a'.repeat(40),sourceHead='b'.repeat(40),
+    bossStateHead='c'.repeat(40);
+  const request={
+    schema:1,kind:'FRESH216_PRIVATE_ENGINE_TICK_REQUEST_V1',
+    mode:'boss-one',approved:true,productCommit:productHead,
+    expectedFreshSourceHead:sourceHead,
+    expectedBossStateHead:bossStateHead,
+    expectedSourceCodeCommit:sourceCommit,
+    expectedSourceScopeKey:scope,
+    bossJobsPerRequest:9,maxRequests:1,
+    maxObservedBossPoints:30,reservePoints:10
+  };
+  const args={env,productHead,sourceHead,bossStateHead};
+  assert.equal(validatePrivateBossOneRequest(request,args),true);
+  for(const bad of [
+    {...request,approved:false},
+    {...request,mode:'preview'},
+    {...request,maxRequests:2},
+    {...request,bossJobsPerRequest:10},
+    {...request,expectedFreshSourceHead:'d'.repeat(40)},
+    {...request,expectedBossStateHead:'d'.repeat(40)},
+    {...request,productCommit:'d'.repeat(40)},
+    {...request,maxObservedBossPoints:150}
+  ])assert.throws(()=>validatePrivateBossOneRequest(bad,args),
+    /BOSS_PRIVATE_ONE_REQUEST_NOT_EXACTLY_PINNED/);
+  for(const badEnv of [
+    {...env,GITHUB_EVENT_NAME:'workflow_dispatch'},
+    {...env,GITHUB_REF:'refs/heads/main'},
+    {...env,GITHUB_REPOSITORY:'other/repo'}
+  ])assert.throws(()=>validatePrivateBossOneRequest(request,{
+    ...args,env:badEnv
+  }),/BOSS_PRIVATE_OWNER_CONTEXT_INVALID/);
 });
