@@ -1,0 +1,122 @@
+name: Fresh216 public evidence ruleset read-only audit (no WCL)
+on:
+  push:
+    branches: [work/fresh216-adaptive-archive-delta-20261031]
+    paths:
+      - .github/workflows/fresh216-public-evidence-ruleset-readonly.yml
+
+permissions:
+  contents: read
+
+jobs:
+  public-ruleset-audit:
+    if: >-
+      github.repository == 'degong2-code/wcl-fresh216' &&
+      github.ref == 'refs/heads/work/fresh216-adaptive-archive-delta-20261031' &&
+      github.event_name == 'push'
+    runs-on: ubuntu-22.04
+    timeout-minutes: 5
+    steps:
+      - name: Check actual GitHub branch rules via GET only
+        env:
+          GH_READ_TOKEN: ${{ github.token }}
+        shell: bash
+        run: |
+          set -euo pipefail
+          node --input-type=module <<'NODE'
+          import fs from 'node:fs';
+          const root='https://api.github.com/repos/degong2-code/wcl-fresh216';
+          const paths={
+            evidenceRule:'/rulesets/26336785',
+            originalRule:'/rulesets/26227675',
+            evidenceBranch:'/branches/fresh216-public-evidence-pilot-20261031',
+            originalBranch:'/branches/work/fresh216-autonomous-host-20261031',
+            evidenceTree:'/git/trees/fresh216-public-evidence-pilot-20261031?recursive=1',
+            currentPR:'/pulls/21'
+          };
+          const need=(ok,code)=>{if(!ok)throw Error(code);};
+          const get=async p=>{
+            const resp=await fetch(root+p,{
+              method:'GET',redirect:'error',
+              headers:{
+                Accept:'application/vnd.github+json',
+                Authorization:'Bearer '+process.env.GH_READ_TOKEN,
+                'X-GitHub-Api-Version':'2022-11-28'
+              },signal:AbortSignal.timeout(15000)
+            });
+            need(resp.status===200,'FRESH216_PUBLIC_RULESET_READ_FAILED');
+            return await resp.json();
+          };
+          try{
+            const [e,o,eb,ob,tree,pr]=await Promise.all(
+              Object.values(paths).map(get));
+            need(e.id===26336785&&e.name==='fresh216-evidence-append-only'&&
+              e.enforcement==='active'&&e.target==='branch',
+              'FRESH216_PUBLIC_EVIDENCE_RULESET_ID_OR_STATUS_DRIFT');
+            need(JSON.stringify(e.conditions?.ref_name?.include)===
+                JSON.stringify(['refs/heads/fresh216-public-evidence-pilot-20261031'])&&
+              Array.isArray(e.conditions?.ref_name?.exclude)&&
+              e.conditions.ref_name.exclude.length===0,
+              'FRESH216_PUBLIC_EVIDENCE_RULESET_TARGET_DRIFT');
+            need(JSON.stringify((e.rules??[]).map(x=>x.type).sort())===
+                JSON.stringify(['deletion','non_fast_forward']),
+              'FRESH216_PUBLIC_EVIDENCE_RULESET_TYPES_DRIFT');
+            need(e.bypass_actors===undefined||
+              (Array.isArray(e.bypass_actors)&&e.bypass_actors.length===0),
+              'FRESH216_PUBLIC_EVIDENCE_RULESET_BYPASS_DRIFT');
+            need(o.id===26227675&&
+              o.name==='fresh216-trusted-runner-guard'&&
+              o.enforcement==='active'&&
+              JSON.stringify(o.conditions?.ref_name?.include)===
+                JSON.stringify(['refs/heads/work/fresh216-autonomous-host-20261031'])&&
+              JSON.stringify((o.rules??[]).map(x=>x.type).sort())===
+                JSON.stringify(['deletion','non_fast_forward','pull_request']),
+              'FRESH216_TRUSTED_RUNNER_RULESET_DRIFT');
+            need(eb.protected===true&&ob.protected===true&&
+              eb.name==='fresh216-public-evidence-pilot-20261031'&&
+              eb.commit?.sha==='ece50401bd103f9c264b6371387c8e8d70a4cfb0',
+              'FRESH216_PUBLIC_EVIDENCE_BRANCH_HEAD_DRIFT');
+            need(tree.sha===eb.commit.sha&&
+              Array.isArray(tree.tree)&&
+              !tree.tree.some(x=>
+                x.path.startsWith('evidence/fresh216/actor-proof/')||
+                x.path.startsWith('evidence/fresh216/waves/')),
+              'FRESH216_PUBLIC_ACTOR_PROOF_NOT_EMPTY');
+            need(pr.number===21&&pr.state==='open'&&pr.draft===true&&
+              pr.merged===false&&
+              pr.base?.ref==='work/fresh216-autonomous-host-20261031',
+              'FRESH216_PUBLIC_PUBLISH_PR_STATE_DRIFT');
+            const result={
+              status:'FRESH216_PUBLIC_EVIDENCE_RULESET_NATIVE_READ_ONLY_PASS',
+              evidenceRuleset:'ACTIVE_EXACT_TARGET',
+              evidenceRules:['deletion','non_fast_forward'],
+              originalGuard:'UNCHANGED_ACTIVE_TRUSTED_BRANCH_ONLY',
+              publicEvidenceBranchProtected:true,
+              nativeBypassFieldVisible:Array.isArray(e.bypass_actors),
+              publicActorProofArchiveFiles:0,
+              publicActorProofWaveManifests:0,
+              pr21:'OPEN_DRAFT',
+              environmentSettingsRead:'NOT_SUPPORTED_BY_THIS_AUDIT',
+              actionsDefaultPermissionsRead:'NOT_SUPPORTED_BY_THIS_AUDIT',
+              networkRequests:'GET_ONLY',
+              privateReadTokenUsed:false,
+              hmacKeyUsed:false,
+              graphqlCalls:0,oauthCalls:0,observedPoints:0,
+              archiveWrites:0,cDeltaAppends:0,
+              canonicalPromotions:0,sheetsWrites:0
+            };
+            console.log(JSON.stringify(result));
+            if(process.env.GITHUB_STEP_SUMMARY)
+              fs.appendFileSync(process.env.GITHUB_STEP_SUMMARY,
+                '### Fresh216 public evidence Ruleset audit: PASS\n'+
+                'Active, evidence-only, deletion/non-fast-forward guards.\n'+
+                'Existing trusted branch rule unchanged, PR #21 DRAFT.\n'+
+                'Environment settings are not verified by this job.\n'+
+                'No private credentials, WCL, C or public evidence writes.\n');
+          }catch(error){
+            const known=/^FRESH216_[A-Z0-9_]+$/.test(error?.message??'')?
+              error.message:'FRESH216_PUBLIC_RULESET_AUDIT_FAILED';
+            console.error(known);
+            process.exitCode=1;
+          }
+          NODE

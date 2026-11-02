@@ -1,5 +1,6 @@
 /**
- * Exactly one official BossDPS page-1 GraphQL wave (up to eight specs).
+ * One official BossDPS page-1 GraphQL wave (8 or 9 specs), independently
+ * planned from the completed immutable A source.
  * The existing schema-1 TotalDPS checkpoint is the ONLY durable state.
  * No I/O or OAuth here. A store.update() MUST durably push to private Git
  * and confirm the remote ref before this runner invokes transport().
@@ -16,8 +17,10 @@ import {evaluateRequestAdmission} from './request-admission.mjs';
 const need=(v,c)=>{if(!v)throw Error(c);};
 const sha=x=>createHash('sha256').update(JSON.stringify(x)).digest('hex');
 const clone=x=>structuredClone(x);
-const SOURCE_SHA='7b1a075ad2663c8aa07734b7733cbe81bf9c6071';
-const SCOPE='heroic:2026-10-22_27:latest:source';
+// Previous B8 journal rows lack a B plan seal. They are accepted only in
+// their exact historical source identity, never as a new B9 checkpoint.
+const LEGACY_SOURCE_SHA='7b1a075ad2663c8aa07734b7733cbe81bf9c6071';
+const LEGACY_SCOPE='heroic:2026-10-22_27:latest:source';
 const all=state=>[
   ...Object.values(state.entries??{}),
   ...Object.values(state.rankRequests??{}),
@@ -29,38 +32,102 @@ const unsafe=state=>all(state).some(e=>e.status==='IN_FLIGHT'||
 const key=batch=>'page1:'+batch.batchIndex;
 
 /**
- * Check the immutable eight source jobs against their ORIGINAL private
- * checkpoint rows, not a re-fetched TotalDPS leaderboard. No raw duplication
- * is stored in the BossDPS request journal.
+ * Validate B's independent plan generation against ALL committed A jobs.
+ * A source batch index never identifies a B batch. Each B job is looked up
+ * by original jobKey + snapshotSha and all 100 source rows are checked.
+ *
+ * The B plan seal includes scope, source code/roster, alias grouping and all
+ * A snapshot hashes. Changing B8 to B9, editing a source row or reordering
+ * an encounter cannot silently reuse an already charged B request.
+ *
+ * This validator MUST work while the B journal itself is IN_FLIGHT;
+ * projectCompletedFreshCohort() deliberately refuses that state.
  */
 function sourceIdentity(state,batch){
+  const sourceCommit=state?.sourceCodeCommit,scopeKey=state?.scopeKey;
+  const bSize=batch?.bossJobsPerRequest??8;
   need(state?.schema===1&&state.status==='ACTIVE'&&
-    state.scopeKey===SCOPE&&state.sourceCodeCommit===SOURCE_SHA&&
-    Number.isInteger(batch?.batchIndex)&&batch.batchIndex>=0&&
-    batch.batchIndex<32,
+    typeof sourceCommit==='string'&&/^[0-9a-f]{40}$/.test(sourceCommit)&&
+    typeof scopeKey==='string'&&scopeKey.length>0&&
+    [8,9].includes(bSize),
     'BOSS_WAVE_SOURCE_IDENTITY');
   makeFreshBossFirstPageQuery(batch);
-  const plan=planFreshCohortBatches(makeFreshDatedHeroicManifest(SCOPE));
-  const original=plan.batches[batch.batchIndex];
-  const recorded=state.sourceRequests?.[original.key];
-  need(recorded?.status==='COMPLETED'&&
-    JSON.stringify(recorded.batch)===JSON.stringify(original)&&
-    recorded.result?.jobs?.length===original.jobs.length&&
-    batch.jobs.length===original.jobs.length&&
-    batch.scopeKey===SCOPE&&batch.encounterId===original.encounterId,
+  const manifest=makeFreshDatedHeroicManifest(scopeKey);
+  const sourcePlan=planFreshCohortBatches(manifest,{
+    jobsPerRequest:state.sourceJobsPerRequest??8
+  });
+  const bPlan=planFreshCohortBatches(manifest,{
+    jobsPerRequest:bSize
+  });
+  need(state.sourceManifestSha===sourcePlan.manifestSha&&
+    Object.keys(state.sourceRequests??{}).length===sourcePlan.requestCount&&
+    Number.isInteger(batch.batchIndex)&&batch.batchIndex>=0&&
+    batch.batchIndex<bPlan.requestCount,
+    'BOSS_WAVE_SOURCE_IDENTITY');
+  const reference=bPlan.batches[batch.batchIndex];
+  need(batch.scopeKey===scopeKey&&
+    batch.encounterId===reference.encounterId&&
+    batch.jobs.length===reference.jobs.length&&
+    batch.difficulty===reference.difficulty&&
+    batch.filter===reference.filter&&
+    batch.partitionMode===reference.partitionMode,
     'BOSS_WAVE_SOURCE_BATCH_DRIFT');
-  for(let i=0;i<original.jobs.length;i++){
-    const source=recorded.result.jobs[i],wanted=batch.jobs[i],j=original.jobs[i];
-    need(source?.jobKey===j.jobKey&&wanted.jobKey===j.jobKey&&
-      wanted.className===j.className&&wanted.specName===j.specName&&
-      Array.isArray(source.rows)&&source.rows.length===100&&
-      source.snapshotSha===sha(source.rows)&&
-      wanted.snapshotSha===source.snapshotSha&&
-      wanted.slots.length===100,
+
+  const sources=new Map(),sourceSnapshots=[];
+  for(const a of sourcePlan.batches){
+    const e=state.sourceRequests[a.key];
+    need(e?.status==='COMPLETED'&&
+      JSON.stringify(e.batch)===JSON.stringify(a)&&
+      e.result?.jobs?.length===a.jobs.length&&
+      Number.isFinite(e.observedPoints)&&e.observedPoints>=0,
+      'BOSS_WAVE_SOURCE_BATCH_DRIFT');
+    for(let i=0;i<a.jobs.length;i++){
+      const j=a.jobs[i],saved=e.result.jobs[i];
+      need(saved?.jobKey===j.jobKey&&
+        saved.className===j.className&&
+        saved.specName===j.specName&&
+        Array.isArray(saved.rows)&&saved.rows.length===100&&
+        saved.snapshotSha===sha(saved.rows)&&
+        !sources.has(j.jobKey),
+        'BOSS_WAVE_SOURCE_JOB_DRIFT');
+      sources.set(j.jobKey,{...saved,encounterId:a.encounterId});
+      sourceSnapshots.push([j.jobKey,saved.snapshotSha]);
+    }
+  }
+  need(sources.size===216,'BOSS_WAVE_SOURCE_JOB_DRIFT');
+  const planSha=sha({
+    kind:'BOSS_FIRST_PAGE_INDEPENDENT_PLAN_V1',
+    scopeKey,sourceCommit,sourceManifestSha:sourcePlan.manifestSha,
+    sourceJobsPerRequest:state.sourceJobsPerRequest??8,
+    bossJobsPerRequest:bSize,
+    sourceSnapshots
+  });
+  for(const [k,e] of Object.entries(state.bossPageRequests??{})){
+    const historical=e.bossPlanSha==null&&
+      scopeKey===LEGACY_SCOPE&&sourceCommit===LEGACY_SOURCE_SHA&&
+      bSize===8;
+    need(k===key({batchIndex:e.batchIndex})&&
+      e.scopeKey===scopeKey&&e.sourceCommit===sourceCommit&&
+      (e.bossPlanSha===planSha||historical),
+      'BOSS_WAVE_PLAN_GENERATION_DRIFT');
+  }
+  for(let i=0;i<reference.jobs.length;i++){
+    const expected=reference.jobs[i],wanted=batch.jobs[i];
+    const original=sources.get(expected.jobKey);
+    need(original&&wanted?.jobKey===expected.jobKey&&
+      wanted.className===expected.className&&
+      wanted.specName===expected.specName&&
+      wanted.snapshotSha===original.snapshotSha&&
+      Array.isArray(wanted.slots)&&wanted.slots.length===100&&
+      original.encounterId===batch.encounterId,
       'BOSS_WAVE_SOURCE_JOB_DRIFT');
     for(let k=0;k<100;k++){
-      const raw=source.rows[k],slot=wanted.slots[k];
-      need(slot.rank===k+1&&
+      const raw=original.rows[k],slot=wanted.slots[k];
+      need(slot.rank===k+1&&slot.jobKey===expected.jobKey&&
+        slot.scopeKey===scopeKey&&slot.snapshotSha===original.snapshotSha&&
+        slot.className===expected.className&&
+        slot.specName===expected.specName&&
+        slot.encounterId===batch.encounterId&&slot.difficulty===4&&
         slot.totalDps===raw.amount&&slot.name===raw.name&&
         slot.reportCode===raw.reportCode&&slot.fightId===raw.fightId&&
         slot.startTime===raw.startTime&&
@@ -68,11 +135,12 @@ function sourceIdentity(state,batch){
         'BOSS_WAVE_SOURCE_RANK_DRIFT');
     }
   }
-  return sha(batch);
+  return {batchSha:sha(batch),planSha,sourceCommit,scopeKey};
 }
 
 export function registerFreshBossWave(state,batch){
-  const digest=sourceIdentity(state,batch),k=key(batch);
+  const identity=sourceIdentity(state,batch),digest=identity.batchSha,
+    k=key(batch);
   const list=state.bossPageRequests??{};
   if(list[k]){
     need(list[k].batchSha===digest,'BOSS_WAVE_REPLAN_DRIFT');
@@ -84,14 +152,16 @@ export function registerFreshBossWave(state,batch){
   const out=clone(state);out.bossPageRequests??={};
   out.bossPageRequests[k]={
     key:k,batchIndex:batch.batchIndex,batchSha:digest,
-    sourceCommit:SOURCE_SHA,scopeKey:SCOPE,status:'READY',
+    sourceCommit:identity.sourceCommit,scopeKey:identity.scopeKey,
+    bossPlanSha:identity.planSha,status:'READY',
     attempt:null,observedPoints:null,wallMs:null,result:null,incident:null
   };
   out.version++;return out;
 }
 
 export function beginFreshBossWave(state,batch,attemptId,startedAtMs){
-  const digest=sourceIdentity(state,batch),e=state.bossPageRequests?.[key(batch)];
+  const identity=sourceIdentity(state,batch),digest=identity.batchSha,
+    e=state.bossPageRequests?.[key(batch)];
   need(e?.status==='READY'&&e.batchSha===digest&&
     typeof attemptId==='string'&&attemptId.length>0&&
     Number.isSafeInteger(startedAtMs)&&startedAtMs>=0,
@@ -106,8 +176,13 @@ export function beginFreshBossWave(state,batch,attemptId,startedAtMs){
 }
 function attempted(state,batch,attemptId){
   const entry=state.bossPageRequests?.[key(batch)];
+  const identity=sourceIdentity(state,batch);
   need(entry?.status==='IN_FLIGHT'&&entry.attempt?.id===attemptId&&
-    entry.batchSha===sha(batch)&&entry.sourceCommit===SOURCE_SHA,
+    entry.batchSha===identity.batchSha&&
+    entry.sourceCommit===identity.sourceCommit&&
+    (entry.bossPlanSha===identity.planSha||
+      entry.bossPlanSha==null&&identity.scopeKey===LEGACY_SCOPE&&
+      identity.sourceCommit===LEGACY_SOURCE_SHA),
     'BOSS_WAVE_ATTEMPT_DRIFT');
   return entry;
 }
@@ -167,7 +242,7 @@ export async function runOneFreshBossWave({
 }={}){
   need(store&&typeof store.read==='function'&&
     typeof store.update==='function','BOSS_WAVE_STORE_REQUIRED');
-  const before=store.read(),digest=sourceIdentity(before,batch);
+  const before=store.read(),digest=sourceIdentity(before,batch).batchSha;
   const existing=before.bossPageRequests?.[key(batch)];
   if(existing)need(existing.batchSha===digest,'BOSS_WAVE_REPLAN_DRIFT');
   if(mode==='preview')return {

@@ -9,6 +9,7 @@ on:
       - work/fresh216-public-actor-proof-livewire-20261031
       - work/fresh216-archive-to-c-core-20261031
       - work/fresh216-hmac-secret-preflight-20261031
+      - work/fresh216-adaptive-archive-delta-20261031
     paths:
       - .github/workflows/fresh216-autonomous-host.yml
       - src/**
@@ -21,9 +22,12 @@ on:
 permissions:
   contents: read
 
+# The PR21 feature branch is offline-only: obsolete core runs may be cancelled.
+# Keep the protected trusted branch and its potentially paid WCL job non-cancellable.
+# Branch isolation also prevents harmless feature CI from blocking trusted work.
 concurrency:
-  group: fresh216-autonomous-owner-branch
-  cancel-in-progress: false
+  group: fresh216-autonomous-${{ github.ref }}
+  cancel-in-progress: ${{ github.ref == 'refs/heads/work/fresh216-adaptive-archive-delta-20261031' }}
 
 jobs:
   offline-core:
@@ -32,7 +36,8 @@ jobs:
       (github.ref == 'refs/heads/work/fresh216-autonomous-host-20261031' ||
        github.ref == 'refs/heads/work/fresh216-public-actor-proof-livewire-20261031' ||
        github.ref == 'refs/heads/work/fresh216-archive-to-c-core-20261031' ||
-       github.ref == 'refs/heads/work/fresh216-hmac-secret-preflight-20261031')
+       github.ref == 'refs/heads/work/fresh216-hmac-secret-preflight-20261031' ||
+       github.ref == 'refs/heads/work/fresh216-adaptive-archive-delta-20261031')
     runs-on: ubuntu-latest
     timeout-minutes: 10
     steps:

@@ -71,6 +71,7 @@ export function planFightFetches(slots) {
     groups.get(groupKey).slots.push({
       jobKey: s.jobKey, rank: s.rank, snapshotSha: s.snapshotSha,
       totalDps: s.totalDps, className: s.className, specName: s.specName,
+      ...(Number.isFinite(s.startTime)?{startTime:s.startTime}:{}),
       name: typeof s.name === 'string' ? s.name : ''
     });
   }

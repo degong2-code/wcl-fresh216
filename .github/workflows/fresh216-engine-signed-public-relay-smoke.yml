@@ -1,0 +1,100 @@
+name: Fresh216 signed private Stage to public Git smoke (test-only)
+on:
+  push:
+    branches: [work/fresh216-adaptive-archive-delta-20261031]
+    paths: [.github/workflows/fresh216-engine-signed-public-relay-smoke.yml]
+
+permissions:
+  contents: write
+concurrency:
+  group: fresh216-engine-signed-public-relay-smoke-20261102
+  cancel-in-progress: false
+jobs:
+  pinned-redacted-public-relay:
+    if: github.repository == 'degong2-code/wcl-fresh216' && github.ref == 'refs/heads/work/fresh216-adaptive-archive-delta-20261031' && github.event_name == 'push'
+    environment: fresh216-private-read
+    runs-on: ubuntu-22.04
+    timeout-minutes: 8
+    steps:
+      - name: Checkout exact tested relay verification code
+        uses: actions/checkout@v4
+        with:
+          repository: degong2-code/wcl-fresh216
+          ref: ea0d6d613d7c6fae927d93fef12ab7c0f10cf461
+          path: product
+          persist-credentials: false
+      - name: Checkout empty public proof test branch with repository-native write token
+        uses: actions/checkout@v4
+        with:
+          ref: work/fresh216-public-signed-smoke-20261102
+          path: public-smoke
+          persist-credentials: true
+          fetch-depth: 1
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+      - name: Verify signed private Stage by immutable pinned Git GET and commit redacted artifacts
+        shell: bash
+        env:
+          FRESH216_PRIVATE_READ_TOKEN: ${{ secrets.FRESH216_PRIVATE_READ_TOKEN }}
+        run: |
+          set -euo pipefail
+          test "$(git -C product rev-parse HEAD)" = ea0d6d613d7c6fae927d93fef12ab7c0f10cf461
+          test "$(git -C public-smoke rev-parse HEAD)" = ece50401bd103f9c264b6371387c8e8d70a4cfb0
+          test "$(git -C public-smoke symbolic-ref --short HEAD)" = work/fresh216-public-signed-smoke-20261102
+          test -z "$(git -C public-smoke status --porcelain --untracked-files=all)"
+          node --input-type=module <<'NODE'
+          import fs from 'node:fs';
+          import path from 'node:path';
+          import {pathToFileURL} from 'node:url';
+          const need=(yes,code)=>{if(!yes)throw Error(code);};
+          const root=path.resolve('product');
+          const {fetchPinnedPrivateSignedWaveStage}=await import(pathToFileURL(
+            path.join(root,'src/adapters/fresh216-signed-evidence-relay.mjs')).href);
+          const sha='96c59cb7185af2e110f487deed6298cdda47aa03980755fdc7aeda8bf14492ce';
+          const commit='43b1d0f449de309f1297887e2bdceb5b32248d20';
+          need(typeof process.env.FRESH216_PRIVATE_READ_TOKEN==='string'&&
+            process.env.FRESH216_PRIVATE_READ_TOKEN.length>=20,
+            'SIGNED_SMOKE_PRIVATE_GET_TOKEN_UNAVAILABLE');
+          const checked=await fetchPinnedPrivateSignedWaveStage({
+            approvedPrivateStageCommit:commit,waveSha256:sha,
+            privateReadToken:process.env.FRESH216_PRIVATE_READ_TOKEN
+          });
+          need(checked.status==='PUBLIC_RELAY_INSPECTED_WITHOUT_HMAC_KEY'&&
+            checked.fromPrivateCommit===commit&&checked.waveSha256===sha&&
+            checked.archiveCount===1&&checked.verifiedSlots===1&&
+            checked.files.length===2,
+            'SIGNED_SMOKE_PRIVATE_STAGE_INCOMPLETE');
+          const archives=checked.files.filter(f=>f.path.includes('/actor-proof/'));
+          need(archives.length===1&&JSON.parse(archives[0].content).scopeKey===
+            'engine-test:2026-11-02:SELF_DERIVED_NONCANONICAL',
+            'SIGNED_SMOKE_NOT_TEST_ONLY');
+          const prefix='evidence/fresh216/';
+          for(const f of checked.files){
+            need(f.path.startsWith(prefix)&&
+              /^evidence\/fresh216\/(actor-proof|waves)\/[a-f0-9]{64}\.json$/.test(f.path)&&
+              !f.path.includes('..')&&
+              Buffer.byteLength(f.content,'utf8')<512*1024,
+              'SIGNED_SMOKE_PATH_INVALID');
+            const dst=path.resolve('public-smoke',f.path);
+            need(dst.startsWith(path.resolve('public-smoke')+path.sep),
+              'SIGNED_SMOKE_PATH_ESCAPE');
+            fs.mkdirSync(path.dirname(dst),{recursive:true});
+            fs.writeFileSync(dst,f.content,{encoding:'utf8',flag:'wx'});
+          }
+          console.log(JSON.stringify({
+            status:'SIGNED_PUBLIC_TEST_ONLY_STAGE_INSPECTED',
+            pinnedPrivateCommit:commit,waveSha256:sha,
+            archiveCount:checked.archiveCount,verifiedSlots:checked.verifiedSlots,
+            privateRawExposed:false,hmacKeyRequiredOnPublic:false,
+            publicBranch:'work/fresh216-public-signed-smoke-20261102'
+          }));
+          NODE
+          git -C public-smoke add -- evidence/fresh216/actor-proof evidence/fresh216/waves
+          test "$(git -C public-smoke diff --cached --name-only | wc -l)" -eq 2
+          git -C public-smoke -c user.name='Fresh216 Engine Smoke' -c user.email='fresh216-smoke@users.noreply.github.com' commit -m 'test(fresh216): publish signed real-response redacted synthetic wave'
+          committed="$(git -C public-smoke rev-parse HEAD)"
+          git -C public-smoke push origin HEAD:refs/heads/work/fresh216-public-signed-smoke-20261102
+          observed="$(git -C public-smoke ls-remote --heads origin refs/heads/work/fresh216-public-signed-smoke-20261102 | cut -f1)"
+          test "$committed" = "$observed"
+          echo 'FRESH216_REAL_RESPONSE_SIGNED_PRIVATE_TO_PUBLIC_READBACK_PASS' >> "$GITHUB_STEP_SUMMARY"

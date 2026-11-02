@@ -441,6 +441,27 @@ export function verifyActorProofArchive(archive,{
     outcomes
   };
 }
+/**
+ * Validate the public redacted projection WITHOUT knowing the HMAC secret.
+ * This proves schema, SHA-256 payload integrity, and deterministic replay,
+ * NOT signature authenticity or trusted WCL provenance. The latter must be
+ * attested by the private, HMAC-authorized publisher and exact Git commit.
+ */
+export function inspectActorProofArchivePublic(archive){
+  validateRedactedShape(archive);
+  const payload={};
+  for(const k of payloadKeys)payload[k]=archive[k];
+  need(shaObject(payload)===archive.archiveSha256,
+    'ACTOR_ARCHIVE_CONTENT_SHA_MISMATCH');
+  const replayed=replayRows(payload);
+  need(eq(replayed,archive.outcomes),
+    'ACTOR_ARCHIVE_REPLAY_MISMATCH');
+  const verifiedSlots=replayed.filter(x=>x.status==='VERIFIED').length;
+  return {archiveId:archive.archiveId,
+    archiveSha256:archive.archiveSha256,verifiedSlots,
+    unresolvedSlots:replayed.length-verifiedSlots};
+}
+
 export const replayActorProofArchive=verifyActorProofArchive;
 
 export const ACTOR_PROOF_WAVE_MANIFEST_SCHEMA=1;
@@ -579,4 +600,80 @@ export function verifyActorProofWaveManifest(manifest,{
     manifestSha256:manifest.manifestSha256,
     archiveCount:entries.length,verifiedSlots:vCount,unresolvedSlots:uCount
   };
+}
+
+/**
+ * Read-only public inspection of an already privately signed wave. Does NOT
+ * authenticate manifestMac/archiveMac without the private HMAC secret.
+ * The public relay must pin a trusted, independently verified private commit.
+ */
+export function inspectActorProofWaveManifestPublic(manifest,{archives}={}){
+  need(exactKeys(manifest,manifestKeys)&&
+    manifest.schema===ACTOR_PROOF_WAVE_MANIFEST_SCHEMA&&
+    manifest.kind===ACTOR_PROOF_WAVE_MANIFEST_KIND&&
+    manifest.keyId===ACTOR_PROOF_ARCHIVE_KEY_ID&&
+    validSha(manifest.waveSha256)&&validSha(manifest.sourceSha256)&&
+    validSha(manifest.requestBodySha256)&&
+    validSha(manifest.responseBodySha256)&&
+    manifest.httpStatus===200&&
+    typeof manifest.observedPoints==='number'&&
+    Number.isFinite(manifest.observedPoints)&&manifest.observedPoints>=0&&
+    Number.isSafeInteger(manifest.createdAtMs)&&manifest.createdAtMs>0&&
+    Array.isArray(manifest.archives)&&manifest.archives.length>=1&&
+    manifest.archives.length<=8&&
+    Number.isSafeInteger(manifest.verifiedSlots)&&manifest.verifiedSlots>=0&&
+    Number.isSafeInteger(manifest.unresolvedSlots)&&manifest.unresolvedSlots>=0&&
+    validSha(manifest.manifestSha256)&&validSha(manifest.manifestMac)&&
+    Array.isArray(archives)&&archives.length===manifest.archives.length,
+    'ACTOR_WAVE_PUBLIC_MANIFEST_SHAPE_INVALID');
+  const payload={};
+  for(const k of manifestPayloadKeys)payload[k]=manifest[k];
+  need(shaObject(payload)===manifest.manifestSha256,
+    'ACTOR_WAVE_MANIFEST_CONTENT_SHA_MISMATCH');
+  const byId=new Map(archives.map(a=>[a?.archiveId,a]));
+  need(byId.size===archives.length,
+    'ACTOR_WAVE_PUBLIC_ARCHIVE_DUPLICATE');
+  const seen=new Set(),seenFights=new Set();
+  let verifiedSlots=0,unresolvedSlots=0;
+  for(const entry of manifest.archives){
+    need(exactKeys(entry,manifestEntryKeys)&&
+      validSha(entry.archiveId)&&validSha(entry.archiveSha256)&&
+      validToken(entry.reportToken)&&validToken(entry.fightToken)&&
+      Number.isSafeInteger(entry.reportRevision)&&
+      Number.isSafeInteger(entry.fightId)&&entry.fightId>0&&
+      Number.isSafeInteger(entry.encounterId)&&entry.encounterId>0&&
+      Number.isSafeInteger(entry.difficulty)&&entry.difficulty>0&&
+      Number.isSafeInteger(entry.verifiedSlots)&&entry.verifiedSlots>=0&&
+      Number.isSafeInteger(entry.unresolvedSlots)&&entry.unresolvedSlots>=0&&
+      !seen.has(entry.archiveId)&&!seenFights.has(entry.fightToken),
+      'ACTOR_WAVE_PUBLIC_ENTRY_INVALID');
+    seen.add(entry.archiveId);seenFights.add(entry.fightToken);
+    const archive=byId.get(entry.archiveId);
+    need(archive&&archive.archiveSha256===entry.archiveSha256&&
+      archive.waveSha256===manifest.waveSha256&&
+      archive.sourceSha256===manifest.sourceSha256&&
+      archive.requestBodySha256===manifest.requestBodySha256&&
+      archive.responseBodySha256===manifest.responseBodySha256&&
+      archive.reportToken===entry.reportToken&&
+      archive.fightToken===entry.fightToken&&
+      archive.reportRevision===entry.reportRevision&&
+      archive.fightId===entry.fightId&&
+      archive.encounterId===entry.encounterId&&
+      archive.difficulty===entry.difficulty,
+      'ACTOR_WAVE_PUBLIC_ARCHIVE_LINK_DRIFT');
+    const inspected=inspectActorProofArchivePublic(archive);
+    need(inspected.verifiedSlots===entry.verifiedSlots&&
+      inspected.unresolvedSlots===entry.unresolvedSlots,
+      'ACTOR_WAVE_PUBLIC_ARCHIVE_COUNTS_DRIFT');
+    verifiedSlots+=inspected.verifiedSlots;
+    unresolvedSlots+=inspected.unresolvedSlots;
+  }
+  need(verifiedSlots===manifest.verifiedSlots&&
+    unresolvedSlots===manifest.unresolvedSlots,
+    'ACTOR_WAVE_PUBLIC_MANIFEST_COUNTS_DRIFT');
+  return {archiveCount:archives.length,
+    verifiedSlots,unresolvedSlots,
+    manifestSha256:manifest.manifestSha256,
+    waveSha256:manifest.waveSha256,
+    hmacAuthenticated:false};
 }

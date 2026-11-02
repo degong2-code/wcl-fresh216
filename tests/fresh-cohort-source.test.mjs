@@ -201,6 +201,7 @@ test('charged source IN_FLIGHT blocks another report attempt in same scope',()=>
  const s={scopeKey:m.scopeKey,jobKey:'네크잘리|DeathKnight|Frost',
    rank:1,snapshotSha:'a'.repeat(64),status:'PENDING',totalDps:500,
    className:'DeathKnight',specName:'Frost',name:'Actor1',
+   startTime:1792600000000,
    reportCode:'TEST_REPORT',fightId:5,
    encounterId:3470,difficulty:4,reportRevision:null};
  const grouped=planFightFetches([s]).groups;
@@ -208,4 +209,33 @@ test('charged source IN_FLIGHT blocks another report attempt in same scope',()=>
  const key=Object.keys(readyReport.entries)[0];
  assert.throws(()=>beginFetch(readyReport,key,'REPORT',101),
    /SCOPE_HAS_UNRESOLVED_ATTEMPT/);
+});
+
+test('isolated one-job source plan persists exact 216-entry partition on remote-style restart',async()=>{
+ const m=manifest(),s=mem(newCheckpoint(m.scopeKey,'isolated-one-job'));
+ let calls=0;
+ const first=await runOneFreshCohortBatch({store:s,manifest:m,
+   jobsPerRequest:1,mode:'execute',approved:true,
+   admissionPolicy:policy,clock:()=>1792594801000,
+   transport:async q=>{calls++;return makeBody(q);}
+ });
+ assert.equal(first.status,'RECORDED');
+ assert.equal(calls,1);
+ assert.equal(first.completedJobsAfter,1);
+ const saved=s.read();
+ assert.equal(saved.sourceJobsPerRequest,1);
+ assert.equal(Object.keys(saved.sourceRequests).length,216);
+ assert.equal(nextFreshCohortBatch(saved,m).kind,'SOURCE_BATCH');
+ assert.equal(nextFreshCohortBatch(saved,m).batch.batchIndex,1);
+ const preview=await runOneFreshCohortBatch({
+   store:s,manifest:m,jobsPerRequest:1
+ });
+ assert.equal(preview.nextRequestIndex,1);
+ await assert.rejects(runOneFreshCohortBatch({
+   store:s,manifest:m,jobsPerRequest:8,mode:'execute',
+   approved:true,admissionPolicy:policy,transport:async()=>{
+     calls++;throw Error('must not reach WCL');
+   }
+ }),/FRESH_COHORT_BATCH_SIZE_DRIFT/);
+ assert.equal(calls,1);
 });
