@@ -273,37 +273,85 @@ export function uncertainFreshCohortBatch(state,batch,attemptId,reason,{
   out.version++;return out;
 }
 /** Refuse export unless 8x27 jobs and 21600 source rows are durable. */
-export function exportVerifiedFreshCohort(state,manifest){
+/**
+ * Read-only source boundary for the downstream evidence/KPI engine.
+ * EXACT100 is validated per COMPLETED job, never inferred from READY work.
+ * Both partial readbacks and the full exporter use this ONE projector.
+ * An unresolved paid attempt is NOT eligible for published projections.
+ */
+export function projectCompletedFreshCohort(state,manifest){
   const next=nextFreshCohortBatch(state,manifest);
-  need(next.kind==='SOURCE_COMPLETE','FRESH_COHORT_INCOMPLETE');
+  need(next.kind!=='PLAN_REQUIRED'&&next.kind!=='NEEDS_REVIEW',
+    'FRESH_COHORT_PROJECTION_NOT_READY');
   const batches=planFreshCohortBatches(manifest,{
     jobsPerRequest:state.sourceJobsPerRequest??8
   }).batches,slots=[];
+  let complete=0,points=0;
   for(const batch of batches){
     const entry=state.sourceRequests[batch.key];
-    need(entry.observedPoints!=null&&entry.result?.jobs?.length===batch.jobs.length,
-      'FRESH_COHORT_MISSING_WITNESS');
+    if(entry.status==='READY')continue;
+    need(entry.status==='COMPLETED'&&
+      Number.isFinite(entry.observedPoints)&&entry.observedPoints>=0&&
+      entry.result?.jobs?.length===batch.jobs.length,
+      'FRESH_COHORT_PARTIAL_UNTRUSTED_BATCH');
+    complete++;points+=entry.observedPoints;
     for(let i=0;i<batch.jobs.length;i++){
-      const j=entry.result.jobs[i];
-      need(j.jobKey===batch.jobs[i].jobKey&&j.snapshotSha===digest(j.rows),
+      const j=entry.result.jobs[i],spec=batch.jobs[i];
+      need(j.jobKey===spec.jobKey&&
+        j.className===spec.className&&j.specName===spec.specName&&
+        Array.isArray(j.rows)&&j.rows.length===100&&
+        j.snapshotSha===digest(j.rows),
         'FRESH_COHORT_EXPORT_DRIFT');
-      j.rows.forEach((r,n)=>slots.push({
-        scopeKey:manifest.scopeKey,jobKey:j.jobKey,rank:n+1,
-        snapshotSha:j.snapshotSha,status:'PENDING',
-        className:j.className,specName:j.specName,totalDps:r.amount,
-        reportCode:r.reportCode,fightId:r.fightId,
-        encounterId:batch.encounterId,difficulty:4,
-        name:r.name,startTime:r.startTime,
-        reportRevision:r.reportRevision,filter:DATE_FILTER
-      }));
+      let previous=Infinity;
+      j.rows.forEach((r,n)=>{
+        need(typeof r.name==='string'&&r.name.trim().length>0&&
+          Number.isFinite(r.amount)&&r.amount>0&&r.amount<=previous&&
+          validText(r.reportCode)&&positive(r.fightId)&&
+          Number.isSafeInteger(r.startTime)&&
+          r.startTime>=START&&r.startTime<END&&
+          (r.reportRevision==null||
+            Number.isSafeInteger(r.reportRevision)&&r.reportRevision>=0),
+          'FRESH_COHORT_STORED_ROW_DRIFT');
+        previous=r.amount;
+        slots.push({
+          scopeKey:manifest.scopeKey,jobKey:j.jobKey,rank:n+1,
+          snapshotSha:j.snapshotSha,status:'PENDING',
+          className:j.className,specName:j.specName,totalDps:r.amount,
+          reportCode:r.reportCode,fightId:r.fightId,
+          encounterId:batch.encounterId,difficulty:4,
+          name:r.name,startTime:r.startTime,
+          reportRevision:r.reportRevision,filter:DATE_FILTER
+        });
+      });
     }
   }
-  const verified=planFull216(slots);
-  return {slots,summary:{status:'SOURCE_COMPLETE',jobs:verified.jobs,
+  const completedJobs=slots.length/100;
+  need(Number.isSafeInteger(completedJobs)&&
+    completedJobs===next.completedJobs&&
+    (next.kind!=='SOURCE_COMPLETE'||completedJobs===216),
+    'FRESH_COHORT_PARTIAL_COMPLETION_DRIFT');
+  return {slots,summary:{
+    status:next.kind,scopeKey:manifest.scopeKey,
+    jobsCompleted:completedJobs,jobsRequired:216,
+    rankSlotsCompleted:slots.length,rankSlotsRequired:21600,
+    requestsCompleted:complete,requestsRequired:batches.length,
+    jobsPerRequest:state.sourceJobsPerRequest??8,
+    observedRequestPoints:points,
+    nextBatchIndex:next.batch?.batchIndex??null
+  }};
+}
+export function exportVerifiedFreshCohort(state,manifest){
+  const projected=projectCompletedFreshCohort(state,manifest);
+  need(projected.summary.status==='SOURCE_COMPLETE',
+    'FRESH_COHORT_INCOMPLETE');
+  const verified=planFull216(projected.slots);
+  return {slots:projected.slots,summary:{
+    status:'SOURCE_COMPLETE',jobs:verified.jobs,
     rankSlots:verified.rankSlots,
-    witnessedSourceRequests:batches.length,
+    witnessedSourceRequests:projected.summary.requestsCompleted,
     observedRequestPoints:checkpointStats(state).witnessedPoints,
-    partitionMode:'LATEST_DEFAULT',filter:DATE_FILTER}};
+    partitionMode:'LATEST_DEFAULT',filter:DATE_FILTER
+  }};
 }
 /** Default PREVIEW; never paid without explicit approval & owner transport. */
 export async function runOneFreshCohortBatch({
