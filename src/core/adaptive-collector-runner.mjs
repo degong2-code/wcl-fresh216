@@ -14,6 +14,9 @@ const id=s=>JSON.stringify([s.jobKey,s.rank,s.snapshotSha]);
 const groupKey=g=>JSON.stringify([g.scopeKey,g.reportCode,g.fightId,
   g.encounterId,g.difficulty,g.reportRevision??null]);
 const sameProof=(a,b)=>JSON.stringify(a)===JSON.stringify(b);
+// The Checkpoint entry key is an internal index, NOT a Report/Fight
+// property. Keep fetched-wave SHA identical before and after restart.
+const stripCheckpointKey=({key,...group})=>group;
 
 /**
  * A deterministic, one-operation-at-a-time Full216 host boundary.
@@ -41,7 +44,7 @@ export function prepareAdaptiveNext({slots,state,economics=null,
     resumed:true};
   const readyReport=readyFetches(state);
   if(readyReport.length){
-    const waves=planReportWaves({groups:readyReport}).waves;
+    const waves=planReportWaves({groups:readyReport.map(stripCheckpointKey)}).waves;
     const wave=waves[0];
     if(wave.fightGroups.some(g=>g.slots.some(s=>
       !Number.isFinite(s.startTime)||s.startTime<=0)))
@@ -184,7 +187,7 @@ export async function runOneAdaptiveStep({
   }
   if(!next.resumed)store.update(s=>registerPlan(s,next.groups));
   const ready=readyFetches(store.read());
-  const wave=planReportWaves({groups:ready}).waves[0];
+  const wave=planReportWaves({groups:ready.map(stripCheckpointKey)}).waves[0];
   check(wave,'COLLECTOR_REGISTER_REPORT_FAILED');
   check(typeof onVerifiedWave==='function',
     'COLLECTOR_PRIVATE_WITNESS_REQUIRED');
