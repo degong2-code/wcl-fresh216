@@ -223,3 +223,42 @@ as proof of human authorization; only GitHub branch/PR protection and
 the owner's independent release review supply that authority. A
 separate final production publishing workflow and first real stage/wave
 must still receive explicit owner signoff.
+
+
+## 2026-11-02 — Private Stage -> public GET-only readback bridge (offline only)
+
+Product feature commit `008b98054821d50947a9dbeda94eea1180f615c6` adds
+`src/adapters/private-staged-public-wave-store.mjs`, reusing the existing
+`ArchiveStore.persistWave` contract. `createFresh216EvidencePublisher` passes
+its exact HMAC-signed manifest and already-validated immutable witness context
+as optional arguments (legacy archive stores ignore them).
+
+- Stage writes require `stageWriteApproved: true`, a real pinned private
+  Report-state commit verified by the existing Git provider, and the existing
+  `persistPrivateSignedWaveStage` create-only, remote-confirmed writer.
+- After private staging, `inspectPublishedSignedWaveReadOnly` issues GETs
+  against the dedicated public evidence branch: first the manifest, then
+  the bounded archive set. It verifies public Git blob SHA, exact file bytes,
+  existing HMAC manifest authentication from the private key, and wave counts.
+  Missing public manifest returns PENDING through the existing
+  `PUBLIC_ACTOR_WAVE_WRITE_NOT_ATTEMPTED` result; a present manifest with
+  missing/conflicting archive fails closed.
+- C-delta is not called before complete public readback. The existing
+  publisher/checkpoint performs all post-publication C bookkeeping; the
+  local C-delta appender still needs the existing
+  `withPrivateCandidateGitDurability` wrapper and explicit write authorization.
+- No new scheduler, checkpoint, C format, HMAC key, PAT, paid WCL transport,
+  public Git writer or automatic release workflow is introduced.
+- Offline CI [#41393787802](https://github.com/degong2-code/wcl-fresh216/actions/runs/41393787802)
+  passed **66/66** pure-core suites, including five new isolated staged/readback
+  tests. Private inventory and WCL pilot were **SKIPPED**.
+- The new adapter is selectable by the existing evidence hooks, but not wired
+  to a trusted production Actions workflow; the private real signed Stage is
+  still README-only. Actual stage/public/C Git writes, canonical promotion,
+  Sheets, and WCL remain unexecuted.
+
+**Next integration task:** an owner-reviewed trusted Actions composition of the
+existing private Stage and public native-token release jobs, with exact immutable
+release intent, pinned public branch head, and genuine readback. Do not merge
+PR #21/#23 automatically, treat an approval JSON as self-authenticating,
+or substitute stage success for public publication.
