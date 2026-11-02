@@ -6,7 +6,8 @@ import {
 } from '../src/core/fresh216-actor-proof-archive.mjs';
 import {
   preparePrivateSignedWaveStage,inspectPublicSignedWaveStage,
-  fetchPinnedPrivateSignedWaveStage,publishPinnedPrivateSignedWave
+  fetchPinnedPrivateSignedWaveStage,publishPinnedPrivateSignedWave,
+  validatePublicRelayApproval,PUBLIC_RELAY_APPROVAL_KIND
 } from '../src/adapters/fresh216-signed-evidence-relay.mjs';
 
 const KEY='SYNTHETIC_TEST_ONLY_64_RANDOM_STYLE_CHARACTERS_NO_REAL_SECRET_0011';
@@ -187,5 +188,79 @@ test('public relay cannot publish without an explicit authorization gate',async(
     privateFetch:async()=>{calls++;throw Error('unexpected');},
     publicFetch:async()=>{calls++;throw Error('unexpected');}
   }),/SIGNED_RELAY_PUBLICATION_NOT_AUTHORIZED/);
+  assert.equal(calls,0);
+});
+
+
+const TRUSTED_RELAY_CONTEXT={
+  GITHUB_ACTIONS:'true',
+  GITHUB_REPOSITORY:'degong2-code/wcl-fresh216',
+  GITHUB_REF:'refs/heads/work/fresh216-autonomous-host-20261031',
+  GITHUB_EVENT_NAME:'push',
+  GITHUB_SHA:'d'.repeat(40)
+};
+const sampleRelease=(overrides={})=>({
+  schema:1,kind:PUBLIC_RELAY_APPROVAL_KIND,
+  privateStageCommit:'c'.repeat(40),
+  waveSha256:'b'.repeat(64),
+  reviewedWorkflowCommit:'d'.repeat(40),
+  ...overrides
+});
+test('exact owner-approved private commit and wave must match the trusted workflow SHA',()=>{
+  const checked=validatePublicRelayApproval({
+    approval:sampleRelease(),
+    approvedPrivateStageCommit:'c'.repeat(40),
+    waveSha256:'b'.repeat(64),githubContext:TRUSTED_RELAY_CONTEXT
+  });
+  assert.equal(checked.privateStageCommit,'c'.repeat(40));
+  for(const altered of [
+    {privateStageCommit:'e'.repeat(40)},
+    {waveSha256:'a'.repeat(64)},
+    {reviewedWorkflowCommit:'f'.repeat(40)},
+    {schema:2}
+  ]){
+    assert.throws(()=>validatePublicRelayApproval({
+      approval:sampleRelease(altered),
+      approvedPrivateStageCommit:'c'.repeat(40),
+      waveSha256:'b'.repeat(64),githubContext:TRUSTED_RELAY_CONTEXT
+    }),/SIGNED_RELAY_EXACT_OWNER_APPROVAL_MISSING|SIGNED_RELAY_UNTRUSTED_PUBLIC_WORKFLOW_CONTEXT/);
+  }
+});
+test('branch, event, repository and workflow commit drift always refuse relay approval',()=>{
+  const altered=[
+    {GITHUB_REF:'refs/heads/work/fresh216-adaptive-archive-delta-20261031'},
+    {GITHUB_EVENT_NAME:'pull_request'},
+    {GITHUB_REPOSITORY:'another-org/wcl-fresh216'},
+    {GITHUB_SHA:'f'.repeat(40)},
+    {GITHUB_ACTIONS:'false'}
+  ];
+  for(const item of altered)
+    assert.throws(()=>validatePublicRelayApproval({
+      approval:sampleRelease(),approvedPrivateStageCommit:'c'.repeat(40),
+      waveSha256:'b'.repeat(64),
+      githubContext:{...TRUSTED_RELAY_CONTEXT,...item}
+    }),/SIGNED_RELAY_UNTRUSTED_PUBLIC_WORKFLOW_CONTEXT/);
+});
+test('publicationApproved true without exact external approval still performs zero requests',async()=>{
+  let calls=0;
+  const fetchImpl=async()=>{calls++;throw Error('network not allowed');};
+  const base={
+    approvedPrivateStageCommit:'c'.repeat(40),
+    waveSha256:'b'.repeat(64),
+    privateReadToken:'SYNTHETIC_PRIVATE_READ_TOKEN_NOT_REAL',
+    publicGitToken:'SYNTHETIC_PUBLIC_TOKEN_NOT_REAL',
+    publicationApproved:true,
+    privateFetch:fetchImpl,publicFetch:fetchImpl,
+    githubContext:TRUSTED_RELAY_CONTEXT
+  };
+  await assert.rejects(publishPinnedPrivateSignedWave(base),
+    /SIGNED_RELAY_EXACT_OWNER_APPROVAL_MISSING/);
+  await assert.rejects(publishPinnedPrivateSignedWave({
+    ...base,approvedPublication:sampleRelease({waveSha256:'a'.repeat(64)})
+  }),/SIGNED_RELAY_EXACT_OWNER_APPROVAL_MISSING/);
+  await assert.rejects(publishPinnedPrivateSignedWave({
+    ...base,approvedPublication:sampleRelease(),
+    githubContext:{...TRUSTED_RELAY_CONTEXT,GITHUB_EVENT_NAME:'pull_request'}
+  }),/SIGNED_RELAY_UNTRUSTED_PUBLIC_WORKFLOW_CONTEXT/);
   assert.equal(calls,0);
 });
