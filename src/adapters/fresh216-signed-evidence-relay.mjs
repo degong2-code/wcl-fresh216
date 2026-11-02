@@ -14,6 +14,8 @@
  * derived from the trusted private Git commit and its prior HMAC validation.
  */
 import {createHash} from 'node:crypto';
+import {createPublicActorProofArchiveStore}
+  from './fresh216-public-actor-proof-store.mjs';
 import {
   verifyActorProofArchive,verifyActorProofWaveManifest,
   inspectActorProofArchivePublic,inspectActorProofWaveManifestPublic,
@@ -142,4 +144,108 @@ export function inspectPublicSignedWaveStage({
     unresolvedSlots:checked.unresolvedSlots,
     hmacAuthenticatedOnPublicRunner:false
   };
+}
+
+/**
+ * PUBLIC Actions read-only fetch from the exact approved private COMMIT,
+ * never by a mutable branch. Only the stage index and its allowlisted
+ * redacted artifact paths can be fetched. Token is NEVER returned or logged.
+ */
+export async function fetchPinnedPrivateSignedWaveStage({
+  approvedPrivateStageCommit,waveSha256,privateReadToken,
+  fetchImpl=fetch
+}={}){
+  need(is40(approvedPrivateStageCommit)&&is64(waveSha256)&&
+    typeof privateReadToken==='string'&&privateReadToken.length>=20&&
+    typeof fetchImpl==='function',
+    'SIGNED_RELAY_PRIVATE_FETCH_CONFIG_INVALID');
+  const endpoint='https://api.github.com/repos/degong2-code/ai-project-lab/contents/';
+  const headers={Authorization:'Bearer '+privateReadToken,
+    Accept:'application/vnd.github+json',
+    'X-GitHub-Api-Version':'2022-11-28'};
+  async function read(allowedPath,maxBytes){
+    const url=endpoint+allowedPath+'?ref='+approvedPrivateStageCommit;
+    let res;
+    try{res=await fetchImpl(url,{method:'GET',headers,redirect:'error',
+      signal:AbortSignal.timeout(15000)});}
+    catch{throw Error('SIGNED_RELAY_PRIVATE_READ_UNCERTAIN_STOP');}
+    need(res?.status===200,'SIGNED_RELAY_PRIVATE_READ_DENIED');
+    const v=await res.json().catch(()=>null);
+    need(v&&v.encoding==='base64'&&typeof v.content==='string'&&
+      /^[a-f0-9]{40}$/.test(v.sha)&&
+      typeof v.size==='number'&&v.size>0&&v.size<=maxBytes,
+      'SIGNED_RELAY_PRIVATE_BLOB_SHAPE');
+    const bytes=Buffer.from(v.content.replace(/\s+/g,''),'base64');
+    need(bytes.length===v.size&&
+      createHash('sha1').update('blob '+bytes.length+'\\0')
+        .update(bytes).digest('hex')===v.sha,
+      'SIGNED_RELAY_PRIVATE_GIT_BLOB_DRIFT');
+    const body=bytes.toString('utf8');
+    need(Buffer.from(body,'utf8').equals(bytes),
+      'SIGNED_RELAY_PRIVATE_TEXT_INVALID');
+    return body;
+  }
+  const indexContent=await read(indexPath(waveSha256),65536);
+  let index;
+  try{index=JSON.parse(indexContent);}
+  catch{throw Error('SIGNED_RELAY_PRIVATE_INDEX_JSON_INVALID');}
+  need(index?.waveSha256===waveSha256&&
+    Array.isArray(index.files)&&index.files.length>=2&&
+    index.files.length<=9,
+    'SIGNED_RELAY_PRIVATE_INDEX_SCOPE_DRIFT');
+  const files=[];
+  for(const item of index.files){
+    need(item&&typeof item.path==='string'&&is64(item.sha256)&&
+      (item.path===wavePath(waveSha256)||
+        /^evidence\\/fresh216\\/actor-proof\\/[a-f0-9]{64}\\.json$/.test(item.path)),
+      'SIGNED_RELAY_PRIVATE_PATH_NOT_ALLOWED');
+    const content=await read(item.path,ACTOR_PROOF_ARCHIVE_MAX_BYTES);
+    files.push({path:item.path,sha256:item.sha256,content});
+  }
+  return inspectPublicSignedWaveStage({
+    index,indexContent,files,approvedPrivateStageCommit,
+    checkedOutPrivateStageCommit:approvedPrivateStageCommit
+  });
+}
+
+/**
+ * Composition entrypoint for a future separately approved PUBLIC Actions job.
+ * Requires the pinned private commit and reads only allowlisted redacted files.
+ * Atomic publication reuses the existing public GitHub wave store.
+ * DO NOT invoke until the protected publication job has separate approval.
+ */
+export async function publishPinnedPrivateSignedWave({
+  approvedPrivateStageCommit,waveSha256,privateReadToken,publicGitToken,
+  privateFetch=fetch,publicFetch=fetch,publicationApproved=false
+}={}){
+  need(publicationApproved===true,
+    'SIGNED_RELAY_PUBLICATION_NOT_AUTHORIZED');
+  need(typeof publicGitToken==='string'&&publicGitToken.length>=20,
+    'SIGNED_RELAY_PUBLIC_TOKEN_MISSING');
+  const staged=await fetchPinnedPrivateSignedWaveStage({
+    approvedPrivateStageCommit,waveSha256,privateReadToken,
+    fetchImpl:privateFetch
+  });
+  const byPath=new Map(staged.files.map(f=>[f.path,JSON.parse(f.content)]));
+  const manifest=byPath.get(wavePath(waveSha256));
+  const archives=staged.files.filter(f=>f.path!==wavePath(waveSha256))
+    .map(f=>byPath.get(f.path));
+  const store=createPublicActorProofArchiveStore({
+    token:publicGitToken,relayOnly:true,fetchImpl:publicFetch
+  });
+  const receipt=await store.persistWave(archives,{
+    preSignedManifest:manifest,
+    approvedPrivateStageCommit,checkedOutPrivateStageCommit:
+      staged.fromPrivateCommit
+  });
+  need(receipt.manifestSha256===staged.files.at(-1).sha256||
+    receipt.manifestSha256===manifest.manifestSha256,
+    'SIGNED_RELAY_PUBLIC_RECEIPT_DRIFT');
+  return {status:'PUBLIC_SIGNED_RELAY_COMMIT_READBACK_CONFIRMED',
+    archiveCount:receipt.archiveCount,
+    manifestSha256:receipt.manifestSha256,
+    publicCommitSha:receipt.manifestCommitSha??null,
+    privateCommitSha:approvedPrivateStageCommit,
+    reused:receipt.reused,verifiedSlots:receipt.verifiedSlots,
+    unresolvedSlots:receipt.unresolvedSlots};
 }
