@@ -211,6 +211,42 @@ export async function fetchPinnedPrivateSignedWaveStage({
 }
 
 /**
+ * Defense-in-depth guard for a reviewed, exact-wave approval receipt.
+ * The receipt MUST come from a separately reviewed protected workflow; an
+ * arbitrary caller can forge an object and no code-only Boolean is proof
+ * of human approval. GitHub-hosted identity and code SHA are additional
+ * fail-closed constraints, not substitutes for owner authorization.
+ */
+export const PUBLIC_RELAY_APPROVAL_KIND=
+  'FRESH216_OWNER_APPROVED_PUBLIC_WAVE_V1';
+export function validatePublicRelayApproval({
+  approval,approvedPrivateStageCommit,waveSha256,
+  githubContext=process.env
+}={}){
+  need(exact(approval,['schema','kind','privateStageCommit',
+    'waveSha256','reviewedWorkflowCommit'])&&
+    approval.schema===1&&
+    approval.kind===PUBLIC_RELAY_APPROVAL_KIND&&
+    is40(approval.privateStageCommit)&&
+    approval.privateStageCommit===approvedPrivateStageCommit&&
+    is64(approval.waveSha256)&&
+    approval.waveSha256===waveSha256&&
+    is40(approval.reviewedWorkflowCommit),
+    'SIGNED_RELAY_EXACT_OWNER_APPROVAL_MISSING');
+  need(githubContext?.GITHUB_ACTIONS==='true'&&
+    githubContext.GITHUB_REPOSITORY==='degong2-code/wcl-fresh216'&&
+    githubContext.GITHUB_REF===
+      'refs/heads/work/fresh216-autonomous-host-20261031'&&
+    githubContext.GITHUB_EVENT_NAME==='push'&&
+    githubContext.GITHUB_SHA===approval.reviewedWorkflowCommit,
+    'SIGNED_RELAY_UNTRUSTED_PUBLIC_WORKFLOW_CONTEXT');
+  return {
+    privateStageCommit:approvedPrivateStageCommit,waveSha256,
+    reviewedWorkflowCommit:approval.reviewedWorkflowCommit
+  };
+}
+
+/**
  * Composition entrypoint for a future separately approved PUBLIC Actions job.
  * Requires the pinned private commit and reads only allowlisted redacted files.
  * Atomic publication reuses the existing public GitHub wave store.
@@ -218,10 +254,15 @@ export async function fetchPinnedPrivateSignedWaveStage({
  */
 export async function publishPinnedPrivateSignedWave({
   approvedPrivateStageCommit,waveSha256,privateReadToken,publicGitToken,
-  privateFetch=fetch,publicFetch=fetch,publicationApproved=false
+  privateFetch=fetch,publicFetch=fetch,publicationApproved=false,
+  approvedPublication=null,githubContext=process.env
 }={}){
   need(publicationApproved===true,
     'SIGNED_RELAY_PUBLICATION_NOT_AUTHORIZED');
+  validatePublicRelayApproval({
+    approval:approvedPublication,approvedPrivateStageCommit,
+    waveSha256,githubContext
+  });
   need(typeof publicGitToken==='string'&&publicGitToken.length>=20,
     'SIGNED_RELAY_PUBLIC_TOKEN_MISSING');
   const staged=await fetchPinnedPrivateSignedWaveStage({
