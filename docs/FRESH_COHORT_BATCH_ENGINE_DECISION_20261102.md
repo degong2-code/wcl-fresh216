@@ -93,3 +93,22 @@ did *not* show a win; see `docs/CHECKPOINT_BENCHMARK.md`.
 
 No live paid requests, Sheets writes, public evidence publication or
 canonical C promotion are authorized by this decision document.
+
+## Implemented private-host boundary (candidate, not deployed)
+
+- `tools/run-private-engine-source.mjs` now delegates both the old
+  `source-one` and the new `source-bounded` operation to the shared
+  coordinator. The one-shot path still hard-requires one alias and
+  **one** request; no backward compatibility with 9-alias re-planning.
+- `source-bounded` authorizes only 8/9 aliases and a separately bounded
+  `maxRequests` from 1 to 8. Its new private Git target is the isolated
+  branch `work/fresh216-engine-source-candidate-20261102`, which has
+  a **different** scope and checkpoint path from the completed 1-alias run.
+- Remote Git telemetry is captured inside the private host:
+  `remoteGitCommits`, `remoteGitCommitMs`, and
+  `privateCheckpointBytes`. These are aggregate timings and byte counts,
+  not raw actor rows or credentials.
+- Existing private Actions remains pinned to its **previous** public
+  runtime SHA. This newer candidate is **not** an enabled paid workflow
+  until a code-SHA-pinned dormant job is reviewed and explicitly approved
+  per operation. No private test data or API calls were made by these edits.
