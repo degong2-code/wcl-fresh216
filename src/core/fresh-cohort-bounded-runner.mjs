@@ -28,6 +28,10 @@ export async function runBoundedFreshCohortBatches({
     Number.isFinite(admissionPolicy.reservePoints)&&
     admissionPolicy.reservePoints>0,
     'FRESH_BOUNDED_OWNER_AUTHORIZATION_REQUIRED');
+  const initial=store.read();
+  need(initial.sourceManifestSha==null||
+    (initial.sourceJobsPerRequest??8)===jobsPerRequest,
+    'FRESH_COHORT_BATCH_SIZE_DRIFT');
   let attempted=0,recorded=0,points=0,wallMs=0;
   let reason='MAX_REQUESTS_REACHED';
   for(let i=0;i<maxRequests;i++){
