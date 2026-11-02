@@ -1,0 +1,78 @@
+name: Fresh216 public publisher native-token scope GET-only audit
+on:
+  push:
+    branches: [work/fresh216-autonomous-host-20261031]
+    paths: [.github/workflows/fresh216-public-native-scope-readonly.yml]
+permissions:
+  contents: read
+jobs:
+  public-token-scope-readonly:
+    if: github.repository == 'degong2-code/wcl-fresh216' && github.ref == 'refs/heads/work/fresh216-autonomous-host-20261031'
+    permissions:
+      contents: write
+    runs-on: ubuntu-22.04
+    timeout-minutes: 5
+    steps:
+      - name: GET-only confirm native public token and evidence branch rules
+        env:
+          PUBLIC_GITHUB_TOKEN: ${{ github.token }}
+        shell: bash
+        run: |
+          set -euo pipefail
+          node --input-type=module <<'NODE'
+          const base='https://api.github.com/repos/degong2-code/wcl-fresh216';
+          const need=(x,c)=>{if(!x)throw Error(c);};
+          const get=async endpoint=>{
+            const r=await fetch(base+endpoint,{method:'GET',
+              redirect:'error',
+              headers:{
+                Accept:'application/vnd.github+json',
+                Authorization:'Bearer '+process.env.PUBLIC_GITHUB_TOKEN,
+                'X-GitHub-Api-Version':'2022-11-28'
+              },signal:AbortSignal.timeout(15000)});
+            need(r.status===200,'FRESH216_PUBLIC_SCOPE_GET_DENIED');
+            return await r.json();
+          };
+          try{
+            need(process.env.GITHUB_REF==='refs/heads/work/fresh216-autonomous-host-20261031',
+              'FRESH216_PUBLIC_SCOPE_UNTRUSTED_REF');
+            const [repo,rule,evidence]=await Promise.all([
+              get(''),get('/rulesets/26336785'),
+              get('/branches/fresh216-public-evidence-pilot-20261031')
+            ]);
+            need(repo.full_name==='degong2-code/wcl-fresh216'&&repo.private===false,
+              'FRESH216_PUBLIC_SCOPE_REPO_MISMATCH');
+            need(rule.enforcement==='active'&&
+              JSON.stringify(rule.conditions?.ref_name?.include)===
+                '["refs/heads/fresh216-public-evidence-pilot-20261031"]'&&
+              JSON.stringify((rule.rules??[]).map(x=>x.type).sort())===
+                '["deletion","non_fast_forward"]',
+              'FRESH216_PUBLIC_SCOPE_RULES_DRIFT');
+            need(evidence.protected===true&&
+              evidence.commit?.sha==='ece50401bd103f9c264b6371387c8e8d70a4cfb0',
+              'FRESH216_PUBLIC_SCOPE_EVIDENCE_DRIFT');
+            // GET permission indicator is not a real POST/push capability proof.
+            const reportedPush=repo.permissions?.push===true;
+            need(reportedPush,'FRESH216_PUBLIC_SCOPE_PUSH_PERMISSION_NOT_CONFIRMED');
+            console.log(JSON.stringify({
+              status:'FRESH216_PUBLIC_NATIVE_WRITE_SCOPE_GET_PASS',
+              repoNativeTokenReportsPush:true,ruleActive:true,
+              ruleTargetExact:true,evidenceProtected:true,
+              apiMethods:'GET_ONLY',
+              privateTokenUsed:false,hmacUsed:false,
+              realPushVerified:false,publicGitWrites:0,
+              privateGitWrites:0,wclCalls:0,oauthCalls:0,
+              observedPoints:0,cDeltaAppends:0,sheetsWrites:0
+            }));
+            process.env.GITHUB_STEP_SUMMARY&&
+              (await import('node:fs')).appendFileSync(process.env.GITHUB_STEP_SUMMARY,
+              '### Public native token GET-only scope: PASS\n'+
+              'GitHub reports push permission; no POST/push performed.\n'+
+              'Existing evidence Ruleset and immutable branch SHA verified.\n'+
+              'No private tokens, HMAC, WCL, Archive or C writes.\n');
+          }catch(e){
+            console.error(/^FRESH216_PUBLIC_SCOPE_[A-Z0-9_]+$/.test(e.message)?
+              e.message:'FRESH216_PUBLIC_SCOPE_AUDIT_FAILED');
+            process.exitCode=1;
+          }
+          NODE
