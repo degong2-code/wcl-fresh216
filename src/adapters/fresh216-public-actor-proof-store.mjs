@@ -108,11 +108,13 @@ export function createPublicActorProofArchiveStore({
   }
   async function persistWave(archives,{
     createdAtMs=Date.now(),preSignedManifest=null,
-    approvedPrivateStageCommit=null,checkedOutPrivateStageCommit=null
+    approvedPrivateStageCommit=null,checkedOutPrivateStageCommit=null,
+    expectedPublicEvidenceHead=null
   }={}){
     const relay=preSignedManifest!==null;
     if(relay){
       need(relayOnly&&commitSha(approvedPrivateStageCommit)&&
+        commitSha(expectedPublicEvidenceHead)&&
         checkedOutPrivateStageCommit===approvedPrivateStageCommit,
         'PUBLIC_ACTOR_RELAY_PRIVATE_COMMIT_NOT_PINNED');
       inspectActorProofWaveManifestPublic(preSignedManifest,{archives});
@@ -166,6 +168,8 @@ export function createPublicActorProofArchiveStore({
       const refData=await refResponse.json().catch(()=>null);
       const parentSha=refData?.object?.sha;
       need(commitSha(parentSha),'PUBLIC_ACTOR_WAVE_REF_SHAPE');
+      if(relay)need(parentSha===expectedPublicEvidenceHead,
+        'PUBLIC_ACTOR_RELAY_APPROVED_HEAD_DRIFT_STOP');
       const parentResponse=await http(
         'https://api.github.com/repos/'+PILOT_JOURNAL.repo+
         '/git/commits/'+parentSha
