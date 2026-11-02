@@ -52,7 +52,9 @@ function checkoutRoot(dir,sha,code){
     code+'_CHECKOUT_DRIFT');
   return root;
 }
+let evidenceStage='BOOT';
 async function run(){
+  evidenceStage='CHECK_CONTEXT';
   need(['preview','register','evidence-preflight'].includes(mode)&&
     process.env.GITHUB_ACTIONS==='true'&&
     process.env.GITHUB_REPOSITORY==='degong2-code/ai-project-lab'&&
@@ -60,6 +62,7 @@ async function run(){
     'FRESH216_RECOVERY_PRIVATE_ACTIONS_ONLY');
   need(mode!=='register'||process.env.FRESH216_REGISTER_CURRENT_C348==='true',
     'FRESH216_RECOVERY_REGISTER_NOT_AUTHORIZED');
+  evidenceStage='PINNED_CHECKOUTS';
   const sourceRoot=checkoutRoot(sourceIn,SOURCE_COMMIT,'FRESH216_RECOVERY_SOURCE');
   const cRoot=checkoutRoot(cIn,C_COMMIT,'FRESH216_RECOVERY_C');
   const priorityRoot=checkoutRoot(priorityIn,PRIORITY_COMMIT,'FRESH216_RECOVERY_PRIORITY');
@@ -99,6 +102,7 @@ async function run(){
     current.sourceCodeCommit===SOURCE_COMMIT&&
     current.sourceSha256===SOURCE_SHA256&&
     current.scopeKey===SCOPE,'FRESH216_RECOVERY_CHECKPOINT_PIN_DRIFT');
+  evidenceStage='REPLAY_C348';
   const planned=buildCurrentCRecoveryPlan({
     sourceSlots:slots,
     baseCompressedBytes:fs.readFileSync(path.join(cRoot,C_FILE)),
@@ -106,6 +110,7 @@ async function run(){
     priorityPlan,checkpoint:current
   });
   if(mode==='evidence-preflight'){
+    evidenceStage='VERIFY_PUBLIC_BRANCH';
     need(planned.created===false,
       'FRESH216_RECOVERY_PLAN_NOT_REGISTERED');
     // This GET-only ref probe has no bearer token and cannot modify GitHub.
@@ -118,6 +123,7 @@ async function run(){
     const target=await res.json();
     need(target?.ref==='refs/heads/'+PILOT_JOURNAL.branch,
       'FRESH216_RECOVERY_PUBLIC_BRANCH_DRIFT');
+    evidenceStage='CONSTRUCT_REAL_ADAPTERS';
     const readiness=await preflightRealEvidenceAdaptersReadOnly({
       sourceSlots:slots,checkpoint:current,priorityPlan,
       baseCompressedBytes:fs.readFileSync(path.join(cRoot,C_FILE)),
@@ -125,6 +131,7 @@ async function run(){
       hmacKey:process.env.FRESH216_EVIDENCE_HMAC_KEY,
       publicBranchHead:target.object?.sha
     });
+    evidenceStage='CONFIRM_PRIVATE_HEAD';
     const head=git(stateRoot,'rev-parse','HEAD');
     const remoteHead=git(stateRoot,'ls-remote','--heads','origin',
       'refs/heads/'+ADAPTIVE_STATE_BRANCH).trim().split(/\s+/)[0];
@@ -189,5 +196,8 @@ catch(e){
   const code=/^(FRESH216_RECOVERY_|PRIVATE_EVIDENCE_PREFLIGHT_|ARCHIVE_C_DELTA_|EVIDENCE_PUBLISHER_|PUBLIC_ACTOR_ARCHIVE_)[A-Z0-9_]+$/.test(e?.message??'')?
     e.message:'FRESH216_RECOVERY_PRIVATE_PREFLIGHT_FAILED_REQUIRES_REVIEW';
   console.error(code);
+  if(code==='FRESH216_RECOVERY_PRIVATE_PREFLIGHT_FAILED_REQUIRES_REVIEW'&&
+    mode==='evidence-preflight')
+    console.error('FRESH216_RECOVERY_STAGE_'+evidenceStage+'_FAILED');
   process.exitCode=1;
 }
