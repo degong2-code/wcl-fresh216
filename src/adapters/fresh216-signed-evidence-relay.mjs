@@ -177,7 +177,7 @@ export async function fetchPinnedPrivateSignedWaveStage({
       'SIGNED_RELAY_PRIVATE_BLOB_SHAPE');
     const bytes=Buffer.from(v.content.replace(/\s+/g,''),'base64');
     need(bytes.length===v.size&&
-      createHash('sha1').update('blob '+bytes.length+'\\0')
+      createHash('sha1').update('blob '+bytes.length+String.fromCharCode(0))
         .update(bytes).digest('hex')===v.sha,
       'SIGNED_RELAY_PRIVATE_GIT_BLOB_DRIFT');
     const body=bytes.toString('utf8');
@@ -197,7 +197,9 @@ export async function fetchPinnedPrivateSignedWaveStage({
   for(const item of index.files){
     need(item&&typeof item.path==='string'&&is64(item.sha256)&&
       (item.path===wavePath(waveSha256)||
-        /^evidence\\/fresh216\\/actor-proof\\/[a-f0-9]{64}\\.json$/.test(item.path)),
+        (item.path.startsWith(base+'actor-proof/')&&
+          is64(item.path.slice((base+'actor-proof/').length,-5))&&
+          item.path.endsWith('.json'))),
       'SIGNED_RELAY_PRIVATE_PATH_NOT_ALLOWED');
     const content=await read(item.path,ACTOR_PROOF_ARCHIVE_MAX_BYTES);
     files.push({path:item.path,sha256:item.sha256,content});
@@ -238,8 +240,10 @@ export async function publishPinnedPrivateSignedWave({
     approvedPrivateStageCommit,checkedOutPrivateStageCommit:
       staged.fromPrivateCommit
   });
-  need(receipt.manifestSha256===staged.files.at(-1).sha256||
-    receipt.manifestSha256===manifest.manifestSha256,
+  need(receipt.manifestSha256===manifest.manifestSha256&&
+    receipt.archiveCount===staged.archiveCount&&
+    receipt.verifiedSlots===staged.verifiedSlots&&
+    receipt.unresolvedSlots===staged.unresolvedSlots,
     'SIGNED_RELAY_PUBLIC_RECEIPT_DRIFT');
   return {status:'PUBLIC_SIGNED_RELAY_COMMIT_READBACK_CONFIRMED',
     archiveCount:receipt.archiveCount,
