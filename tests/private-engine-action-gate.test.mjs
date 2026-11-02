@@ -44,12 +44,13 @@ test('Actions only green for actual completed stage or recorded wave',()=>{
     status:'RECORDED',kind:'REPORT_WAVE'}),true);
   assert.equal(isSuccessfulEngineActionResult('stage-one',{
     status:'PRIVATE_STAGE_REMOTE_CONFIRMED_PENDING_PUBLIC'}),true);
+  assert.equal(isSuccessfulEngineActionResult('preview',{
+    status:'PREVIEW',nextKind:'NEEDS_REVIEW'}),true);
   for(const value of [
     {mode:'report-one',status:'NEEDS_REVIEW'},
     {mode:'report-one',status:'NO_REPORT_WAVE',nextKind:'NEEDS_REVIEW'},
     {mode:'stage-one',status:'NO_PENDING_WAVE',nextKind:'NEEDS_REVIEW'},
     {mode:'stage-one',status:'PENDING'},
-    {mode:'preview',status:'PREVIEW',nextKind:'NEEDS_REVIEW'},
     {mode:'bad',status:'RECORDED'}
   ])assert.equal(isSuccessfulEngineActionResult(value.mode,value),false);
 });
