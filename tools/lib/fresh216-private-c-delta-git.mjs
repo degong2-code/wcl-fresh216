@@ -108,3 +108,35 @@ export function commitFresh216CandidateDelta({
     commitSha:current,deltaIndex:appended.deltaIndex,
     deltaSha256:appended.deltaSha256};
 }
+
+/**
+ * Reuse the existing createFresh216ArchiveCDeltaAppender; ensure the
+ * private remote commit is confirmed BEFORE a publisher can receive
+ * APPENDED. Do not catch or auto-retry an uncertain Git operation.
+ */
+export function withPrivateCandidateGitDurability({
+  localAppender,repoRoot,gitCommand=cmd
+}={}){
+  need(typeof localAppender==='function'&&
+    typeof repoRoot==='string'&&path.isAbsolute(repoRoot)&&
+    typeof gitCommand==='function',
+    'PRIVATE_C_REMOTE_WRAPPER_CONFIG_INVALID');
+  const wrapped=async input=>{
+    const appended=await localAppender(input);
+    if(appended?.status==='NO_NEW_PROOFS')return appended;
+    need(appended?.status==='APPENDED',
+      'PRIVATE_C_REMOTE_LOCAL_APPENDER_NOT_CONFIRMED');
+    const proof=commitFresh216CandidateDelta({
+      repoRoot,appended,gitCommand
+    });
+    need(proof.status==='REMOTE_CONFIRMED'&&
+      proof.deltaIndex===appended.deltaIndex&&
+      proof.deltaSha256===appended.deltaSha256,
+      'PRIVATE_C_REMOTE_WRAPPER_CONFIRMATION_DRIFT');
+    return {...appended,privateCandidateCommit:proof.commitSha,
+      privateCandidateRemoteConfirmed:true};
+  };
+  if(typeof localAppender.snapshot==='function')
+    wrapped.snapshot=()=>localAppender.snapshot();
+  return wrapped;
+}
