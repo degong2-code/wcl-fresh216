@@ -63,10 +63,11 @@ function syntheticPublic(manifest,archives,{missingManifest=false,
   return {fetchImpl,calls:()=>calls};
 }
 const baseStore=({stagePersist,publicFetch,stageWriteApproved=true,
+  cDeltaAdvanceApproved=false,
   getReportStateCommit=async()=> 'f'.repeat(40)}={})=>
   createPrivateStagedPublicWaveStore({
     repoRoot:'/tmp/synthetic-private-stage',hmacKey:KEY,stageWriteApproved,
-    stagePersist,publicFetch,getReportStateCommit
+    cDeltaAdvanceApproved,stagePersist,publicFetch,getReportStateCommit
   });
 
 test('missing stage authorization causes zero Git or public reads',async()=>{
@@ -100,6 +101,7 @@ test('private staging with absent public manifest leaves pending state',async()=
 test('public manifest and every archive must GET-confirm before C receipt',async()=>{
   const f=fixture(),p=syntheticPublic(f.manifest,f.archives);
   const store=baseStore({publicFetch:p.fetchImpl,
+    cDeltaAdvanceApproved:true,
     stagePersist:()=>({
       status:'PRIVATE_SIGNED_STAGE_REMOTE_CONFIRMED',
       privateStageCommit:'e'.repeat(40),waveSha256:f.manifest.waveSha256
@@ -133,4 +135,20 @@ test('private state mismatch prevents stage write',async()=>{
     manifest:f.manifest,proofContext:f.context
   }),/STAGED_PUBLIC_REPORT_STATE_UNCONFIRMED/);
   assert.equal(stageCalls,0);
+});
+
+test('publicly confirmed wave cannot advance to C without distinct approval',async()=>{
+  const f=fixture(),p=syntheticPublic(f.manifest,f.archives);
+  let stages=0;
+  const store=baseStore({publicFetch:p.fetchImpl,
+    stagePersist:()=>{stages++;return {
+      status:'PRIVATE_SIGNED_STAGE_REMOTE_CONFIRMED',
+      privateStageCommit:'e'.repeat(40),waveSha256:f.manifest.waveSha256
+    };}
+  });
+  await assert.rejects(store.persistWave(f.archives,{
+    manifest:f.manifest,proofContext:f.context
+  }),/STAGED_PUBLIC_C_DELTA_NOT_APPROVED/);
+  assert.equal(stages,1);
+  assert.equal(p.calls(),2);
 });

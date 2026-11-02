@@ -182,6 +182,8 @@ export function createFresh216EvidencePublisher({
     }catch(error){
       if(error?.message==='PUBLIC_ACTOR_WAVE_WRITE_NOT_ATTEMPTED')
         return {status:'PENDING',code:'PUBLIC_ARCHIVE_WRITE_NOT_ATTEMPTED'};
+      if(error?.message==='STAGED_PUBLIC_C_DELTA_NOT_APPROVED')
+        return {status:'PENDING',code:'PRIVATE_C_DELTA_APPROVAL_REQUIRED'};
       return {status:'NEEDS_REVIEW',code:'PUBLIC_ARCHIVE_WRITE_OR_READBACK_UNCERTAIN'};
     }
     const expectedSlots=wave.fightGroups.reduce((n,g)=>n+g.slots.length,0);

@@ -82,7 +82,7 @@ export async function inspectPublishedSignedWaveReadOnly({
  */
 export function createPrivateStagedPublicWaveStore({
   repoRoot,hmacKey,getReportStateCommit,
-  stageWriteApproved=false,publicFetch=fetch,
+  stageWriteApproved=false,cDeltaAdvanceApproved=false,publicFetch=fetch,
   stagePersist=persistPrivateSignedWaveStage
 }={}){
   need(typeof repoRoot==='string'&&repoRoot.startsWith('/')&&
@@ -113,6 +113,11 @@ export function createPrivateStagedPublicWaveStore({
         archives,manifest,hmacKey,fetchImpl:publicFetch
       });
       if(!published)throw Error('PUBLIC_ACTOR_WAVE_WRITE_NOT_ATTEMPTED');
+      // Actual C-delta persistence is independent of Stage/public approval.
+      // Keep the existing checkpoint PENDING until this gate is separately
+      // enabled; never imply C authorization from a public GET receipt.
+      if(cDeltaAdvanceApproved!==true)
+        throw Error('STAGED_PUBLIC_C_DELTA_NOT_APPROVED');
       return published;
     }
   };
