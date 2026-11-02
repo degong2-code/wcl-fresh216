@@ -191,6 +191,21 @@ if(process.argv[1]&&path.resolve(process.argv[1])===file){
       privateStageCommit:result.privateStageCommit??null,
       remoteStateWrite:result.remoteStateWrite??null
     }));
+    // A successfully executed runner is NOT a successfully collected
+    // Report. Propagate the engine outcome to the Actions job conclusion.
+    const validByMode={
+      preview:['PREVIEW'],
+      'report-one':['RECORDED','NO_REPORT_WAVE'],
+      'stage-one':['PRIVATE_STAGE_REMOTE_CONFIRMED_PENDING_PUBLIC',
+        'NO_PENDING_WAVE']
+    };
+    const safe=validByMode[result.mode??'preview']??[];
+    if(!safe.includes(result.status)||
+       result.nextKind==='NEEDS_REVIEW'||
+       result.kind==='NEEDS_REVIEW'){
+      console.error('PRIVATE_ENGINE_INCOMPLETE_REVIEW_REQUIRED');
+      process.exitCode=2;
+    }
   }catch(e){
     const code=/^PRIVATE_ENGINE_[A-Z0-9_]+$/.test(e?.message??'')?
       e.message:'PRIVATE_ENGINE_EXECUTION_REVIEW_REQUIRED';
