@@ -138,7 +138,16 @@ test('complete A9 + private B9: remote commit must precede HTTP and store B only
     assert.equal(persisted.bossSourcePin.sourceHead,sourceHead);
   }
   // Compare serialized evidence volume; this is not a Git network benchmark.
-  assert(JSON.stringify(p.read()).length<JSON.stringify(source).length/3);
+  const aBytes=Buffer.byteLength(JSON.stringify(source));
+  const bBytes=Buffer.byteLength(JSON.stringify(p.read()));
+  assert(bBytes<aBytes/3);
+  console.log(JSON.stringify({
+    metric:'B_ISOLATED_SYNTHETIC_CHECKPOINT_BYTES',
+    originalABytes:aBytes,
+    firstBWaveBytes:bBytes,
+    fractionOfOriginalA:Math.round(bBytes/aBytes*10000)/100,
+    type:'offline synthetic, not measured Git transfer'
+  }));
   const reported=checkpointStats(x.store.read());
   assert(Math.abs(reported.witnessedPoints-(216.24+9.01))<1e-8);
   const replay=makeIsolatedBossStore({
