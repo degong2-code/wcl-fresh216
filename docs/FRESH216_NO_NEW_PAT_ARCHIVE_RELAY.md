@@ -275,3 +275,36 @@ this to `PENDING / PRIVATE_C_DELTA_APPROVAL_REQUIRED` and does not invoke its
 C-delta appender. Actual private signed Stage, public Archive and candidate C
 writing therefore have independent operating controls. This is a fail-closed
 offline implementation, **not** approval or activation of those operations.
+
+### 2026-11-02 — trusted-branch conditional PUBLIC publisher composition (candidate only)
+
+The existing release-intent workflow is extended on the unmerged **PR #21
+feature branch** with an initial `contents: read`, secret-free preflight and
+one **conditional** `contents: write` job. The job is skipped when the exact
+`projects/wcl-fresh216/release-intents/public-actor-wave-v1.json` does not
+exist, the schema/pins are invalid, or the trusted-branch push context is
+missing. No release intent was created in this change.
+
+The conditional job uses only the existing `fresh216-private-read`
+Environment read token and job-native `GITHUB_TOKEN` for the public
+append-only branch; no HMAC, WCL Client Secret, or extra PAT is supplied.
+`tools/run-public-relay-release-publisher.mjs` composes the already-tested
+`inspectTrustedPublicReleaseIntent` and `publishPinnedPrivateSignedWave`,
+which checks an immutable private Stage commit, exact signed Wave SHA and
+expected public evidence parent SHA, then reuses the single atomic Git wave
+writer and readback. This job makes **zero WCL/C/Sheets calls**.
+
+This is a **candidate**, not deployed to
+`work/fresh216-autonomous-host-20261031`; no actual Stage/wave publication
+has occurred. Trusted Runner Ruleset #26227675 currently has
+`required_approving_review_count: 0`. Consequently the release intent file
+and trusted `push` event are not proof of an independent human review.
+Existing Environment protection and repo write permission also remain
+operationally unverified for the first real publication. Preserve the first
+immutable release intent as an explicit owner-controlled approval event and
+verify the job's protection before any real publisher activation.
+
+This replaces repetitive manual publishing steps with one exact-pinned
+intent per wave; it does not add a scheduler, persistent state format, secret
+or new public evidence writer. The first real private Stage and C-delta remote
+write wiring remain separate pending tasks.
