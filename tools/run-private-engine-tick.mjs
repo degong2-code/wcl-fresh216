@@ -75,8 +75,10 @@ export function validateEngineActionRequest(request,{env=process.env,
   return request.mode;
 }
 export function isSuccessfulEngineActionResult(mode,result){
+  // Read-only preview succeeded if it correctly reports a blocked state;
+  // a paid/stage execution must NOT be green for that same blocked state.
+  if(mode==='preview')return result?.status==='PREVIEW';
   const good={
-    preview:['PREVIEW'],
     'report-one':['RECORDED','NO_REPORT_WAVE'],
     'stage-one':['PRIVATE_STAGE_REMOTE_CONFIRMED_PENDING_PUBLIC',
       'NO_PENDING_WAVE']
