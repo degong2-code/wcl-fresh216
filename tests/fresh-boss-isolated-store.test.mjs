@@ -131,9 +131,12 @@ test('complete A9 + private B9: remote commit must precede HTTP and store B only
     assert.equal(Object.keys(persisted.sourceRequests??{}).length,0);
     // B's legitimately observed SAME-FIGHT proof may contain report IDs.
     // The optimization is no copied A sourceRequests/21,600 total ranks.
-    assert(!JSON.stringify(persisted).includes('sourceManifestSha'));
+    assert.equal(Object.hasOwn(persisted,'sourceManifestSha'),false);
+    assert.equal(Object.hasOwn(persisted,'sourceCodeCommit'),false);
     assert.equal(persisted.bossSourcePin.sourceHead,sourceHead);
   }
+  // Compare serialized evidence volume; this is not a Git network benchmark.
+  assert(JSON.stringify(p.read()).length<JSON.stringify(source).length/3);
   const reported=checkpointStats(x.store.read());
   assert(Math.abs(reported.witnessedPoints-(216.24+9.01))<1e-8);
   const replay=makeIsolatedBossStore({
