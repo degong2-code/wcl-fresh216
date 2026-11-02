@@ -50,6 +50,11 @@ const stateTargets=Object.freeze({
   engineSource:Object.freeze({
     branch:'work/fresh216-engine-source-20261102',
     file:'projects/wcl-fresh216/engine-source/source-checkpoint.json'
+  }),
+  // Separate owner-pinned candidate run; NEVER reuse the 1-alias witness.
+  engineSourceCandidate:Object.freeze({
+    branch:'work/fresh216-engine-source-candidate-20261102',
+    file:'projects/wcl-fresh216/engine-source-candidate/source-checkpoint.json'
   })
 });
 const stateTarget=target=>{
