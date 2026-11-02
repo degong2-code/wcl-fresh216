@@ -54,6 +54,30 @@ This full-publish gate is intentionally stricter than useful partial KPI
 preview; masked rows can remain null under the owner's accepted partial
 reporting policy, but do not mislabel that as all-C complete.
 
+## P0 read-only actual A verification (2026-11-02)
+
+- Public product CI [#41454311294](https://github.com/degong2-code/wcl-fresh216/actions/runs/41454311294)
+  **SUCCESS**, 72/72 offline suites including shared A projector and A/B/C
+  independent KPI contract, at `260feb4b0f9e5722cbdc40a5936778320db3a431`.
+- Private [PR #14](https://github.com/degong2-code/ai-project-lab/pull/14)
+  added only a dormant-authorization-safe read-only projection job to
+  the existing private runner; merged commit
+  `9843631363ab71d056656222901bc1eb2b2736f3`.
+- Private [Actions #41455182732](https://github.com/degong2-code/ai-project-lab/actions/runs/41455182732)
+  **SUCCESS**. Read exact existing 9-alias source checkpoint HEAD
+  `0c3fc4d6bd7e20694305835779c8c6574f491ee5` and recomputed all
+  **36 real A jobs / 3,600 official TotalDPS ranks** via the shared source
+  projector, then calculated 36 source KPI previews using the existing
+  `summarizeFreshDpsJob` module.
+- **Zero** B pages and C actor proofs are attached in this run because none
+  was supplied from a same-scope attested store. Therefore all B-ranked
+  BossDPS and five U:Y nonboss values are **null**, not guessed.
+  `safeToPublish=false`; no new B/C completeness claim.
+- The P0 job is read-only (`WCL=0`, Git writes=0, Sheets writes=0),
+  while the private `REQUEST.json` remains `preview/approved:false`.
+  All paid jobs SKIPPED. Next source index is 4; canonical historic C
+  remains unchanged. This verifies **G1 actual A**, not G2 actual B/C.
+
 ## P1 next: one credible same-scope pipeline integration
 
 1. Run the P0 projection read-only on the actual isolated 9-alias A checkpoint
