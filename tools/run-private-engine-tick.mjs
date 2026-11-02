@@ -155,13 +155,14 @@ export async function runPrivateEngineAction({
       const transport=await makePrivateWclTransport({
         clientId:env.WCL_CLIENT_ID,clientSecret:env.WCL_CLIENT_SECRET
       });
-      return await runOneFresh216EngineTick({
+      const result=await runOneFresh216EngineTick({
         mode,slots,store,approved:true,
         transport,onVerifiedWave:witness.persist,
         admissionPolicy:{notBeforeMs:0,
           maxObservedPoints:request.maxObservedPoints,
           reservePoints:request.reservePoints}
       });
+      return {...result,mode};
     }
     need(stageRoot!==null&&typeof env.FRESH216_EVIDENCE_HMAC_KEY==='string'&&
       Buffer.byteLength(env.FRESH216_EVIDENCE_HMAC_KEY,'utf8')>=32,
@@ -169,7 +170,7 @@ export async function runPrivateEngineAction({
     restoreGitAdaptiveWitnesses({
       stateRoot,privateWitnessDir:privateDir
     });
-    return await runOneFresh216EngineTick({
+    const result=await runOneFresh216EngineTick({
       mode,slots,store,approved:true,
       witnessReader:witness.read,hmacKey:env.FRESH216_EVIDENCE_HMAC_KEY,
       stageRepoRoot:stageRoot,
@@ -178,6 +179,7 @@ export async function runPrivateEngineAction({
       }),
       stagePersist:persistPrivateSignedWaveStage
     });
+    return {...result,mode};
   }finally{
     fs.rmSync(privateDir,{recursive:true,force:true});
   }
