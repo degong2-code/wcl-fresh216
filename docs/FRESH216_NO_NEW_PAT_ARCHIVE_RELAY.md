@@ -262,3 +262,16 @@ existing private Stage and public native-token release jobs, with exact immutabl
 release intent, pinned public branch head, and genuine readback. Do not merge
 PR #21/#23 automatically, treat an approval JSON as self-authenticating,
 or substitute stage success for public publication.
+
+
+### Independent C-delta advancement gate (2026-11-02)
+
+A subsequent functional commit `8ebddc09fc3d7bd2cbed2d53757b2537349b069d`
+makes `cDeltaAdvanceApproved` default to **false** on
+`createPrivateStagedPublicWaveStore`. After the public manifest and archives
+are fully read back, missing C authorization returns
+`STAGED_PUBLIC_C_DELTA_NOT_APPROVED`; the existing Evidence Publisher converts
+this to `PENDING / PRIVATE_C_DELTA_APPROVAL_REQUIRED` and does not invoke its
+C-delta appender. Actual private signed Stage, public Archive and candidate C
+writing therefore have independent operating controls. This is a fail-closed
+offline implementation, **not** approval or activation of those operations.
