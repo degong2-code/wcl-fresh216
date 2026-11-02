@@ -1,7 +1,7 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import {createHash} from 'node:crypto';
-import {buildActorProofArchive} from '../src/core/fresh216-actor-proof-archive.mjs';
+import {buildActorProofArchive,buildActorProofWaveManifest} from '../src/core/fresh216-actor-proof-archive.mjs';
 import {createPublicActorProofArchiveStore}
  from '../src/adapters/fresh216-public-actor-proof-store.mjs';
 
@@ -265,4 +265,57 @@ test('uncertain ref update reconciles only when every object is read back exactl
   /PUBLIC_ACTOR_WAVE_COMMIT_UNCONFIRMED_STOP/);
  assert.equal(absent.refUpdates(),1);
  assert.equal(absent.files.size,0);
+});
+
+test('public relay reuses atomic wave Git writer with NO HMAC secret',async()=>{
+  const gh=fakeGithubMany(),archives=[archive(),archive(13)];
+  const manifest=buildActorProofWaveManifest({
+    archives,hmacKey:KEY,createdAtMs:1793450002000
+  });
+  const store=createPublicActorProofArchiveStore({
+    token:'SYNTHETIC_PUBLIC_GITHUB_TOKEN_FOR_RELAY_TEST',
+    relayOnly:true,fetchImpl:gh.fetchImpl
+  });
+  const record=await store.persistWave(archives,{
+    preSignedManifest:manifest,
+    approvedPrivateStageCommit:'f'.repeat(40),
+    checkedOutPrivateStageCommit:'f'.repeat(40)
+  });
+  assert.equal(record.archiveCount,2);
+  assert.equal(record.verifiedSlots,2);
+  assert.equal(gh.files.size,3);
+  assert.equal(gh.refUpdates(),1);
+  assert.equal(gh.commitCreates(),1);
+  const reopened=await store.persistWave(archives,{
+    preSignedManifest:manifest,
+    approvedPrivateStageCommit:'f'.repeat(40),
+    checkedOutPrivateStageCommit:'f'.repeat(40)
+  });
+  assert.equal(reopened.reused,true);
+  assert.equal(gh.refUpdates(),1);
+});
+test('public relay rejects unpinned private commit, HMAC leakage, and unsigned path',async()=>{
+  const gh=fakeGithubMany(),archives=[archive(),archive(13)];
+  const manifest=buildActorProofWaveManifest({
+    archives,hmacKey:KEY,createdAtMs:1793450002000
+  });
+  assert.throws(()=>createPublicActorProofArchiveStore({
+    token:'SYNTHETIC_PUBLIC_GITHUB_TOKEN_FOR_RELAY_TEST',
+    relayOnly:true,hmacKey:KEY,fetchImpl:gh.fetchImpl
+  }),/PUBLIC_ACTOR_RELAY_HMAC_MUST_STAY_PRIVATE/);
+  const store=createPublicActorProofArchiveStore({
+    token:'SYNTHETIC_PUBLIC_GITHUB_TOKEN_FOR_RELAY_TEST',
+    relayOnly:true,fetchImpl:gh.fetchImpl
+  });
+  await assert.rejects(store.persistWave(archives,{
+    preSignedManifest:manifest,
+    approvedPrivateStageCommit:'f'.repeat(40),
+    checkedOutPrivateStageCommit:'e'.repeat(40)
+  }),/PUBLIC_ACTOR_RELAY_PRIVATE_COMMIT_NOT_PINNED/);
+  await assert.rejects(store.persistWave(archives),
+    /PUBLIC_ACTOR_RELAY_UNSIGNED_PATH_FORBIDDEN/);
+  await assert.rejects(store.persist(archives[0]),
+    /PUBLIC_ACTOR_RELAY_ONLY/);
+  assert.equal(gh.treeCreates(),0);
+  assert.equal(gh.refUpdates(),0);
 });
