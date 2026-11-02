@@ -22,9 +22,12 @@ on:
 permissions:
   contents: read
 
+# The PR21 feature branch is offline-only: obsolete core runs may be cancelled.
+# Keep the protected trusted branch and its potentially paid WCL job non-cancellable.
+# Branch isolation also prevents harmless feature CI from blocking trusted work.
 concurrency:
-  group: fresh216-autonomous-owner-branch
-  cancel-in-progress: false
+  group: fresh216-autonomous-${{ github.ref }}
+  cancel-in-progress: ${{ github.ref == 'refs/heads/work/fresh216-adaptive-archive-delta-20261031' }}
 
 jobs:
   offline-core:

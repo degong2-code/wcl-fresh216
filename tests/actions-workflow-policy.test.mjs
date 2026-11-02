@@ -37,3 +37,12 @@ test('Secrets stay private, dispatch inputs identify only PUBLIC WCL Fight',()=>
   assert.match(source,/^\s+contents:\s*write/m);
   assert.doesNotMatch(source,/^\s+id-token:\s*write/m);
 });
+
+test('only the offline PR21 branch cancels obsolete CI; trusted WCL work stays serialized',()=>{
+  const workflow=fs.readFileSync('.github/workflows/fresh216-autonomous-host.yml','utf8');
+  assert.match(workflow,/group: fresh216-autonomous-\$\{\{ github\.ref \}\}/);
+  assert.match(workflow,/cancel-in-progress: \$\{\{ github\.ref == 'refs\/heads\/work\/fresh216-adaptive-archive-delta-20261031' \}\}/);
+  const paid=workflow.slice(workflow.indexOf('  public-one-wave-wcl-pilot:'));
+  assert.match(paid,/github\.ref == 'refs\/heads\/work\/fresh216-autonomous-host-20261031'/);
+  assert.doesNotMatch(paid,/github\.ref == 'refs\/heads\/work\/fresh216-adaptive-archive-delta-20261031'/);
+});
