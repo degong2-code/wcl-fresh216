@@ -141,3 +141,50 @@ Do not add another redundant synthetic test merely to re-prove an existing
    excluded. This approval is not implied by approval of Git publishing.
 
 Current stage still only has its README; there is nothing real to publish.
+
+
+## 2026-11-02 release workflow preparation — public HEAD race gate (no deployment)
+
+The candidate public release workflow is **not installed on the trusted branch**.
+Its initial implementation belongs to PR #21's isolated feature branch;
+PR #23 remains DRAFT and must not be used as a proxy for write approval.
+
+- \`validatePublicRelayApproval\` now requires \`expectedPublicEvidenceHead\`
+  as a fifth immutable release binding in the exact owner-approved receipt,
+  alongside private stage commit, wave SHA-256, reviewed workflow commit
+  and trusted GitHub Actions execution context. A caller-supplied receipt
+  alone still does not prove that the owner approved it.
+- The reused \`persistWave\` public Git writer receives that approved head
+  and rechecks the actual public evidence Git ref **before any new Git tree
+  or commit POST**. A normal fast-forward between approval and publication
+  now causes \`PUBLIC_ACTOR_RELAY_APPROVED_HEAD_DRIFT_STOP\`.
+  No forced update, no automatic rebase/retry. Existing verified wave
+  reuse can return an idempotent receipt without a new write.
+- [CI #41385584375](https://github.com/degong2-code/wcl-fresh216/actions/runs/41385584375)
+  **64/64 PASS**, including an approved-head drift test proving zero
+  synthetic tree/commit/ref updates, plus all existing relay/HMAC tests.
+
+**Minimum trusted deployment workflow to submit in a future, separate,
+reviewable PR:** invoke only on the approved protected
+\`work/fresh216-autonomous-host-20261031\` release commit, no PR/fork
+entrypoint; run a read-only validation job using existing
+\`fresh216-private-read\` Environment to fetch the approved immutable
+private stage/wave and check SHA/replay; then a separately gated,
+job-scoped \`contents:write\` publisher using the native PUBLIC
+\`GITHUB_TOKEN\`. Both jobs must agree on the exact four immutable values
+(private stage SHA, wave SHA-256, trusted workflow commit, public evidence
+expected parent SHA). Prefer an owner-reviewed release-intent file
+committed through the protected-branch PR process to arbitrary workflow
+inputs. A release-intent file must not be treated as approval solely
+because it can be parsed: protected review and first real publication
+authorization are independent controls. Never give public jobs private
+HMAC/WCL credentials. Any unknown Git result is terminal until readback
+is reconciled.
+
+**Owner action NOW: none.** The private redacted stage has no real
+signed-wave files, and the actual public Git write path remains unverified.
+Later require (1) review of the separate deployment PR and exact job-level
+permissions, (2) explicit approval of first stage commit + wave + public
+head before a real public Git write, and (3) separate WCL API authorization.
+No new PAT, Secret, Work mode, Codespace or WSL runtime is needed to
+prepare this workflow.
