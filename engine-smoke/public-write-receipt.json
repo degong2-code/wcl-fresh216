@@ -1,0 +1,10 @@
+{
+  "schema": 1,
+  "kind": "FRESH216_SYNTHETIC_PUBLIC_GIT_IO_SMOKE",
+  "source": "GITHUB_ACTIONS_NATIVE_TOKEN",
+  "repo": "degong2-code/wcl-fresh216",
+  "branch": "work/fresh216-public-io-smoke-20261102",
+  "rawWclData": false,
+  "hmacKeyUsed": false,
+  "apiPoints": 0
+}
