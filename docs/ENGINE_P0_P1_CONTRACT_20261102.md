@@ -78,6 +78,53 @@ reporting policy, but do not mislabel that as all-C complete.
   All paid jobs SKIPPED. Next source index is 4; canonical historic C
   remains unchanged. This verifies **G1 actual A**, not G2 actual B/C.
 
+## P1 independent BossDPS planning verified (2026-11-02)
+
+The first-page BossDPS query planner now accepts a separately pinned B alias
+size (1..9). The immutable A-rank snapshot and every included 100-slot job are
+validated independently of A's **own** alias batch shape. The full 216-job
+plan retains existing default B8=32 requests and adds B9=24 requests.
+
+- Source code: `src/core/fresh-boss-first-page.mjs` (modified pure B
+  planner/query, no paid host changes); test:
+  `tests/fresh-boss-independent-batch.test.mjs`.
+- CI [#41460224546](https://github.com/degong2-code/wcl-fresh216/actions/runs/41460224546)
+  **73/73 offline suites PASS**, product code pinned
+  `64d492bfe215b0394d80b1c967ef64b6e4b059a1`.
+  The tests include B9 query+decoder exact100, same Report/Fight C
+  attribution via the existing KPI validator, missing alias, missing
+  point cost, tampered SHA and incomplete source fail-closed cases.
+- A new explicit `allowPartialSource:true` switch makes partial A useful
+  for **read-only planning only**. Missing A jobs are never fabricated;
+  missing rank within any A job is rejected. With 36 completed A jobs,
+  the B8 and B9 plan sizes are 6 and 4, respectively.
+- Private [PR #15](https://github.com/degong2-code/ai-project-lab/pull/15)
+  was inspected and merged as a one-file read-only Actions change
+  (`4e33f62cdfd6a36f0dee2e4f325ec90e1a2958f1`).
+- Private [Actions #41460835712](https://github.com/degong2-code/ai-project-lab/actions/runs/41460835712)
+  **SUCCESS**: on the actual remote A checkpoint
+  `0c3fc4d6bd7e20694305835779c8c6574f491ee5`, independently
+  verified 36 A jobs/3,600 rows and exactly B8=6 or B9=4 planned
+  requests; **zero** fetched B rows, C proofs, WCL calls, Git writes,
+  or Sheets writes. All paid operations SKIPPED and owner request remains
+  `preview / approved:false`.
+
+**Important remaining boundary:** the historical `fresh-boss-wave-journal.mjs`
+still pins the old A source SHA, old private scope and **32 B8 batches**.
+This change deliberately did *not* arm B9 live collection or reinterpret
+old checkpoints. Partial B preview index assignment is not a stable
+paid dispatch plan as more A jobs arrive; freeze a complete immutable
+source scope before paid B work, or design/version an explicitly stable
+incremental B plan with a persisted generation ID.
+
+**Next concrete implementation:** generalize the existing BossDPS wave
+journal source identity check to resolve A jobs by their immutable
+jobKey/snapshotSha regardless of which A batch originally stored them,
+preserve a stable B-specific manifest+SHA, the before-HTTP remote
+`IN_FLIGHT` and after-HTTP evidence commit, and reject replanning/retry
+after uncertain WCL results. Reuse the same tests on B8 and B9 before
+any separately approved real B request.
+
 ## P1 next: one credible same-scope pipeline integration
 
 1. Run the P0 projection read-only on the actual isolated 9-alias A checkpoint
