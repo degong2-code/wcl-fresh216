@@ -94,7 +94,7 @@ test('private HMAC mismatch cannot produce a staging index',()=>{
   assert.throws(()=>preparePrivateSignedWaveStage({
     ...f,hmacKey:'another_strong_synthetic_key_with_more_than_32_characters',
     privateReportStateCommit:'a'.repeat(40)
-  }),/ACTOR_ARCHIVE_HMAC_INVALID/);
+  }),/ACTOR_WAVE_MANIFEST_HMAC_INVALID|ACTOR_ARCHIVE_HMAC_INVALID/);
 });
 test('public rejects forged private manifest digest and schema-only substitution',()=>{
   const {staged,inspect}=prepared();
