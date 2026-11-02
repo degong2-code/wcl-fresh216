@@ -216,3 +216,58 @@ is `preview / approved:false`. None of this document authorizes a call.
   readback time, checkpoint bytes and **end-to-end** wall time separately.
 - Independent tasks may be batched for development; *charged requests* need
   explicit bounded owner authorization and durable remote attempt records.
+
+## P1 private Boss host readiness verified (2026-11-02)
+
+**Implemented but READ-ONLY**: `src/core/fresh-boss-host-readiness.mjs`
+and `tools/run-private-engine-boss-preview.mjs` bridge the original private
+Git checkpoint to the common immutable source projector and independent B8/B9
+query planner. Both operate on previously committed A evidence; they cannot
+call WCL, create paid requests, write Git checkpoints or publish Sheets.
+
+- Public product [CI #41465694752](https://github.com/degong2-code/wcl-fresh216/actions/runs/41465694752)
+  **75/75 offline test suites PASS**, code SHA
+  `759faac9dd92cd8c5d83efefa5d300abded40d7b`.
+  `tests/fresh-boss-host-readiness.test.mjs` covers 36/216 partial
+  A9→B8/B9 previews, 216/216 full readiness, A8→B9 independence,
+  corrupted A rank checksums, unresolved A attempts and trusted
+  GitHub context/ref/source-HEAD pinning.
+- The host's `bossPlanStableForPaidPreparation` is **false** until
+  all 216 A jobs and 21,600 original ranks are completed and re-attested.
+  Even when true, `paidDispatchAuthorized` remains **false**:
+  owner authorization and a separate B checkpoint/host remain mandatory.
+- Private [PR #16](https://github.com/degong2-code/ai-project-lab/pull/16)
+  merged one additional `preview`-only workflow job, commit
+  `caf5d69558ad9a7167ab529ea67dead07ec06291`, with no WCL secrets,
+  no retained write credentials and read-only GitHub token.
+- Private [Actions #41466289836](https://github.com/degong2-code/ai-project-lab/actions/runs/41466289836)
+  **SUCCESS**: actual candidate A `0c3fc4d6bd7e20694305835779c8c6574f491ee5`,
+  36 EXACT-100 A jobs / 3,600 immutable ranks; B8=6 and B9=4
+  requests **planned only**. Paid jobs all SKIPPED; zero WCL,
+  private data writes, C proofs or Sheets writes.
+
+### Next implementation barrier
+
+The private B host is intentionally **not** a paid-enabled BossDPS runner.
+To safely deploy a separately owner-approved paid B wave:
+
+1. Complete and freeze an independently attested **216/216 A cohort**; or
+   explicitly design/version a stable incremental B generation before
+   attempting paid partial-A collection.
+2. Provision a **separate private B checkpoint** pinned to the exact A
+   source branch HEAD, source state digest, scope and source-code SHA;
+   never mutate the existing 36-job A source or historical C.
+3. Reuse `runOneFreshBossWave` with an authenticated owner request and
+   independent B8/B9 `bossPlanSha`, followed by two remote-confirmed
+   checkpoint transitions per WCL request (IN_FLIGHT before HTTP,
+   COMPLETED/NEEDS_REVIEW after), and no automatic retry.
+4. Offline-test source import, loss of Git write, restart, changed plan,
+   partial source rejection and uncertain WCL points. Review the dormant
+   GitHub Actions workflow **separately** before any actual WCL request.
+5. Run a small separately approved real B wave and independently read back
+   B rankings, same-fight C, and the original KPI calculation. Only then
+   evaluate Google Sheets dry-run/write.
+
+These conditions deliberately separate **read-only readiness**,
+**paid execution implementation**, **owner authorization**, and
+**actual WCL evidence**. P1 real B/C integration remains unproven.
