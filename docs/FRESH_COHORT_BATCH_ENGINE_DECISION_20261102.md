@@ -105,6 +105,65 @@ did *not* show a win; see `docs/CHECKPOINT_BENCHMARK.md`.
   measured run. A new 8-alias paired comparison would need another isolated
   source or stateless authorized probe.
 
+## Three-wave live batching and remote Git bottleneck (2026-11-02)
+
+- Owner explicitly approved one **bounded** continuation: 9 aliases per
+  GraphQL request, `maxRequests:3`, `maxObservedPoints:50`,
+  `reservePoints:10`. The reservation is a policy gate, not an absolute
+  API tariff limit. Previous scope had 1 completed 9-alias batch.
+- [Live private Actions #41428574457](https://github.com/degong2-code/ai-project-lab/actions/runs/41428574457)
+  **SUCCESS**, no retry: 3 additional requests, 3 completed 9-alias
+  batches, 2,700 newly stored exact rank rows; 27.03 observed points.
+  Request-index progression 1 -> 4 with 6 remote Git commits:
+  3 `IN_FLIGHT` commits **before HTTP**, 3 completed-witness commits
+  **after HTTP**. `remoteGitCommitMs=10,676`.
+- Individual new batch `wallMs`: **3,036 / 2,230 / 2,237ms**.
+  This timer covers WCL transport and decoding but not the final
+  Git push. Sum: **7,503ms**. Among the two measured categories only,
+  remote Git commits accounted for approximately
+  **10,676 / (10,676 + 7,503) = 58.7%**. This is *not* a measurement of
+  total GitHub Actions job wall time: job startup, checkout and other
+  local I/O are outside the denominator.
+- Remote private state HEAD `0c3fc4d6bd7e20694305835779c8c6574f491ee5`,
+  checkpoint version **9**. Verified 4 COMPLETED and 20 READY
+  9-alias batches; **36/216 specializations, 3,600/21,600 ranked rows**,
+  cumulative `currentRequest.total` **36.04pt**, 0 IN_FLIGHT and
+  0 NEEDS_REVIEW. Next batch index **4**.
+- Candidate checkpoint file grew from **160,624** to **541,308 bytes**
+  (additional **380,684 bytes** for three 9-alias batches).
+  This is the stored JSON byte size, **not** cumulative Git pack/network
+  transfer, which is not instrumented.
+- The owner request was disarmed immediately at
+  `243165b640bfcef9b4b7f0f2df8abc41f6be0960`:
+  `mode:preview`, `approved:false`. All subsequent paid jobs SKIPPED.
+- [Independent read-only Actions #41428739709](https://github.com/degong2-code/ai-project-lab/actions/runs/41428739709)
+  **SUCCESS**: recomputed completed 9-alias snapshot SHA-256 evidence,
+  verified next index 4 and 3,600 original ranked rows, confirmed
+  0 WCL calls and 0 Git writes. Older independent 1-alias Source
+  and canonical EXACT C remain unchanged.
+- **Interpretation:** 9-alias batching is valid and restartable. The
+  additional real evidence identifies remote checkpoint persistence as
+  a significant cost **within observed step timings**. The two
+  safety-critical remote transitions per paid request must remain
+  effective; improvement should focus on smaller serialized state,
+  immutable/compressed result witnesses and low-overhead verification,
+  rather than eliminating pre-HTTP commit or counting uncertain data.
+
+### Next engine decision
+
+1. Maintain the current 9-alias cohort as a valid partial witness;
+   do not silently replan or consume further points.
+2. Before more paid experiments, add **read-only Git-state size/timing
+   diagnostics** and prototype a compact index + immutable compressed
+   rank-result witness in offline CI. Compare full-state round-trip,
+   hash parity, replay safety and remote upload/push cost.
+3. Do **not** default to delayed commits of multiple WCL requests;
+   `IN_FLIGHT` must be durable remotely before each charged call
+   and completed evidence durable before starting the next request.
+4. After an explicit separately scoped approval, use 9-alias batches
+   with bounded point admission to validate any improved persistence
+   implementation under the same workload.
+
 ## Next verification gate
 
 1. CI-passed the bounded engine and verified its one 9-alias live operation
