@@ -125,6 +125,45 @@ preserve a stable B-specific manifest+SHA, the before-HTTP remote
 after uncertain WCL results. Reuse the same tests on B8 and B9 before
 any separately approved real B request.
 
+## P1 B-wave journal source-identity generalization (implementation)
+
+The former `fresh-boss-wave-journal.mjs` hardcoded the historical A source
+SHA, scope and B8=32 batch layout. It now resolves all 216 immutable
+completed A jobs by their `jobKey` and `snapshotSha` regardless of A's
+own 8/9 alias batching; the independent B8/B9 grouping is checked against
+the attested boss/spec roster.
+
+- B9 batch identity includes its `bossJobsPerRequest:9` metadata while B8
+  keeps the historical batch payload/hash for backward compatibility.
+- A B `bossPlanSha` is stored with its first READY journal record and
+  rechecked for all later state transitions. Its inputs are source scope,
+  source code/manifest, source batching, selected B alias size and every
+  source job's immutable SHA. Old missing-seal B8 entries are read only
+  for the *specific* archived source SHA+scope.
+- Before any B HTTP the existing durable store must confirm READY and
+  **IN_FLIGHT** writes. After HTTP, the already-existing one-wave decoder
+  validates official BossDPS rankings and same-fight C proofs, then durably
+  commits COMPLETED or NEEDS_REVIEW; no automatic retry.
+- Paid B collection cannot start from a partial 36-job A source. The
+  current `allowPartialSource:true` B plan is a **non-chargeable preview**;
+  partial request indices may change as more A jobs arrive. A full,
+  immutable A source must be proven before the B paid sequence can begin.
+- The historical B8 pipeline defaults remain compatible; the caller may
+  explicitly supply `bossJobsPerRequest:9` for independent B9 planning
+  and bounded journal execution after a complete source.
+
+**Verification criteria:** old B8 replay tests, new A9→B9 and A8→B9
+journal tests, remote-write-before-HTTP failure, points uncertainty,
+cross-B-size plan drift, legacy B8 seal-less readback, and A8→B9
+pipeline KPI/restart test. CI passage must be verified independently;
+a successful implementation commit alone is *not* proof.
+
+**Not yet completed:** an owner-reviewed *private* B9 execution host,
+live B/C WCL evidence for the new A scope, new-cohort exact C completion,
+or a verified Sheets write. The old private paid Actions configuration
+stays disarmed (`preview / approved:false`) and no new WCL requests were
+performed by this refactor.
+
 ## P1 next: one credible same-scope pipeline integration
 
 1. Run the P0 projection read-only on the actual isolated 9-alias A checkpoint
