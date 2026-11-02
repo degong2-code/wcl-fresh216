@@ -267,3 +267,48 @@ test('publicationApproved true without exact external approval still performs ze
   }),/SIGNED_RELAY_UNTRUSTED_PUBLIC_WORKFLOW_CONTEXT/);
   assert.equal(calls,0);
 });
+
+test('parallel immutable stage reads preserve the exact bounded GET set',async()=>{
+  const {staged}=prepared(),p=privateReadonlyFixture(staged);
+  let active=0,peak=0;
+  const overlappingGet=async(url,init)=>{
+    if(url.includes('/actor-proof/')||url.includes('/waves/')){
+      active++;peak=Math.max(peak,active);
+      await Promise.resolve(); // deterministic overlap, without timers or networking
+      active--;
+    }
+    return p.fetchImpl(url,init);
+  };
+  const inspected=await fetchPinnedPrivateSignedWaveStage({
+    approvedPrivateStageCommit:'c'.repeat(40),
+    waveSha256:staged.index.waveSha256,
+    privateReadToken:'SYNTHETIC_PRIVATE_READ_TOKEN_NOT_REAL',
+    fetchImpl:overlappingGet
+  });
+  assert.equal(inspected.archiveCount,2);
+  assert.equal(p.requests.length,4); // index plus two archives and manifest
+  assert.equal(peak,3); // no serial latency chain for immutable files
+  assert.equal(active,0);
+});
+test('invalid or repeated private stage paths stop before any artifact GET',async()=>{
+  const {staged}=prepared();
+  for(const entries of [
+    [...staged.index.files.slice(0,1),{
+      path:'projects/wcl-fresh216/private-source/raw.json',
+      sha256:'a'.repeat(64)
+    }],
+    [staged.index.files[0],staged.index.files[0]]
+  ]){
+    const p=privateReadonlyFixture(staged);
+    p.map.set(staged.indexPath,JSON.stringify({
+      ...staged.index,files:entries
+    },null,2)+'\n');
+    await assert.rejects(fetchPinnedPrivateSignedWaveStage({
+      approvedPrivateStageCommit:'c'.repeat(40),
+      waveSha256:staged.index.waveSha256,
+      privateReadToken:'SYNTHETIC_PRIVATE_READ_TOKEN_NOT_REAL',
+      fetchImpl:p.fetchImpl
+    }),/SIGNED_RELAY_PRIVATE_PATH_NOT_ALLOWED|SIGNED_RELAY_PRIVATE_PATH_DUPLICATE/);
+    assert.equal(p.requests.length,1);
+  }
+});

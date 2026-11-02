@@ -193,17 +193,22 @@ export async function fetchPinnedPrivateSignedWaveStage({
     Array.isArray(index.files)&&index.files.length>=2&&
     index.files.length<=9,
     'SIGNED_RELAY_PRIVATE_INDEX_SCOPE_DRIFT');
-  const files=[];
-  for(const item of index.files){
+  // Validate the complete bounded allowlist BEFORE any artifact GET.
+  // Then overlap independent immutable reads, without extra API requests.
+  const planned=index.files.map(item=>{
     need(item&&typeof item.path==='string'&&is64(item.sha256)&&
       (item.path===wavePath(waveSha256)||
         (item.path.startsWith(base+'actor-proof/')&&
           is64(item.path.slice((base+'actor-proof/').length,-5))&&
           item.path.endsWith('.json'))),
       'SIGNED_RELAY_PRIVATE_PATH_NOT_ALLOWED');
-    const content=await read(item.path,ACTOR_PROOF_ARCHIVE_MAX_BYTES);
-    files.push({path:item.path,sha256:item.sha256,content});
-  }
+    return {path:item.path,sha256:item.sha256};
+  });
+  need(new Set(planned.map(item=>item.path)).size===planned.length,
+    'SIGNED_RELAY_PRIVATE_PATH_DUPLICATE');
+  const files=await Promise.all(planned.map(async item=>({
+    ...item,content:await read(item.path,ACTOR_PROOF_ARCHIVE_MAX_BYTES)
+  })));
   return inspectPublicSignedWaveStage({
     index,indexContent,files,approvedPrivateStageCommit,
     checkedOutPrivateStageCommit:approvedPrivateStageCommit
