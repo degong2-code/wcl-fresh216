@@ -139,7 +139,7 @@ test('synthetic 9-alias run covers all 216 jobs, exact100 export, and refuses 8-
   assert.equal(result.sourceComplete,true);
   assert.equal(result.completedJobs,216);
   assert.equal(result.recordedRequests,24);
-  assert.equal(result.observedPoints,216.24);
+  assert.ok(Math.abs(result.observedPoints-216.24)<1e-8);
   assert.equal(calls,24);
   const out=exportVerifiedFreshCohort(s.read(),manifest);
   assert.equal(out.slots.length,21600);
@@ -155,6 +155,6 @@ test('synthetic 9-alias run covers all 216 jobs, exact100 export, and refuses 8-
   await assert.rejects(()=>runBoundedFreshCohortBatches({
     store:s,manifest,approved:true,jobsPerRequest:8,maxRequests:1,
     admissionPolicy:budget,clock,transport:async()=>{calls++;throw Error('DRIFT')}
-  }),/FRESH_COHORT_MANIFEST_OR_REQUEST_DRIFT|FRESH_COHORT_SOURCE_DRIFT/);
+  }),/FRESH_COHORT_BATCH_SIZE_DRIFT/);
   assert.equal(calls,24);
 });
