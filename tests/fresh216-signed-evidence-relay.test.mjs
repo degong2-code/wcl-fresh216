@@ -5,7 +5,8 @@ import {
   buildActorProofArchive,buildActorProofWaveManifest
 } from '../src/core/fresh216-actor-proof-archive.mjs';
 import {
-  preparePrivateSignedWaveStage,inspectPublicSignedWaveStage
+  preparePrivateSignedWaveStage,inspectPublicSignedWaveStage,
+  fetchPinnedPrivateSignedWaveStage,publishPinnedPrivateSignedWave
 } from '../src/adapters/fresh216-signed-evidence-relay.mjs';
 
 const KEY='SYNTHETIC_TEST_ONLY_64_RANDOM_STYLE_CHARACTERS_NO_REAL_SECRET_0011';
@@ -108,4 +109,83 @@ test('public rejects forged private manifest digest and schema-only substitution
   assert.throws(()=>inspect({
     index,indexContent:JSON.stringify(index,null,2)+'\n',files
   }),/ACTOR_WAVE_MANIFEST_CONTENT_SHA_MISMATCH/);
+});
+
+const blobSha=txt=>createHash('sha1')
+  .update('blob '+Buffer.byteLength(txt,'utf8')+String.fromCharCode(0))
+  .update(txt,'utf8').digest('hex');
+function privateReadonlyFixture(staged){
+  const map=new Map([[staged.indexPath,staged.indexContent],
+    ...staged.files.map(f=>[f.path,f.content])]);
+  const requests=[];
+  const fetchImpl=async(url,init)=>{
+    requests.push({url,method:init.method});
+    assert.equal(init.method,'GET');
+    assert.ok(url.startsWith(
+      'https://api.github.com/repos/degong2-code/ai-project-lab/contents/'));
+    assert.ok(url.endsWith('?ref='+ 'c'.repeat(40)));
+    assert.equal(init.headers.Authorization,
+      'Bearer SYNTHETIC_PRIVATE_READ_TOKEN_NOT_REAL');
+    const key=url.split('/contents/')[1].split('?ref=')[0];
+    const content=map.get(key);
+    if(!content)return {status:404};
+    const raw=Buffer.from(content,'utf8');
+    return {status:200,json:async()=>({
+      encoding:'base64',content:raw.toString('base64'),
+      size:raw.length,sha:blobSha(content)
+    })};
+  };
+  return {fetchImpl,requests,map};
+}
+test('public pull fetches ONLY pinned private redacted index and archive paths via GET',async()=>{
+  const {staged}=prepared(),p=privateReadonlyFixture(staged);
+  const inspected=await fetchPinnedPrivateSignedWaveStage({
+    approvedPrivateStageCommit:'c'.repeat(40),
+    waveSha256:staged.index.waveSha256,
+    privateReadToken:'SYNTHETIC_PRIVATE_READ_TOKEN_NOT_REAL',
+    fetchImpl:p.fetchImpl
+  });
+  assert.equal(inspected.archiveCount,2);
+  assert.equal(p.requests.length,4);
+  assert.ok(p.requests.every(x=>x.method==='GET'));
+  assert.ok(p.requests.every(x=>!x.url.includes('private-source')&&
+    !x.url.includes('report-wave-witnesses')));
+});
+test('public pull refuses missing/changed Git blob and undeclared private file path',async()=>{
+  const {staged}=prepared(),p=privateReadonlyFixture(staged);
+  const poisoned=async(url,init)=>{
+    const out=await p.fetchImpl(url,init);
+    if(url.includes('/actor-proof/')&&out.status===200){
+      const body=await out.json();
+      return {status:200,json:async()=>({...body,sha:'a'.repeat(40)})};
+    }
+    return out;
+  };
+  await assert.rejects(fetchPinnedPrivateSignedWaveStage({
+    approvedPrivateStageCommit:'c'.repeat(40),
+    waveSha256:staged.index.waveSha256,
+    privateReadToken:'SYNTHETIC_PRIVATE_READ_TOKEN_NOT_REAL',
+    fetchImpl:poisoned
+  }),/SIGNED_RELAY_PRIVATE_GIT_BLOB_DRIFT/);
+  const edited=structuredClone(staged.index);
+  edited.files[0].path='projects/wcl-fresh216/private-source/raw.json';
+  p.map.set(staged.indexPath,JSON.stringify(edited,null,2)+'\n');
+  await assert.rejects(fetchPinnedPrivateSignedWaveStage({
+    approvedPrivateStageCommit:'c'.repeat(40),
+    waveSha256:staged.index.waveSha256,
+    privateReadToken:'SYNTHETIC_PRIVATE_READ_TOKEN_NOT_REAL',
+    fetchImpl:p.fetchImpl
+  }),/SIGNED_RELAY_PRIVATE_PATH_NOT_ALLOWED/);
+});
+test('public relay cannot publish without an explicit authorization gate',async()=>{
+  let calls=0;
+  await assert.rejects(publishPinnedPrivateSignedWave({
+    approvedPrivateStageCommit:'c'.repeat(40),
+    waveSha256:'b'.repeat(64),
+    privateReadToken:'SYNTHETIC_PRIVATE_READ_TOKEN_NOT_REAL',
+    publicGitToken:'SYNTHETIC_PUBLIC_TOKEN_NOT_REAL',
+    privateFetch:async()=>{calls++;throw Error('unexpected');},
+    publicFetch:async()=>{calls++;throw Error('unexpected');}
+  }),/SIGNED_RELAY_PUBLICATION_NOT_AUTHORIZED/);
+  assert.equal(calls,0);
 });
