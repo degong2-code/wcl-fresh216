@@ -115,7 +115,7 @@ export function commitFresh216CandidateDelta({
  * APPENDED. Do not catch or auto-retry an uncertain Git operation.
  */
 export function withPrivateCandidateGitDurability({
-  localAppender,repoRoot,gitCommand=cmd
+  localAppender,repoRoot,minIndex=231,gitCommand=cmd
 }={}){
   need(typeof localAppender==='function'&&
     typeof repoRoot==='string'&&path.isAbsolute(repoRoot)&&
@@ -127,7 +127,7 @@ export function withPrivateCandidateGitDurability({
     need(appended?.status==='APPENDED',
       'PRIVATE_C_REMOTE_LOCAL_APPENDER_NOT_CONFIRMED');
     const proof=commitFresh216CandidateDelta({
-      repoRoot,appended,gitCommand
+      repoRoot,appended,minIndex,gitCommand
     });
     need(proof.status==='REMOTE_CONFIRMED'&&
       proof.deltaIndex===appended.deltaIndex&&
