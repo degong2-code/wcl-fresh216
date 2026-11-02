@@ -64,12 +64,12 @@ test('release preflight has no secret/write scope; conditional writer is narrow'
   const preflight=yaml.split('  publish-approved-public-wave:')[0];
   const publisher=yaml.split('  publish-approved-public-wave:')[1];
   assert.ok(publisher,'separate publisher job missing');
-  assert.doesNotMatch(preflight,/contents:\\s*write|workflow_dispatch|secrets\\.|FRESH216_PRIVATE_READ_TOKEN|FRESH216_EVIDENCE_HMAC_KEY/);
-  assert.match(publisher,/needs\\.review-approved-intent-readonly\\.outputs\\.intent_present == 'true'/);
+  assert.doesNotMatch(preflight,/contents:\s*write|workflow_dispatch|secrets\.|FRESH216_PRIVATE_READ_TOKEN|FRESH216_EVIDENCE_HMAC_KEY/);
+  assert.match(publisher,/needs\.review-approved-intent-readonly\.outputs\.intent_present == 'true'/);
   assert.match(publisher,/environment: fresh216-private-read/);
-  assert.match(publisher,/permissions:\\s*\\n\\s*contents: write/);
-  assert.match(publisher,/secrets\\.FRESH216_PRIVATE_READ_TOKEN/);
-  assert.match(publisher,/github\\.token/);
+  assert.match(publisher,/permissions:\s*\n\s*contents: write/);
+  assert.match(publisher,/secrets\.FRESH216_PRIVATE_READ_TOKEN/);
+  assert.match(publisher,/github\.token/);
   assert.doesNotMatch(publisher,/WCL_CLIENT_SECRET|FRESH216_EVIDENCE_HMAC_KEY|workflow_dispatch|pull_request_target/);
   assert.match(yaml,/cancel-in-progress: false/);
 });
