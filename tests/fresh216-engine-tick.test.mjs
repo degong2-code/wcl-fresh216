@@ -4,7 +4,7 @@ import fs from 'node:fs';
 import os from 'node:os';
 import path from 'node:path';
 import {createHash} from 'node:crypto';
-import {newCheckpoint,registerPlan,checkpointStats}
+import {newCheckpoint,registerPlan,checkpointStats,pendingWaveEvidence}
   from '../src/core/checkpoint.mjs';
 import {createPrivateWaveWitnessStore}
   from '../src/adapters/private-wave-witness-store.mjs';
@@ -95,6 +95,10 @@ async function collectPending(s,ws){
   assert.equal(result.kind,'REPORT_WAVE');
   assert.equal(transportCalls,1);
   assert.equal(checkpointStats(s.read()).evidencePending,1);
+  const pending=pendingWaveEvidence(s.read())[0];
+  const witness=ws.read(pending.evidence.witnessRef);
+  assert.deepEqual(pending.wave,witness.wave);
+  assert.equal(sha(JSON.stringify(pending.wave)),pending.evidence.waveSha256);
   return result;
 }
 test('preview is immutable, and report needs explicit authorization',async()=>{
