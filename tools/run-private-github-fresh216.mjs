@@ -44,6 +44,12 @@ const stateTargets=Object.freeze({
   source:Object.freeze({branch:STATE_BRANCH,file:STATE_PATH}),
   adaptive:Object.freeze({
     branch:ADAPTIVE_STATE_BRANCH,file:ADAPTIVE_STATE_PATH
+  }),
+  // Isolated new source cohort: same JsonCheckpointStore/remote commit
+  // adapter and source schema, without touching the historic A snapshot.
+  engineSource:Object.freeze({
+    branch:'work/fresh216-engine-source-20261102',
+    file:'projects/wcl-fresh216/engine-source/source-checkpoint.json'
   })
 });
 const stateTarget=target=>{
