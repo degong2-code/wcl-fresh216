@@ -94,10 +94,23 @@ automatic retry, exact 900-row B and C proof, and restart with zero replay.
 It also tests the B-one owner/context/source/state/code-SHA authorization
 predicate.
 
-**P1 current stage exit:** public CI PASS plus read-only private
-verification that the real A36 branch still blocks B checkpoint creation
-and that the independent B branch remains empty. The latter is pending
-until a reviewed preview-only Actions job records an independent proof.
+**P1 isolated-state proof complete:**
+- Product [offline Actions #41474937887](https://github.com/degong2-code/wcl-fresh216/actions/runs/41474937887)
+  **SUCCESS, 76/76 pure-core suites PASS**, pinned implementation SHA
+  `ff440d8212769d516fdbae0d3ee32cd8db01649f`.
+- Private [PR #17](https://github.com/degong2-code/ai-project-lab/pull/17)
+  read-only workflow change manually inspected and merged in
+  `fce7bf611a48beca865e7fdeecf116a3e9cd5ab3`.
+- Private [Actions #41475552524](https://github.com/degong2-code/ai-project-lab/actions/runs/41475552524)
+  new `fresh-boss-isolated-checkpoint-readonly` job **PASS**. Actual
+  36/216 A, 3,600 verified rank rows, next index 4; isolated B private
+  branch still at `c89bc6a5130fb2f81fd5a98445ab187725b099ae`,
+  with **no B checkpoint file**. Initializing paid B fails with
+  `BOSS_ISOLATED_REQUIRES_COMPLETE_A`. No WCL, Git state writes or Sheets
+  writes; all paid jobs SKIPPED.
+- Result establishes strict real-A admission refusal and the disjoint
+  storage path. It does NOT benchmark real remote Git B write latency,
+  certify a full A scope or authorize B paid execution.
 
 **Next milestones:** (1) complete/attest A 216/216 under separate
 owner-approved bounded source execution; (2) compare compact B vs any
