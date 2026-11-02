@@ -1,0 +1,54 @@
+name: Fresh216 public engine IO smoke (synthetic, no WCL)
+on:
+  push:
+    branches: [work/fresh216-adaptive-archive-delta-20261031]
+    paths:
+      - .github/workflows/fresh216-engine-io-smoke-public.yml
+
+permissions:
+  contents: write
+
+concurrency:
+  group: fresh216-public-engine-io-smoke
+  cancel-in-progress: false
+
+jobs:
+  native-token-public-git-write:
+    if: github.repository == 'degong2-code/wcl-fresh216' && github.ref == 'refs/heads/work/fresh216-adaptive-archive-delta-20261031' && github.event_name == 'push'
+    runs-on: ubuntu-22.04
+    timeout-minutes: 5
+    steps:
+      - name: Checkout exact isolated public smoke branch with native token
+        uses: actions/checkout@v4
+        with:
+          ref: work/fresh216-public-io-smoke-20261102
+          path: smoke
+          fetch-depth: 1
+          persist-credentials: true
+      - name: Commit and verify harmless public synthetic test receipt
+        shell: bash
+        run: |
+          set -euo pipefail
+          test "$(git -C smoke rev-parse HEAD)" = 'ece50401bd103f9c264b6371387c8e8d70a4cfb0'
+          test "$(git -C smoke symbolic-ref --short HEAD)" = 'work/fresh216-public-io-smoke-20261102'
+          test -z "$(git -C smoke status --porcelain --untracked-files=all)"
+          mkdir -p smoke/engine-smoke
+          node - <<'NODE'
+          const fs=require('node:fs');
+          const receipt={
+            schema:1,kind:'FRESH216_SYNTHETIC_PUBLIC_GIT_IO_SMOKE',
+            source:'GITHUB_ACTIONS_NATIVE_TOKEN',
+            repo:'degong2-code/wcl-fresh216',
+            branch:'work/fresh216-public-io-smoke-20261102',
+            rawWclData:false,hmacKeyUsed:false,apiPoints:0
+          };
+          fs.writeFileSync('smoke/engine-smoke/public-write-receipt.json',
+            JSON.stringify(receipt,null,2)+'\n',{flag:'wx',mode:0o600});
+          NODE
+          git -C smoke add -- engine-smoke/public-write-receipt.json
+          git -C smoke -c user.name='Fresh216 Engine Smoke' -c user.email='fresh216-smoke@users.noreply.github.com' commit -m 'test(fresh216): verify native public Actions Git write'
+          expected="$(git -C smoke rev-parse HEAD)"
+          git -C smoke push origin HEAD:refs/heads/work/fresh216-public-io-smoke-20261102
+          observed="$(git -C smoke ls-remote --heads origin refs/heads/work/fresh216-public-io-smoke-20261102 | cut -f1)"
+          test "$observed" = "$expected"
+          echo 'FRESH216_PUBLIC_NATIVE_TOKEN_GIT_WRITE_READBACK_PASS' >> "$GITHUB_STEP_SUMMARY"
