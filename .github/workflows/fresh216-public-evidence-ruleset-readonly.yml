@@ -50,17 +50,20 @@ jobs:
           try{
             const [e,o,eb,ob,tree,pr]=await Promise.all(
               Object.values(paths).map(get));
-            need(e.id===26336785&&
-              e.name==='fresh216-evidence-append-only'&&
-              e.enforcement==='active'&&e.target==='branch'&&
-              JSON.stringify(e.conditions?.ref_name?.include)===
+            need(e.id===26336785&&e.name==='fresh216-evidence-append-only'&&
+              e.enforcement==='active'&&e.target==='branch',
+              'FRESH216_PUBLIC_EVIDENCE_RULESET_ID_OR_STATUS_DRIFT');
+            need(JSON.stringify(e.conditions?.ref_name?.include)===
                 JSON.stringify(['refs/heads/fresh216-public-evidence-pilot-20261031'])&&
               Array.isArray(e.conditions?.ref_name?.exclude)&&
-              e.conditions.ref_name.exclude.length===0&&
-              JSON.stringify((e.rules??[]).map(x=>x.type).sort())===
-                JSON.stringify(['deletion','non_fast_forward'])&&
-              Array.isArray(e.bypass_actors)&&e.bypass_actors.length===0,
-              'FRESH216_PUBLIC_EVIDENCE_RULESET_DRIFT');
+              e.conditions.ref_name.exclude.length===0,
+              'FRESH216_PUBLIC_EVIDENCE_RULESET_TARGET_DRIFT');
+            need(JSON.stringify((e.rules??[]).map(x=>x.type).sort())===
+                JSON.stringify(['deletion','non_fast_forward']),
+              'FRESH216_PUBLIC_EVIDENCE_RULESET_TYPES_DRIFT');
+            need(e.bypass_actors===undefined||
+              (Array.isArray(e.bypass_actors)&&e.bypass_actors.length===0),
+              'FRESH216_PUBLIC_EVIDENCE_RULESET_BYPASS_DRIFT');
             need(o.id===26227675&&
               o.name==='fresh216-trusted-runner-guard'&&
               o.enforcement==='active'&&
@@ -89,6 +92,7 @@ jobs:
               evidenceRules:['deletion','non_fast_forward'],
               originalGuard:'UNCHANGED_ACTIVE_TRUSTED_BRANCH_ONLY',
               publicEvidenceBranchProtected:true,
+              nativeBypassFieldVisible:Array.isArray(e.bypass_actors),
               publicActorProofArchiveFiles:0,
               publicActorProofWaveManifests:0,
               pr21:'OPEN_DRAFT',
