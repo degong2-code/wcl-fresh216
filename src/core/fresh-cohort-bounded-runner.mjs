@@ -38,11 +38,15 @@ export async function runBoundedFreshCohortBatches({
     if(current.kind==='NEEDS_REVIEW'||current.kind==='SOURCE_COMPLETE'){
       reason=current.kind;break;
     }
-    const nowMs=clock();
-    const admit=evaluateRequestAdmission(state,{
-      ...admissionPolicy,nowMs});
-    if(!admit.allowed){
-      reason=admit.status;break;
+    // PLAN_REQUIRED has no READY entries yet. Let the existing
+    // runOne... install the immutable plan before its own admission guard.
+    if(current.kind!=='PLAN_REQUIRED'){
+      const nowMs=clock();
+      const admit=evaluateRequestAdmission(state,{
+        ...admissionPolicy,nowMs});
+      if(!admit.allowed){
+        reason=admit.status;break;
+      }
     }
     const receipt=await runOneFreshCohortBatch({
       store,manifest,mode:'execute',approved:true,transport,
