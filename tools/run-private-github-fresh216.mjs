@@ -55,6 +55,12 @@ const stateTargets=Object.freeze({
   engineSourceCandidate:Object.freeze({
     branch:'work/fresh216-engine-source-candidate-20261102',
     file:'projects/wcl-fresh216/engine-source-candidate/source-checkpoint.json'
+  }),
+  // Strictly separate immutable A source from compact mutable B state.
+  // No B paid workflow is enabled by this allowlisted state target.
+  engineBoss:Object.freeze({
+    branch:'work/fresh216-engine-boss-state-20261103',
+    file:'projects/wcl-fresh216/engine-boss/boss-checkpoint.json'
   })
 });
 const stateTarget=target=>{
