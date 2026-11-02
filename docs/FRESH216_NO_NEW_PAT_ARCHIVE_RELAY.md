@@ -39,3 +39,66 @@ The private Git staging writer and exact-commit read-only fetcher are IMPLEMENTE
 5. Only after all gates, separately scope the first live WCL Report wave (one of five READY named fights); 339 masked slots stay quarantined. Do not broaden WCL or public write authorization implicitly.
 
 Baseline preserved: pinned A 21,600; Exact C 21,252; adaptive v1 5 READY fight groups; C candidate 231 historical parts and zero new production deltas; HMAC configured only in private repo; PR #21 OPEN/DRAFT; canonical/Sheets untouched.
+
+
+## 2026-11-02 trusted Environment access verified; public write scope unverified
+
+- Ruleset \`fresh216-evidence-append-only\` (#26336785) is active for exactly
+  \`fresh216-public-evidence-pilot-20261031\`, with deletion and non-fast-forward
+  protections and no bypass actors. The earlier trusted-branch guard (#26227675)
+  is still active and unchanged. Hosted GET-only audit
+  [#41375049043](https://github.com/degong2-code/wcl-fresh216/actions/runs/41375049043)
+  **PASS**; no production evidence writes.
+- Protected trusted branch \`work/fresh216-autonomous-host-20261031\` merged
+  one-file PR [#22](https://github.com/degong2-code/wcl-fresh216/pull/22)
+  at \`9f9601e6ef2c9cb07b303e7ebbc631d9e23492b9\`. Trusted Actions
+  [#41376743852](https://github.com/degong2-code/wcl-fresh216/actions/runs/41376743852)
+  **PASS**: existing \`fresh216-private-read\` Environment read token was used
+  to check out **only** the private signed-stage \`README.md\` at immutable
+  \`c89bc6a5130fb2f81fd5a98445ab187725b099ae\`, verified commit and blob
+  SHA. No raw WCL data or HMAC passed to the public job. This establishes
+  trusted-branch *actual read-token access*, not an independent inspection
+  of all Environment administrator configuration.
+- Proposed job-level \`contents:write\` GET-only scope audit
+  [PR #23](https://github.com/degong2-code/wcl-fresh216/pull/23)
+  remains **OPEN/DRAFT, UNMERGED, UNEXECUTED**. A merge tool safety check
+  blocked activation; do not circumvent it. Even a successful read-only
+  \`GET /repos\` \`permissions.push\` check would *not* demonstrate a successful
+  Git ref update under the target branch's Ruleset. Thus do not claim
+  native public write permissions are production verified.
+
+### Publication acceptance criteria — do not treat a Boolean as authorization
+
+A future, explicitly authorized publication workflow must independently
+enforce **all** of these conditions before supplying
+\`publicationApproved: true\` to \`publishPinnedPrivateSignedWave\`:
+
+1. Workflow file and executable code reviewed on the **protected trusted branch**;
+   reject PR or fork event triggers, untrusted inputs, unexpected \`github.repository\`,
+   \`github.ref\`, or unexpected job environment.
+2. Owner-approved exact immutable private staging **commit SHA** and wave digest
+   are bound to this invocation. An arbitrary 40-hex SHA passed by a caller
+   is **not** an approval. The private staging branch is unprotected on the
+   present GitHub plan; a commit's existence alone is not a trust proof.
+3. Private HMAC authenticated the staged wave **before** private Git commit;
+   public workflow may only read the approved private commit's strict index
+   and allowlisted redacted files with the **existing read-only** credential.
+   The public SHA/replay checker does not verify HMAC authenticity.
+4. The public job's own \`GITHUB_TOKEN\` must be scoped to that job and the
+   existing Ruleset must permit its **ordinary fast-forward** ref update.
+   Neither global Actions default write access nor a broadened PAT is needed.
+   Actual write capability remains **unproven** until one separately
+   authorized real Git ref update and full readback.
+5. Preserve current fail-closed create-only checks, no auto-retry on
+   unknown Git outcomes, audit exact public commit/ref SHA and path+blob
+   hashes after any write. A successful token preflight must never be
+   confused with published evidence.
+6. No automatic WCL, private C delta, canonical promotion or Sheets writes
+   may be triggered by the publication job. Each retains its own approval
+   and idempotent recovery procedure.
+
+The public branch deletion/non-fast-forward Ruleset is **not** a content or
+directory ACL: ordinary fast-forward commits remain possible. The production
+workflow's content allowlist and independent code review remain essential.
+Do not add another redundant synthetic test merely to re-prove an existing
+64/64 offline suite or the actual trusted Environment read PASS.
