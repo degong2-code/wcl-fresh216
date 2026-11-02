@@ -174,7 +174,10 @@ export function createFresh216EvidencePublisher({
     let stored;
     try{
       stored=await archiveStore.persistWave(archives,{
-        createdAtMs:witness.capturedAtMs
+        createdAtMs:witness.capturedAtMs,
+        // Existing stores ignore these optional fields; private staging
+        // authenticates the exact wave and its committed private state.
+        manifest,proofContext:{wave,attemptId,evidence,witness}
       });
     }catch(error){
       if(error?.message==='PUBLIC_ACTOR_WAVE_WRITE_NOT_ATTEMPTED')
