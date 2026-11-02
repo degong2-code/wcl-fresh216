@@ -32,13 +32,13 @@ first 100 ranked rows for each specialization:
 | --- | ---: | --- |
 | 1 | 216 | 1-call, 100-row live and private restart PASS |
 | 8 | 32 | 8-alias live WCL request and remote private evidence PASS |
-| 9 | 24 | Planner/offline synthetic evidence only; live point/time unknown |
+| 9 | 24 | 2026-11-02 live 9-alias / 900-row WCL + private Git restart PASS |
 | 10 | 24 | Planner potential; no advantage in count over 9 |
 
 A 9-alias candidate reduces *HTTP request count* by 25% against
 8 aliases. **It does not establish a 25% wall-time improvement.**
-There is no current evidence of the 9-alias API point tariff, server latency,
-response size in Git, or reliability. Do not assert one.
+One 9-alias call was subsequently verified: 9.01pt and 900 durable ranks.
+The limited data cannot prove total-run wall-time superiority or long-run reliability.
 
 ## Reusable batch engine
 
@@ -74,27 +74,54 @@ preserved until an **actual Git remote write/readback benchmark** demonstrates
 a better storage representation. The synthetic 2026-10-27 journal benchmark
 did *not* show a win; see `docs/CHECKPOINT_BENCHMARK.md`.
 
+## New 9-alias live verification (2026-11-02)
+
+- User explicitly approved **one** 9-alias WCL request and an isolated candidate
+  private state. [Live Actions #41421723348](https://github.com/degong2-code/ai-project-lab/actions/runs/41421723348) **SUCCESS**:
+  GraphQL calls 1; WCL `currentRequest.total=9.01`; 9 × 100 rank rows,
+  1/24 source batches recorded; checkpoint version 3.
+- Source batch `wallMs=3,020` includes HTTP plus result processing before
+  final durable transition. It is **not directly comparable** to the earlier
+  8-alias 954ms API round-trip-only observation, measured on another day.
+- Actual private Git operations: **4 remote-verified commits**, cumulative
+  `remoteGitCommitMs=7,371`; resulting private JSON checkpoint
+  **160,624 bytes**. First operation includes initial reservation,
+  immutable plan installation, IN_FLIGHT and result commit; subsequent
+  batches typically involve only two state transitions.
+- New candidate private branch `work/fresh216-engine-source-candidate-20261102`
+  remote HEAD `7439426da8d3befacc420328659ba86a1447ef58`.
+  Independently fetched checkpoint: 1 COMPLETED, 23 READY, 0 IN_FLIGHT,
+  0 NEEDS_REVIEW, 900 original ranks, next batch 1.
+- [Independent read-only Actions #41422256184](https://github.com/degong2-code/ai-project-lab/actions/runs/41422256184)
+  **SUCCESS**: recomputed 9 snapshot SHA-256 digests from saved rank rows,
+  checked 24-batch immutable plan and next index 1, 0 WCL and 0 Git writes.
+- Approved request disarmed immediately (`preview`, `approved:false`)
+  at commit `d415c5846d6eabaa0e1609e5677ac94072b8e88f`.
+  No additional WCL call authorized. Historical 1-alias source and EXACT C
+  21,252/21,600 are unchanged.
+- The 9-alias request saves **25% of HTTP request count** versus 8-alias
+  planning (24 vs 32) for this 216-job cohort. Actual aggregate elapsed
+  time, point savings, Git growth, and failure rate require a longer
+  measured run. A new 8-alias paired comparison would need another isolated
+  source or stateless authorized probe.
+
 ## Next verification gate
 
-1. CI-pass the **pure** bounded coordinator and source plan tests.
-2. Prepare a **new private isolated 9-alias source run** with its own
-   source run identity and blank checkpoint; never mutate existing 1-alias
-   test or protected C.
-3. Require separate explicit owner approval for any new WCL call. First
-   compare **one 8-alias historic observed call** vs a separately authorized
-   **one 9-alias live call** on a comparable scope, logging observed API
-   points, server round trip, Git commit/readback wall time, and payload
-   bytes. Past 8-alias timings are not paired contemporaneous measurements.
-4. Only after measured results, choose 8 vs 9 and evaluate a bounded,
-   serial multi-request Action with point stop and durable restart.
-5. If remote Git is dominant, **then** prototype a compact state index plus
-   compressed immutable batch witnesses, with exact restore and replay
-   parity, rather than assuming append-only logs are faster.
+1. CI-passed the bounded engine and verified its one 9-alias live operation
+   with isolated private checkpoint and independent restart.
+2. Next compare *measured full Action elapsed time*, private Git commit/write
+   timing, and size growth for multiple actual batches. A new WCL run requires
+   separate explicit owner approval and a fresh immutable request HEAD.
+3. Retain current safe 9-alias checkpoint and test another bounded restart
+   only after approval; do not automatically loop or rerun the completed wave.
+4. Evaluate compact state index + compressed witnesses **only after** enough
+   actual remote write timing evidence, preserving the exact same hashes,
+   fail-closed transitions and independent readback.
 
 No live paid requests, Sheets writes, public evidence publication or
 canonical C promotion are authorized by this decision document.
 
-## Implemented private-host boundary (candidate, not deployed)
+## Implemented private-host boundary (deployed, paid mode disarmed)
 
 - `tools/run-private-engine-source.mjs` now delegates both the old
   `source-one` and the new `source-bounded` operation to the shared
@@ -108,7 +135,7 @@ canonical C promotion are authorized by this decision document.
   `remoteGitCommits`, `remoteGitCommitMs`, and
   `privateCheckpointBytes`. These are aggregate timings and byte counts,
   not raw actor rows or credentials.
-- Existing private Actions remains pinned to its **previous** public
-  runtime SHA. This newer candidate is **not** an enabled paid workflow
-  until a code-SHA-pinned dormant job is reviewed and explicitly approved
-  per operation. No private test data or API calls were made by these edits.
+- The reusable private Actions now has a reviewed, owner-gated
+  `independent-source-bounded` job (PR #13 merged). One user-approved live
+  9-alias operation was executed and then disarmed; the paid job is skipped
+  under current `preview / approved:false` mode.
