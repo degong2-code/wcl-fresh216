@@ -223,8 +223,10 @@ export function createPublicActorProofArchiveStore({
       const back=await read(file.path);
       if(!back)continue;
       if(file.path===manifestFile.path){
-        verifyActorProofWaveManifest(back.data,{hmacKey,archives:ordered});
-      }else verifyActorProofArchive(back.data,{hmacKey});
+        if(relay)inspectActorProofWaveManifestPublic(back.data,{archives:ordered});
+        else verifyActorProofWaveManifest(back.data,{hmacKey,archives:ordered});
+      }else if(relay)inspectActorProofArchivePublic(back.data);
+      else verifyActorProofArchive(back.data,{hmacKey});
       need(JSON.stringify(back.data)===JSON.stringify(file.data),
         'PUBLIC_ACTOR_WAVE_READBACK_MISMATCH_STOP');
       readbacks.set(file.path,back);
