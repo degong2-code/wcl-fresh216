@@ -6,6 +6,7 @@
  * Sheets I/O here. The optional sweep delegates every WCL call and each
  * durable pre/post-HTTP Git commit to runOneFreshBossWave().
  */
+import {createHash} from 'node:crypto';
 import {makeFreshDatedHeroicManifest,exportVerifiedFreshCohort}
   from './fresh-cohort-source.mjs';
 import {planFreshBossFirstPages} from './fresh-boss-first-page.mjs';
@@ -17,6 +18,7 @@ import {planAdaptive216} from './adaptive-depth-plan.mjs';
 import {planNamedRecoveryEconomics} from './fresh-c-recovery-economics.mjs';
 
 const need=(v,c)=>{if(!v)throw Error(c);};
+const sha=x=>createHash('sha256').update(JSON.stringify(x)).digest('hex');
 const slotId=s=>JSON.stringify([s.jobKey,s.rank,s.snapshotSha]);
 const proofId=p=>JSON.stringify([p.proofType,p.actorRef,p.bossDps,
   p.snapshotSha,p.reportCode,p.fightId,p.encounterId,p.difficulty,
@@ -27,7 +29,9 @@ const masked=x=>!String(x??'').trim()||
 
 /** Read-only. No actor identifiers leave this module unless caller logs them. */
 export function inspectFreshDpsPipeline(state,{includeOutputs=false,
-  recoveryEconomics=null}={}){
+  recoveryEconomics=null,bossJobsPerRequest=8}={}){
+  need([8,9].includes(bossJobsPerRequest),
+    'FRESH_DPS_BOSS_BATCH_SIZE_INVALID');
   need(state?.schema===1&&state.status==='ACTIVE',
     'FRESH_DPS_STATE_NOT_ACTIVE');
   const stats=checkpointStats(state);
@@ -38,7 +42,9 @@ export function inspectFreshDpsPipeline(state,{includeOutputs=false,
       observedPoints:stats.witnessedPoints};
   const manifest=makeFreshDatedHeroicManifest(state.scopeKey);
   const source=exportVerifiedFreshCohort(state,manifest);
-  const plan=planFreshBossFirstPages(source.slots);
+  const plan=planFreshBossFirstPages(source.slots,{
+    jobsPerRequest:bossJobsPerRequest
+  });
   const entries=state.bossPageRequests??{};
   let complete=0,officialBossRows=0,linkedFromB=0;
   const bossByJob=new Map();
@@ -51,7 +57,8 @@ export function inspectFreshDpsPipeline(state,{includeOutputs=false,
     }
     need(e.batchIndex===batch.batchIndex&&
       e.scopeKey===state.scopeKey&&
-      e.sourceCommit===state.sourceCodeCommit,
+      e.sourceCommit===state.sourceCodeCommit&&
+      e.batchSha===sha(batch),
       'FRESH_DPS_BOSS_CHECKPOINT_IDENTITY');
     if(e.status==='READY'){
       need(nextBatch===null,'FRESH_DPS_BOSS_CHECKPOINT_GAP');
@@ -118,7 +125,8 @@ export function inspectFreshDpsPipeline(state,{includeOutputs=false,
   const summary={
     sourceJobs:216,sourceRankRows:21600,
     bossPage1BatchesCompleted:complete,
-    bossPage1BatchesRequired:32,
+    bossPage1BatchesRequired:plan.batches.length,
+    bossJobsPerRequest,
     bossJobsCompleted:bossByJob.size,
     bossRankRows:officialBossRows,
     sameFightProofs:exactLinked,
@@ -196,12 +204,15 @@ export function inspectFreshDpsPipeline(state,{includeOutputs=false,
  */
 export async function runFreshBossPage1Sweep({store,mode='preview',
   approved=false,transport,admissionPolicy,maxRequests=1,
-  clock=Date.now}={}){
+  bossJobsPerRequest=8,clock=Date.now}={}){
   need(store&&typeof store.read==='function'&&
     typeof store.update==='function'&&
-    Number.isInteger(maxRequests)&&maxRequests>=1&&maxRequests<=31,
+    Number.isInteger(maxRequests)&&maxRequests>=1&&maxRequests<=32&&
+    [8,9].includes(bossJobsPerRequest),
     'FRESH_DPS_SWEEP_CONFIG_INVALID');
-  const before=inspectFreshDpsPipeline(store.read());
+  const before=inspectFreshDpsPipeline(store.read(),{
+    bossJobsPerRequest
+  });
   if(mode==='preview')return {
     status:'PREVIEW',stage:before.stage,
     summary:before.summary??null,
@@ -213,7 +224,9 @@ export async function runFreshBossPage1Sweep({store,mode='preview',
     'FRESH_DPS_SWEEP_PAID_NOT_AUTHORIZED');
   const receipts=[];
   for(let i=0;i<maxRequests;i++){
-    const snapshot=inspectFreshDpsPipeline(store.read());
+    const snapshot=inspectFreshDpsPipeline(store.read(),{
+      bossJobsPerRequest
+    });
     if(snapshot.stage!=='BOSS_PAGE1')break;
     const single=await runOneFreshBossWave({
       store,batch:snapshot.nextBossBatch,mode:'execute',
@@ -228,7 +241,9 @@ export async function runFreshBossPage1Sweep({store,mode='preview',
     // Explicitly fail closed on a disputed/unknown WCL response.
     if(single.status!=='RECORDED')break;
   }
-  const after=inspectFreshDpsPipeline(store.read());
+  const after=inspectFreshDpsPipeline(store.read(),{
+    bossJobsPerRequest
+  });
   return {
     status:after.stage==='NEEDS_REVIEW'?'NEEDS_REVIEW':
       after.stage==='RECOVERY_REVIEW'?'BOSS_PAGE1_COMPLETE':
