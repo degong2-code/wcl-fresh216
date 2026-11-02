@@ -6,7 +6,8 @@ import path from 'node:path';
 import {execFileSync} from 'node:child_process';
 import {compressCDelta,shaBytes,shaObject,SOURCE_SHA256,BASE_UNION_SHA256}
   from '../tools/lib/fresh216-c-delta.mjs';
-import {commitFresh216CandidateDelta,PRIVATE_C_CANDIDATE_BRANCH,
+import {commitFresh216CandidateDelta,withPrivateCandidateGitDurability,
+  PRIVATE_C_CANDIDATE_BRANCH,
   PRIVATE_C_CANDIDATE_DIR} from '../tools/lib/fresh216-private-c-delta-git.mjs';
 
 const git=(...args)=>execFileSync('git',args,{
@@ -127,5 +128,38 @@ test('unknown push outcome never reports a confirmed C candidate commit',()=>{
       /PRIVATE_C_REMOTE_GIT_UNKNOWN_STOP/);
     assert.equal(git('--git-dir',f.remote,'rev-parse',
       'refs/heads/'+PRIVATE_C_CANDIDATE_BRANCH),before);
+  }finally{remove(f);}
+});
+
+test('publisher receives APPENDED only after remote C commit is confirmed',async()=>{
+  const f=fixture();
+  try{
+    const write=withPrivateCandidateGitDurability({
+      localAppender:async()=>f.make(0),
+      repoRoot:f.repo,minIndex:0,gitCommand:f.runner
+    });
+    const receipt=await write({synthetic:true});
+    assert.equal(receipt.status,'APPENDED');
+    assert.equal(receipt.privateCandidateRemoteConfirmed,true);
+    assert.equal(git('--git-dir',f.remote,'rev-parse',
+      'refs/heads/'+PRIVATE_C_CANDIDATE_BRANCH),
+      receipt.privateCandidateCommit);
+  }finally{remove(f);}
+});
+test('unconfirmed remote write rejects publisher acknowledgement',async()=>{
+  const f=fixture();
+  try{
+    let calls=0;
+    const write=withPrivateCandidateGitDurability({
+      localAppender:async()=>{calls++;return f.make(0);},
+      repoRoot:f.repo,minIndex:0,
+      gitCommand:(root,args)=>{
+        if(args[0]==='push')throw Error('synthetic lost Git result');
+        return f.runner(root,args);
+      }
+    });
+    await assert.rejects(write({synthetic:true}),
+      /PRIVATE_C_REMOTE_GIT_UNKNOWN_STOP/);
+    assert.equal(calls,1);
   }finally{remove(f);}
 });
