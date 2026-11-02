@@ -1,0 +1,32 @@
+name: Fresh216 trusted Environment private stage GET-only audit
+on:
+  push:
+    branches: [work/fresh216-autonomous-host-20261031]
+    paths: [.github/workflows/fresh216-private-stage-env-readonly.yml]
+permissions:
+  contents: read
+jobs:
+  stage-read:
+    if: github.repository == 'degong2-code/wcl-fresh216' && github.ref == 'refs/heads/work/fresh216-autonomous-host-20261031'
+    environment: fresh216-private-read
+    runs-on: ubuntu-22.04
+    timeout-minutes: 5
+    steps:
+      - name: Read only an immutable, non-sensitive private stage README
+        uses: actions/checkout@v4
+        with:
+          repository: degong2-code/ai-project-lab
+          ref: c89bc6a5130fb2f81fd5a98445ab187725b099ae
+          token: ${{ secrets.FRESH216_PRIVATE_READ_TOKEN }}
+          sparse-checkout: README.md
+          persist-credentials: false
+          path: stage
+      - name: Validate exact SHA and read-only scope
+        shell: bash
+        run: |
+          set -euo pipefail
+          test "$(git -C stage rev-parse HEAD)" = c89bc6a5130fb2f81fd5a98445ab187725b099ae
+          test "$(git -C stage hash-object README.md)" = 0c9dcbb275481884f8e51a9f973e9203aca91b4c
+          test "$(git -C stage status --porcelain)" = ""
+          echo FRESH216_TRUSTED_ENV_PRIVATE_STAGE_READ_PASS
+          echo 'Trusted Environment private README checkout PASS; no WCL, no Git writes.' >> "$GITHUB_STEP_SUMMARY"
