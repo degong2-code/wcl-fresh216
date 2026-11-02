@@ -218,6 +218,10 @@ export function createPublicActorProofArchiveStore({
         commitShaWritten=null;
       });
     }catch(_error){
+      // Approval head drift is deterministically known BEFORE any Git write.
+      // Do not downgrade it to an uncertain-write recovery path.
+      if(_error?.message==='PUBLIC_ACTOR_RELAY_APPROVED_HEAD_DRIFT_STOP')
+        throw _error;
       // Pre-ref failures are safe to report; a ref timeout is reconciled by
       // reading every deterministic path below. No second write is attempted.
       commitShaWritten=null;
