@@ -66,12 +66,7 @@ export function validateFreshSourceTickRequest(request,{
         Number.isSafeInteger(request.maxRequests)&&
         request.maxRequests>=1&&request.maxRequests<=8))&&
     Number.isSafeInteger(request.maxObservedPoints)&&
-    request.maxObservedPoints>=1&&
-    request.maxObservedPoints<=(request.mode==='source-bounded'&&
-      validSha(request.expectedSourceCodeCommit)?300:100)&&
-    (request.expectedSourceCodeCommit==null||
-      request.mode==='source-bounded'&&
-      validSha(request.expectedSourceCodeCommit))&&
+    request.maxObservedPoints>=1&&request.maxObservedPoints<=100&&
     Number.isSafeInteger(request.reservePoints)&&
     request.reservePoints>=1&&request.reservePoints<=100,
     'FRESH_SOURCE_REQUEST_NOT_PINNED');
@@ -130,9 +125,8 @@ export async function runOnePrivateFreshSourceTick({
       persist:measuredPersist
     });
     const before=local.read();
-    const immutableSourceCommit=request.expectedSourceCodeCommit??productHead;
     need(before.scopeKey===run.scope&&before.status==='ACTIVE'&&
-      before.sourceCodeCommit===immutableSourceCommit&&
+      before.sourceCodeCommit===productHead&&
       (!before.sourceJobsPerRequest||
         before.sourceJobsPerRequest===request.jobsPerRequest),
       'FRESH_SOURCE_STATE_DRIFT');
