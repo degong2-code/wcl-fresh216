@@ -74,6 +74,17 @@ export function validateEngineActionRequest(request,{env=process.env,
     'PRIVATE_ENGINE_STAGE_NOT_NEEDED');
   return request.mode;
 }
+export function isSuccessfulEngineActionResult(mode,result){
+  const good={
+    preview:['PREVIEW'],
+    'report-one':['RECORDED','NO_REPORT_WAVE'],
+    'stage-one':['PRIVATE_STAGE_REMOTE_CONFIRMED_PENDING_PUBLIC',
+      'NO_PENDING_WAVE']
+  };
+  return (good[mode]??[]).includes(result?.status)&&
+    result?.nextKind!=='NEEDS_REVIEW'&&
+    result?.kind!=='NEEDS_REVIEW';
+}
 export async function runPrivateEngineAction({
   requestFile,sourceRoot,stateRoot,stageRoot=null,env=process.env
 }={}){
@@ -193,16 +204,7 @@ if(process.argv[1]&&path.resolve(process.argv[1])===file){
     }));
     // A successfully executed runner is NOT a successfully collected
     // Report. Propagate the engine outcome to the Actions job conclusion.
-    const validByMode={
-      preview:['PREVIEW'],
-      'report-one':['RECORDED','NO_REPORT_WAVE'],
-      'stage-one':['PRIVATE_STAGE_REMOTE_CONFIRMED_PENDING_PUBLIC',
-        'NO_PENDING_WAVE']
-    };
-    const safe=validByMode[result.mode??'preview']??[];
-    if(!safe.includes(result.status)||
-       result.nextKind==='NEEDS_REVIEW'||
-       result.kind==='NEEDS_REVIEW'){
+    if(!isSuccessfulEngineActionResult(result.mode??'preview',result)){
       console.error('PRIVATE_ENGINE_INCOMPLETE_REVIEW_REQUIRED');
       process.exitCode=2;
     }
