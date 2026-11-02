@@ -188,3 +188,38 @@ permissions, (2) explicit approval of first stage commit + wave + public
 head before a real public Git write, and (3) separate WCL API authorization.
 No new PAT, Secret, Work mode, Codespace or WSL runtime is needed to
 prepare this workflow.
+
+
+### 2026-11-02 read-only trusted release-intent workflow candidate
+
+Feature PR #21 now includes:
+- \`.github/workflows/fresh216-public-release-intent-readonly.yml\`:
+  a **PROPOSED, UNMERGED** workflow for
+  \`work/fresh216-autonomous-host-20261031\`, restricted to protected
+  \`push\` events and changes to the workflow or exact release-intent
+  path. Job permissions are **contents:read**, no Environment/Secrets,
+  no WCL, no publication code invocation.
+- \`tools/run-public-relay-release-preflight.mjs\`: reads only the
+  reviewed path
+  \`projects/wcl-fresh216/release-intents/public-actor-wave-v1.json\`.
+  When it is absent, reports
+  \`FRESH216_PUBLIC_RELEASE_NO_APPROVED_INTENT_BLOCKED\` with zero
+  writes. A present plan must name exact private stage SHA, wave SHA,
+  public parent SHA. Trusted run SHA is derived from the GitHub Actions
+  push context, not placed self-referentially in a Git commit. It
+  invokes the existing \`validatePublicRelayApproval\` and reports
+  **read-only preflight**, never actual publication authorization.
+- \`tests/fresh216-public-release-intent.test.mjs\`: verifies
+  missing-intent denial, untrusted contexts, wrong immutable SHA fields,
+  and no secret/no write permission in the workflow candidate.
+  [Public CI #41386166465](https://github.com/degong2-code/wcl-fresh216/actions/runs/41386166465):
+  **65/65 suites PASS**; live WCL and private inventory jobs SKIPPED.
+
+This workflow is intentionally limited to reviewing intent, not moving
+public data. **No approved intent JSON has been created**, no Workflow
+is deployed to the trusted base, and no public Git write capability is
+claimed. Do not use the code-generated \`reviewedWorkflowCommit\` field
+as proof of human authorization; only GitHub branch/PR protection and
+the owner's independent release review supply that authority. A
+separate final production publishing workflow and first real stage/wave
+must still receive explicit owner signoff.
