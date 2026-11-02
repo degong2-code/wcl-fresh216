@@ -1,0 +1,33 @@
+name: Fresh216 trusted public release intent preview (no publication)
+on:
+  push:
+    branches:
+      - work/fresh216-autonomous-host-20261031
+    paths:
+      - .github/workflows/fresh216-public-release-intent-readonly.yml
+      - projects/wcl-fresh216/release-intents/public-actor-wave-v1.json
+permissions:
+  contents: read
+jobs:
+  review-approved-intent-readonly:
+    if: >-
+      github.repository == 'degong2-code/wcl-fresh216' &&
+      github.ref == 'refs/heads/work/fresh216-autonomous-host-20261031' &&
+      github.event_name == 'push'
+    runs-on: ubuntu-22.04
+    timeout-minutes: 5
+    steps:
+      - name: Checkout reviewed protected-branch code without persisted credentials
+        uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+      - name: Set up Node 22
+        uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+      - name: Read-only exact release intent validation
+        shell: bash
+        run: |
+          set -euo pipefail
+          node tools/run-public-relay-release-preflight.mjs
+          echo 'Read-only release intent check only. No HMAC, WCL, private token or Git write permissions.' >> "$GITHUB_STEP_SUMMARY"
