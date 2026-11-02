@@ -441,6 +441,27 @@ export function verifyActorProofArchive(archive,{
     outcomes
   };
 }
+/**
+ * Validate the public redacted projection WITHOUT knowing the HMAC secret.
+ * This proves schema, SHA-256 payload integrity, and deterministic replay,
+ * NOT signature authenticity or trusted WCL provenance. The latter must be
+ * attested by the private, HMAC-authorized publisher and exact Git commit.
+ */
+export function inspectActorProofArchivePublic(archive){
+  validateRedactedShape(archive);
+  const payload={};
+  for(const k of payloadKeys)payload[k]=archive[k];
+  need(shaObject(payload)===archive.archiveSha256,
+    'ACTOR_ARCHIVE_CONTENT_SHA_MISMATCH');
+  const replayed=replayRows(payload);
+  need(eq(replayed,archive.outcomes),
+    'ACTOR_ARCHIVE_REPLAY_MISMATCH');
+  const verifiedSlots=replayed.filter(x=>x.status==='VERIFIED').length;
+  return {archiveId:archive.archiveId,
+    archiveSha256:archive.archiveSha256,verifiedSlots,
+    unresolvedSlots:replayed.length-verifiedSlots};
+}
+
 export const replayActorProofArchive=verifyActorProofArchive;
 
 export const ACTOR_PROOF_WAVE_MANIFEST_SCHEMA=1;
