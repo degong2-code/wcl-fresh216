@@ -11,7 +11,6 @@ import os from 'node:os';
 import path from 'node:path';
 import {fileURLToPath} from 'node:url';
 import {execFileSync} from 'node:child_process';
-import {newCheckpoint} from '../src/core/checkpoint.mjs';
 import {JsonCheckpointStore} from '../src/adapters/json-checkpoint-store.mjs';
 import {makePrivateWclTransport}
   from '../src/adapters/private-fresh-cohort-host.mjs';
@@ -35,8 +34,12 @@ const git=(root,...args)=>execFileSync('git',['-C',root,...args],{
   env:{...process.env,GIT_TERMINAL_PROMPT:'0'}
 }).trim();
 const clean=(root,branch)=>{
+  const sha=git(root,'rev-parse','HEAD');
+  const remote=git(root,'ls-remote','--heads','origin',
+    'refs/heads/'+branch).split(/\s+/);
   need(git(root,'symbolic-ref','--short','HEAD')===branch&&
     git(root,'status','--porcelain','--untracked-files=all')===''&&
+    remote[0]===sha&&remote[1]==='refs/heads/'+branch&&
     /(?:^|[:/])degong2-code\/ai-project-lab(?:\.git)?$/.test(
       git(root,'remote','get-url','origin')),
     'BOSS_PRIVATE_GIT_SOURCE_OR_STATE_INVALID');
@@ -82,6 +85,16 @@ export async function runPrivateBossOne({
     !fs.lstatSync(requestFile).isSymbolicLink()&&
     fs.statSync(requestFile).size<4096,
     'BOSS_PRIVATE_REQUEST_FILE_INVALID');
+  // Bind approval to the exact GitHub push SHA and checkout path.
+  const controlRoot=path.resolve(path.dirname(requestFile),'../../..');
+  need(path.relative(controlRoot,requestFile)===
+      'projects/wcl-fresh216/engine/REQUEST.json'&&
+    sha40(env.GITHUB_SHA)&&
+    git(controlRoot,'rev-parse','HEAD')===env.GITHUB_SHA&&
+    git(controlRoot,'status','--porcelain','--untracked-files=all')===''&&
+    /(?:^|[:/])degong2-code\/ai-project-lab(?:\.git)?$/.test(
+      git(controlRoot,'remote','get-url','origin')),
+    'BOSS_PRIVATE_OWNER_REQUEST_NOT_IMMUTABLE');
   const request=JSON.parse(fs.readFileSync(requestFile,'utf8'));
   const productHead=git(prodRoot,'rev-parse','HEAD');
   const sourceHead=git(sourceRoot,'rev-parse','HEAD');
