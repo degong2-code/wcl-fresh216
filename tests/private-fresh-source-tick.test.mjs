@@ -34,3 +34,26 @@ test('fresh A source one-job request must pin both product and private state',()
    productHead,stateHead
  }),/FRESH_SOURCE_UNTRUSTED_CONTEXT/);
 });
+
+test('candidate 9-alias bounded request is an isolated explicitly capped operation',()=>{
+ const candidate={
+   ...request,mode:'source-bounded',jobsPerRequest:9,
+   maxRequests:8,expectedFreshSourceHead:stateHead
+ };
+ assert.equal(validateFreshSourceTickRequest(candidate,{
+   env,productHead,stateHead
+ }),true);
+ for(const drift of [
+   {...candidate,maxRequests:9},
+   {...candidate,maxRequests:0},
+   {...candidate,maxRequests:undefined},
+   {...candidate,jobsPerRequest:10},
+   {...candidate,jobsPerRequest:1},
+   {...candidate,approved:false},
+   {...candidate,expectedFreshSourceHead:'d'.repeat(40)},
+   {...candidate,productCommit:'d'.repeat(40)},
+   {...request,maxRequests:2}
+ ])assert.throws(()=>validateFreshSourceTickRequest(drift,{
+   env,productHead,stateHead
+ }),/FRESH_SOURCE_/);
+});
