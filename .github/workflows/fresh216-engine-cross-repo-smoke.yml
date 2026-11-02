@@ -1,0 +1,43 @@
+name: Fresh216 cross-repo engine smoke (private receipt GET only)
+on:
+  push:
+    branches: [work/fresh216-adaptive-archive-delta-20261031]
+    paths:
+      - .github/workflows/fresh216-engine-cross-repo-smoke.yml
+
+permissions:
+  contents: read
+
+jobs:
+  read-immutable-private-smoke:
+    if: github.repository == 'degong2-code/wcl-fresh216' && github.ref == 'refs/heads/work/fresh216-adaptive-archive-delta-20261031' && github.event_name == 'push'
+    environment: fresh216-private-read
+    runs-on: ubuntu-22.04
+    timeout-minutes: 5
+    steps:
+      - name: Read new committed private synthetic receipt at pinned SHA
+        uses: actions/checkout@v4
+        with:
+          repository: degong2-code/ai-project-lab
+          ref: 85a94fda49430f26d97beb769e38214813016fc8
+          sparse-checkout: engine-smoke/private-write-receipt.json
+          token: ${{ secrets.FRESH216_PRIVATE_READ_TOKEN }}
+          path: private-smoke
+          persist-credentials: false
+      - name: Verify exact immutable private commit and synthetic-only receipt
+        shell: bash
+        run: |
+          set -euo pipefail
+          test "$(git -C private-smoke rev-parse HEAD)" = '85a94fda49430f26d97beb769e38214813016fc8'
+          test -z "$(git -C private-smoke status --porcelain)"
+          node - <<'NODE'
+          const fs=require('node:fs');
+          const r=JSON.parse(fs.readFileSync('private-smoke/engine-smoke/private-write-receipt.json','utf8'));
+          if(r.schema!==1 || r.kind!=='FRESH216_SYNTHETIC_PRIVATE_GIT_IO_SMOKE' ||
+             r.repo!=='degong2-code/ai-project-lab' ||
+             r.branch!=='work/fresh216-engine-io-smoke-20261102' ||
+             r.rawWclData!==false || r.apiPoints!==0)
+             throw Error('FRESH216_PRIVATE_RECEIPT_DRIFT');
+          console.log('FRESH216_CROSS_REPOSITORY_PINNED_RECEIPT_GET_PASS');
+          NODE
+          echo 'Pinned private receipt GET PASS. No credential values, WCL or Git writes.' >> "$GITHUB_STEP_SUMMARY"
