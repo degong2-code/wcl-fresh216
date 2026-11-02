@@ -102,3 +102,42 @@ directory ACL: ordinary fast-forward commits remain possible. The production
 workflow's content allowlist and independent code review remain essential.
 Do not add another redundant synthetic test merely to re-prove an existing
 64/64 offline suite or the actual trusted Environment read PASS.
+
+
+## 2026-11-02 exact-approval and trusted-context regression
+
+- Product feature HEAD \`345fa37fa12158f8c503b6890cf54d835f888a00\` adds
+  \`validatePublicRelayApproval\`, a fail-closed runtime check before the
+  existing private GET/public Git relay. The separately approved receipt must
+  bind the **exact** private staging commit SHA, Wave SHA-256 and reviewed
+  protected workflow commit SHA. It also rejects non-Actions, untrusted repo,
+  PR/fork events, wrong branch and runtime commit drift.
+- This makes \`publicationApproved: true\` **insufficient** on its own.
+  Importantly, a JSON approval receipt is not self-authenticating: an owner
+  must independently review/approve the exact release values in a
+  trusted protected workflow and scope the job's token/Environment.
+- [Offline CI #41379470681](https://github.com/degong2-code/wcl-fresh216/actions/runs/41379470681):
+  **64/64 suites PASS**, including three new release-authorization
+  rejection tests. No real staging/publication, WCL or C writes.
+- [PR #23](https://github.com/degong2-code/wcl-fresh216/pull/23)
+  remains OPEN/DRAFT/UNMERGED. **Do not merge it to obtain a GET-only
+  \`contents:write\` indicator**: this does not prove the target branch's
+  actual Git write compatibility and a previous protected-branch merge
+  was blocked. No user approval is presently needed for that PR.
+
+### Owner approvals required LATER, not now
+
+1. **Review deployment PR:** a distinct, narrowly scoped, protected-branch
+   production workflow that defines the exact staging commit/wave and a
+   job-only public Git permission. Do not approve a general repository
+   permissions increase or a new PAT. This PR does not yet exist.
+2. **Approve one first public publication:** after a real *redacted*
+   HMAC-authenticated private stage has a verified immutable commit, approve
+   the exact \`privateStageCommit\` + \`waveSha256\` and target public
+   evidence branch. Any actual public Git ref update remains separately
+   gated and may fail due to branch Ruleset; no blind retries.
+3. **Approve live WCL Report-wave independently:** 5 READY named fight
+   groups / 9 slots are currently NOT dispatched, masked 339 remain
+   excluded. This approval is not implied by approval of Git publishing.
+
+Current stage still only has its README; there is nothing real to publish.
