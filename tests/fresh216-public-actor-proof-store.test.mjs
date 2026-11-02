@@ -279,7 +279,8 @@ test('public relay reuses atomic wave Git writer with NO HMAC secret',async()=>{
   const record=await store.persistWave(archives,{
     preSignedManifest:manifest,
     approvedPrivateStageCommit:'f'.repeat(40),
-    checkedOutPrivateStageCommit:'f'.repeat(40)
+    checkedOutPrivateStageCommit:'f'.repeat(40),
+    expectedPublicEvidenceHead:'a'.repeat(40)
   });
   assert.equal(record.archiveCount,2);
   assert.equal(record.verifiedSlots,2);
@@ -289,7 +290,8 @@ test('public relay reuses atomic wave Git writer with NO HMAC secret',async()=>{
   const reopened=await store.persistWave(archives,{
     preSignedManifest:manifest,
     approvedPrivateStageCommit:'f'.repeat(40),
-    checkedOutPrivateStageCommit:'f'.repeat(40)
+    checkedOutPrivateStageCommit:'f'.repeat(40),
+    expectedPublicEvidenceHead:'a'.repeat(40)
   });
   assert.equal(reopened.reused,true);
   assert.equal(gh.refUpdates(),1);
@@ -318,4 +320,25 @@ test('public relay rejects unpinned private commit, HMAC leakage, and unsigned p
     /PUBLIC_ACTOR_RELAY_ONLY/);
   assert.equal(gh.treeCreates(),0);
   assert.equal(gh.refUpdates(),0);
+});
+
+test('public relay refuses changed approved evidence branch HEAD before creating any Git tree',async()=>{
+  const gh=fakeGithubMany(),archives=[archive(),archive(13)];
+  const manifest=buildActorProofWaveManifest({
+    archives,hmacKey:KEY,createdAtMs:1793450002000
+  });
+  const store=createPublicActorProofArchiveStore({
+    token:'SYNTHETIC_PUBLIC_GITHUB_TOKEN_FOR_RELAY_TEST',
+    relayOnly:true,fetchImpl:gh.fetchImpl
+  });
+  await assert.rejects(store.persistWave(archives,{
+    preSignedManifest:manifest,
+    approvedPrivateStageCommit:'f'.repeat(40),
+    checkedOutPrivateStageCommit:'f'.repeat(40),
+    expectedPublicEvidenceHead:'b'.repeat(40)
+  }),/PUBLIC_ACTOR_RELAY_APPROVED_HEAD_DRIFT_STOP|PUBLIC_ACTOR_WAVE_WRITE_NOT_ATTEMPTED/);
+  assert.equal(gh.treeCreates(),0);
+  assert.equal(gh.commitCreates(),0);
+  assert.equal(gh.refUpdates(),0);
+  assert.equal(gh.files.size,0);
 });
