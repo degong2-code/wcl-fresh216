@@ -186,7 +186,7 @@ async function run(){
 }
 try{await run();}
 catch(e){
-  const code=/^FRESH216_RECOVERY_[A-Z0-9_]+$/.test(e?.message??'')?
+  const code=/^(FRESH216_RECOVERY_|PRIVATE_EVIDENCE_PREFLIGHT_|ARCHIVE_C_DELTA_|EVIDENCE_PUBLISHER_|PUBLIC_ACTOR_ARCHIVE_)[A-Z0-9_]+$/.test(e?.message??'')?
     e.message:'FRESH216_RECOVERY_PRIVATE_PREFLIGHT_FAILED_REQUIRES_REVIEW';
   console.error(code);
   process.exitCode=1;
