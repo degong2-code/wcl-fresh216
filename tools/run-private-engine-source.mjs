@@ -11,6 +11,7 @@ import os from 'node:os';
 import path from 'node:path';
 import {fileURLToPath} from 'node:url';
 import {execFileSync} from 'node:child_process';
+import {performance} from 'node:perf_hooks';
 import {newCheckpoint} from '../src/core/checkpoint.mjs';
 import {JsonCheckpointStore} from '../src/adapters/json-checkpoint-store.mjs';
 import {makePrivateWclTransport} from '../src/adapters/private-fresh-cohort-host.mjs';
@@ -95,6 +96,14 @@ export async function runOnePrivateFreshSourceTick({
   const savedPath=path.join(stateRoot,run.file);
   const manifest=makeFreshDatedHeroicManifest(run.scope);
   const temp=fs.mkdtempSync(path.join(os.tmpdir(),'fresh216-new-source-'));
+  let remoteGitCommitMs=0,remoteGitCommits=0;
+  const measuredPersist=args=>{
+    const started=performance.now();
+    const receipt=commitState(args);
+    remoteGitCommitMs+=performance.now()-started;
+    remoteGitCommits++;
+    return receipt;
+  };
   fs.chmodSync(temp,0o700);
   try{
     const file=path.join(temp,'state.json');
@@ -107,12 +116,13 @@ export async function runOnePrivateFreshSourceTick({
       new JsonCheckpointStore(file).init(initial);
       // A remote version-0 reservation is durable BEFORE the first
       // plan installation and before any potential charged request.
-      commitState({stateRoot,source:file,version:0,
+      measuredPersist({stateRoot,source:file,version:0,
         target:run.target});
     }
     const local=new JsonCheckpointStore(file);
     const durable=makeGitDurableStore({
-      localStore:local,stateRoot,target:run.target
+      localStore:local,stateRoot,target:run.target,
+      persist:measuredPersist
     });
     const before=local.read();
     need(before.scopeKey===run.scope&&before.status==='ACTIVE'&&
@@ -155,7 +165,11 @@ export async function runOnePrivateFreshSourceTick({
       completedJobs:status.completedJobs,
       nextKind:status.kind,sourceRequests:
         Object.keys(after.sourceRequests??{}).length,
-      stateVersion:after.version,sourceReady:
+      stateVersion:after.version,
+      remoteGitCommits,
+      remoteGitCommitMs:Math.round(remoteGitCommitMs),
+      privateCheckpointBytes:fs.statSync(savedPath).size,
+      sourceReady:
         status.kind==='SOURCE_COMPLETE',
       canonicalCAdded:0
     };
