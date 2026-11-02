@@ -204,6 +204,7 @@ const sampleRelease=(overrides={})=>({
   privateStageCommit:'c'.repeat(40),
   waveSha256:'b'.repeat(64),
   reviewedWorkflowCommit:'d'.repeat(40),
+  expectedPublicEvidenceHead:'a'.repeat(40),
   ...overrides
 });
 test('exact owner-approved private commit and wave must match the trusted workflow SHA',()=>{
@@ -213,10 +214,12 @@ test('exact owner-approved private commit and wave must match the trusted workfl
     waveSha256:'b'.repeat(64),githubContext:TRUSTED_RELAY_CONTEXT
   });
   assert.equal(checked.privateStageCommit,'c'.repeat(40));
+  assert.equal(checked.expectedPublicEvidenceHead,'a'.repeat(40));
   for(const altered of [
     {privateStageCommit:'e'.repeat(40)},
     {waveSha256:'a'.repeat(64)},
     {reviewedWorkflowCommit:'f'.repeat(40)},
+    {expectedPublicEvidenceHead:'not-an-immutable-sha'},
     {schema:2}
   ]){
     assert.throws(()=>validatePublicRelayApproval({
