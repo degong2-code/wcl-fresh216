@@ -78,6 +78,7 @@ export function planFreshBossFirstPages(sourceSlots,{
     if(jobs.length===0)continue;
     const batchIndex=batches.length;
     batches.push({
+      ...(jobsPerRequest===8?{}:{bossJobsPerRequest:jobsPerRequest}),
       batchIndex,encounterId:b.encounterId,
       difficulty:4,filter:FILTER,partitionMode:'LATEST_DEFAULT',
       scopeKey,jobs
