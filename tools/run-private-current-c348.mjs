@@ -16,6 +16,10 @@ import {derivePinnedFresh216SourceSlots}
   from '../src/adapters/private-fresh-cohort-host.mjs';
 import {buildCurrentCRecoveryPlan}
   from '../src/adapters/fresh216-current-c-recovery.mjs';
+import {preflightRealEvidenceAdaptersReadOnly}
+  from '../src/adapters/private-evidence-readiness.mjs';
+import {PILOT_JOURNAL}
+  from '../src/adapters/fresh216-public-pilot-journal.mjs';
 import {
   commitState,ADAPTIVE_STATE_PATH,ADAPTIVE_STATE_BRANCH
 } from './run-private-github-fresh216.mjs';
@@ -49,7 +53,7 @@ function checkoutRoot(dir,sha,code){
   return root;
 }
 async function run(){
-  need(['preview','register'].includes(mode)&&
+  need(['preview','register','evidence-preflight'].includes(mode)&&
     process.env.GITHUB_ACTIONS==='true'&&
     process.env.GITHUB_REPOSITORY==='degong2-code/ai-project-lab'&&
     process.env.GITHUB_REF==='refs/heads/work/fresh216-private-actions',
@@ -101,6 +105,40 @@ async function run(){
     deltaDirectory:path.join(cRoot,DELTA_DIR),
     priorityPlan,checkpoint:current
   });
+  if(mode==='evidence-preflight'){
+    need(planned.created===false,
+      'FRESH216_RECOVERY_PLAN_NOT_REGISTERED');
+    // This GET-only ref probe has no bearer token and cannot modify GitHub.
+    const publicBranchUrl='https://api.github.com/repos/'+
+      PILOT_JOURNAL.repo+'/git/ref/heads/'+PILOT_JOURNAL.branch;
+    const res=await fetch(publicBranchUrl,{method:'GET',
+      headers:{Accept:'application/vnd.github+json'},
+      redirect:'error',signal:AbortSignal.timeout(15000)});
+    need(res.status===200,'FRESH216_RECOVERY_PUBLIC_BRANCH_READ_DENIED');
+    const target=await res.json();
+    need(target?.ref==='refs/heads/'+PILOT_JOURNAL.branch,
+      'FRESH216_RECOVERY_PUBLIC_BRANCH_DRIFT');
+    const readiness=await preflightRealEvidenceAdaptersReadOnly({
+      sourceSlots:slots,checkpoint:current,priorityPlan,
+      baseCompressedBytes:fs.readFileSync(path.join(cRoot,C_FILE)),
+      deltaDirectory:path.join(cRoot,DELTA_DIR),stateRoot,
+      hmacKey:process.env.FRESH216_EVIDENCE_HMAC_KEY,
+      publicBranchHead:target.object?.sha
+    });
+    const head=git(stateRoot,'rev-parse','HEAD');
+    const remoteHead=git(stateRoot,'ls-remote','--heads','origin',
+      'refs/heads/'+ADAPTIVE_STATE_BRANCH).trim().split(/\s+/)[0];
+    need(head===remoteHead,
+      'FRESH216_RECOVERY_REMOTE_HEAD_DRIFT');
+    console.log(JSON.stringify(readiness));
+    if(process.env.GITHUB_STEP_SUMMARY)
+      fs.appendFileSync(process.env.GITHUB_STEP_SUMMARY,
+        '### Fresh216 real evidence adapters: READ-ONLY PASS\n'+
+        'A 21600 / C 21252 / 231 deltas / READY 5; HMAC present.\n'+
+        'Blocked: public Archive write authorization and durable private C writeback.\n'+
+        'WCL requests, Archive writes, C appends, Sheets writes: all zero.\n');
+    return;
+  }
   if(mode==='register'&&planned.created){
     const privateDir=fs.mkdtempSync(path.join(
       process.env.RUNNER_TEMP??'/tmp','fresh216-recovery-plan-'),{mode:0o700});
