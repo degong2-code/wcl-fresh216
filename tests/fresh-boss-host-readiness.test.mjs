@@ -6,6 +6,8 @@ import {makeFreshDatedHeroicManifest,planFreshCohortBatches,
   installFreshCohortPlan} from '../src/core/fresh-cohort-source.mjs';
 import {inspectFreshBossHostReadiness}
   from '../src/core/fresh-boss-host-readiness.mjs';
+import {validatePrivateBossPreviewContext}
+  from '../tools/run-private-engine-boss-preview.mjs';
 
 const scope='engine-boss-host:2026-10-22_27';
 const commit='f'.repeat(40);
@@ -102,4 +104,32 @@ test('source pin drift, nonexact rank, and unresolved paid A attempts fail close
     startedAtMs:1};
   assert.throws(()=>inspect(unsettled),
     /FRESH_COHORT_PROJECTION_NOT_READY/);
+});
+
+test('private Boss host requires exact GitHub context and source branch SHA',()=>{
+  const env={
+    GITHUB_ACTIONS:'true',
+    GITHUB_REPOSITORY:'degong2-code/ai-project-lab',
+    GITHUB_EVENT_NAME:'push',
+    GITHUB_REF:'refs/heads/work/fresh216-private-actions'
+  };
+  const input={env,sourceStateHead:'a'.repeat(40),
+    expectedSourceHead:'a'.repeat(40),
+    expectedSourceCommit:commit,expectedScopeKey:scope,
+    bossJobsPerRequest:9
+  };
+  assert.equal(validatePrivateBossPreviewContext(input),true);
+  for(const attempt of [
+    {...input,expectedSourceHead:'b'.repeat(40)},
+    {...input,bossJobsPerRequest:10},
+    {...input,bossJobsPerRequest:0},
+    {...input,expectedSourceCommit:'unknown'},
+    {...input,env:{...env,GITHUB_ACTIONS:'false'}},
+    {...input,env:{...env,GITHUB_EVENT_NAME:'workflow_dispatch'}},
+    {...input,env:{...env,GITHUB_REF:'refs/heads/main'}},
+    {...input,env:{...env,GITHUB_REPOSITORY:'other/private'}}
+  ]){
+    assert.throws(()=>validatePrivateBossPreviewContext(attempt),
+      /BOSS_PRIVATE_READONLY_CONTEXT_NOT_PINNED/);
+  }
 });
