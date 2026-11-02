@@ -143,6 +143,7 @@ export function installFreshCohortPlan(state,manifest,options={}){
     state.sourceManifestSha==null,
     'FRESH_COHORT_PLAN_ALREADY_PRESENT');
   const out=copy(state);out.sourceManifestSha=plan.manifestSha;
+  out.sourceJobsPerRequest=options.jobsPerRequest??8;
   out.sourceRequests={};
   for(const batch of plan.batches)
     out.sourceRequests[batch.key]={key:batch.key,batch,
@@ -151,7 +152,10 @@ export function installFreshCohortPlan(state,manifest,options={}){
   out.version++;return out;
 }
 export function nextFreshCohortBatch(state,manifest){
-  const plan=planFreshCohortBatches(manifest);
+  // An installed plan may use a 1-job smoke or an 8-job efficient wave.
+  // The batch size is pinned at first installation and never inferred anew.
+  const jobsPerRequest=state?.sourceJobsPerRequest??8;
+  const plan=planFreshCohortBatches(manifest,{jobsPerRequest});
   if(state.sourceManifestSha==null)
     return {kind:'PLAN_REQUIRED',requestCount:plan.requestCount,
       totalJobs:216,completedJobs:0};
@@ -272,7 +276,9 @@ export function uncertainFreshCohortBatch(state,batch,attemptId,reason,{
 export function exportVerifiedFreshCohort(state,manifest){
   const next=nextFreshCohortBatch(state,manifest);
   need(next.kind==='SOURCE_COMPLETE','FRESH_COHORT_INCOMPLETE');
-  const batches=planFreshCohortBatches(manifest).batches,slots=[];
+  const batches=planFreshCohortBatches(manifest,{
+    jobsPerRequest:state.sourceJobsPerRequest??8
+  }).batches,slots=[];
   for(const batch of batches){
     const entry=state.sourceRequests[batch.key];
     need(entry.observedPoints!=null&&entry.result?.jobs?.length===batch.jobs.length,
@@ -310,6 +316,9 @@ export async function runOneFreshCohortBatch({
     'FRESH_COHORT_STORE_INVALID');
   const plan=planFreshCohortBatches(manifest,{jobsPerRequest});
   let state=store.read();
+  need(state.sourceManifestSha==null||
+    (state.sourceJobsPerRequest??8)===jobsPerRequest,
+    'FRESH_COHORT_BATCH_SIZE_DRIFT');
   const current=state.sourceManifestSha==null?
     {kind:'PLAN_REQUIRED',completedJobs:0,requestCount:plan.requestCount}:
     nextFreshCohortBatch(state,manifest);
