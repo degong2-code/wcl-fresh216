@@ -1,0 +1,27 @@
+{
+  "schema": 1,
+  "status": "IN_FLIGHT",
+  "source": "PUBLIC_FIXTURE_ONLY",
+  "requestHead": "6c1b39338196a3ddc318d12ba6bb89f0c676d54d",
+  "baseCommit": "8a838b4bac7f963b034a3574dee28386a51c4ea3",
+  "expected": {
+    "quotaCalls": 1,
+    "metadataCalls": 1,
+    "tableCalls": 15,
+    "tableFieldsPerVariant": 8,
+    "aliasSizes": [
+      1,
+      2,
+      4,
+      8
+    ]
+  },
+  "budget": {
+    "maxCalls": 17,
+    "maxObservedPoints": 100,
+    "minAppHeadroom": 180
+  },
+  "noReplay": true,
+  "noPrivateData": true,
+  "sheetsWrites": 0
+}

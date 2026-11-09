@@ -1,0 +1,13 @@
+{
+  "schema": 1,
+  "kind": "TABLE_ALIAS_1_2_4_8_PUBLIC_V1",
+  "source": "PUBLIC_FIXTURE_ONLY",
+  "mode": "preview",
+  "approved": false,
+  "parentCommit": null,
+  "maxWclCalls": 17,
+  "maxTableCalls": 15,
+  "maxObservedPoints": 100,
+  "minAppHeadroom": 180,
+  "saveRawActorData": false
+}

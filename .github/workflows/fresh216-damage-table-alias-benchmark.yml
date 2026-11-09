@@ -1,0 +1,72 @@
+name: Fresh216 isolated PUBLIC DamageDone alias 1-2-4-8 benchmark
+
+on:
+  push:
+    branches:
+      - work/fresh216-damage-table-alias-benchmark-20261109
+    paths:
+      - .github/workflows/fresh216-damage-table-alias-benchmark.yml
+      - experiments/fresh216-table-alias-benchmark-20261109/REQUEST.json
+
+permissions:
+  contents: read
+
+concurrency:
+  group: fresh216-public-damage-table-alias-once
+  cancel-in-progress: false
+
+jobs:
+  table-alias-offline:
+    if: >-
+      github.repository == 'degong2-code/wcl-fresh216' &&
+      github.ref == 'refs/heads/work/fresh216-damage-table-alias-benchmark-20261109'
+    runs-on: ubuntu-22.04
+    timeout-minutes: 5
+    permissions:
+      contents: read
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: ${{ github.sha }}
+          persist-credentials: false
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+      - name: Validate fixed public cohort and grouped GraphQL queries offline
+        run: |
+          set -euo pipefail
+          node --check tools/lib/fresh216-public-table-alias-core.mjs
+          node --check tools/run-actions-table-alias-benchmark.mjs
+          node --test tests/fresh216-table-alias-benchmark.test.mjs
+          echo 'TABLE_ALIAS_1_2_4_8_OFFLINE_PASS (0 WCL calls)' >> "$GITHUB_STEP_SUMMARY"
+
+  bounded-live-benchmark:
+    needs: table-alias-offline
+    if: >-
+      github.repository == 'degong2-code/wcl-fresh216' &&
+      github.ref == 'refs/heads/work/fresh216-damage-table-alias-benchmark-20261109' &&
+      github.event_name == 'push' &&
+      github.run_attempt == 1 &&
+      github.event.head_commit.message == 'chore(fresh216): authorize bounded public DamageDone alias benchmark'
+    runs-on: ubuntu-22.04
+    timeout-minutes: 16
+    permissions:
+      contents: write
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: ${{ github.sha }}
+          fetch-depth: 2
+          persist-credentials: true
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+      - name: Execute max 17 WCL calls for 4 identical-workload table packing variants
+        env:
+          FRESH216_BENCH_MESSAGE: ${{ github.event.head_commit.message }}
+          WCL_CLIENT_ID: ${{ secrets.WCL_CLIENT_ID }}
+          WCL_CLIENT_SECRET: ${{ secrets.WCL_CLIENT_SECRET }}
+        run: |
+          set -euo pipefail
+          node tools/run-actions-table-alias-benchmark.mjs
+          echo 'TABLE_ALIAS_BENCHMARK_FINALIZED' >> "$GITHUB_STEP_SUMMARY"
