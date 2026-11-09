@@ -72,3 +72,46 @@ policy; BossDPS ranks beyond 500 are historical only.
   is not proof of all future actors or fights.
 - The existing NPC registry is an 8-encounter Heroic candidate, not an
   all-fights/all-phases production guarantee. No padding subtraction.
+
+## Actual one-shot outcome: PASS — 2026-11-09
+
+The owner-authorized measured experiment was **actually run** on the preexisting
+eight Heroic fights and all 24 frozen official-comparable actors. The
+single GraphQL query contained eight independent Boss DamageDone Source
+tables with direct boss NPC gameID filters and only lightweight Fight
+identity metadata. No old metadata/TotalDPS/official comparator was refetched.
+
+- Source receipt: https://github.com/degong2-code/wcl-fresh216/blob/work/fresh216-lean-boss-measure-once-20261109/experiments/fresh216-lean-boss-measure-20261109/RESULT.json
+- Immutable measurement branch commit when audited: 513ee4e6bc7bd30792c1b3249aed65790b2c788e
+- One GraphQL request, one OAuth token exchange, no retries. Official
+  parity **24/24 EXACT**, missing 0, mismatch 0.
+- Observed **17.89 total WCL API points**, versus historical
+  metadata 16 + boss table 9.55 = **25.55 points** for the same eight
+  fights, **29.98% lower**. The original separately issued
+  TotalDPS table (8 points) and quota probe (1 point) are excluded from
+  both paths to compare equivalent BossDPS collection.
+- Response **1,222,227 bytes** vs historical metadata 412,146 +
+  Boss table 1,219,711 = **1,631,857 bytes**, **25.1% lower**.
+- HTTP elapsed **7,036 ms** vs historical 3,262 + 4,665 =
+  **7,927 ms**, **11.24% lower**, but observations are
+  from different runs and cannot be treated as a controlled speed benchmark.
+- Historical official Report.rankings(bossdps) for 95 other fights
+  averaged 3 total points per fight; **24 theoretical points for eight**
+  compared with **17.89**, a **25.46% lower**
+  observed total. Different query semantics/actor coverage remain distinct.
+- Hourly limit returned **3,600**, observed spent this hour after the
+  operation **28.08**; under the 3,240pt safety target. The receipt
+  returned `currentRequest.total=17.89`,
+  `application=0`, `database=null`. Classification-specific
+  allotment was not established; **17.89 is total WCL points**, never
+  reinterpret application=0 as a zero-cost request.
+- Raw Source names and full responses were **not persisted**. Only
+  redacted metrics and SHA of the response are recorded. A, B500, C,
+  Sheets, stored historical official proofs and original SHA unchanged.
+
+**Decision:** The minimum-metadata boss-targeted query is a measured
+**preferred candidate** over repeating the full metadata discovery for
+these eight fights. Promote only after testing alternate boss variants /
+phases and verifying that the same actor, revision and duration contracts
+hold on additional data. Do not reimplement collectors or checkpoint
+logic. This 8-fight gain is not a guaranteed 3,380-fight cost estimate.
