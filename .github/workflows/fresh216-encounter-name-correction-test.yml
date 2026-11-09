@@ -1,0 +1,23 @@
+name: Fresh216 official encounter-name correction regression
+on:
+  push:
+    branches: [work/fresh216-encounter-name-correction-20261109]
+permissions:
+  contents: read
+jobs:
+  node-regression:
+    runs-on: ubuntu-22.04
+    timeout-minutes: 8
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: ${{ github.sha }}
+          persist-credentials: false
+      - uses: actions/setup-node@v4
+        with: {node-version: '22'}
+      - name: Frozen A216 manifest fingerprint plus current canonical naming
+        run: |
+          set -euo pipefail
+          node --test tests/fresh216-boss-identities.test.mjs tests/fresh-cohort-source.test.mjs tests/fresh-dps-output-contract.test.mjs tests/fresh216-engine-contract.test.mjs tests/fresh-dps-pipeline.test.mjs
+      - name: No live WCL points or credentials required
+        run: echo 'Read-only regression; zero WCL points and no original A216/B500 writes'
