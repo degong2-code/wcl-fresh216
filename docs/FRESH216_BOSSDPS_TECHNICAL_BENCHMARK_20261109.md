@@ -40,8 +40,7 @@ The 1-point preliminary hourly-quota probe is additional to the above totals.
 The 8 bosses x 27 specializations x 20 pages require **4320 paid
 `characterRankings` fields** regardless of alias packing.
 
-| Shape | HTTP GraphQL calls | Conventional 2 Git commits per call |
-  4-call group (2 Git commits per group) |
+| Shape | HTTP GraphQL calls | Conventional Git commits (2/call) | Grouped Git commits (2/4 calls) |
 | --- | ---: | ---: | ---: |
 | 9 fields (old) | 480 | 960 | 240 |
 | 27 fields | 160 | 320 | 80 |
