@@ -57,3 +57,26 @@ preview / approved=false. No B/C/Sheets publication from partial A.
 
 The objective is a reusable A/B/C/verification/recovery/KPI/Sheets engine,
 not a one-off repair of an old 216-job snapshot.
+
+## Independent source-compatibility inspection (read-only; NOT a promotion)
+
+Compared original A-origin source code at
+0d2c3de4d34ea7dccdba3d4f9a4326d8c0e34179 against this P1 branch:
+- Source class/boss roster, manifest validation, 9-alias planner, GraphQL
+  query builder, installation, next-batch selection, IN_FLIGHT transition,
+  decoding, committed-witness finish, and runOneFreshCohortBatch function
+  bodies were byte-identical in the inspected source spans.
+- The checkpoint state module's Git blob is identical across those commits:
+  d5717f9c3a92b327cb881d644fda3b4dd04c1ae9.
+- The whole source module blob is NOT identical (original
+  3c59982bb0a866f8f91a2b98053f93b51dd97ee9; successor
+  21709015b45bba3e44a4c1c53fcc7b04f4f26262), partly due to
+  the later read-only completed-cohort projector. This byte-span comparison
+  is supporting evidence, not a full executable equivalence proof.
+- Private A90 checkpoint's original origin code pin must remain unchanged.
+  A new owner-approved execution-code compatibility proof/adapter is
+  still required before the P1 engine can be used live on this checkpoint.
+
+Offline CI proof: https://github.com/degong2-code/wcl-fresh216/actions/runs/42548407822
+76 pure-core suites PASS; private inventory and WCL jobs SKIPPED.
+Temporary CI branch trigger reverted byte-for-byte before PR review.
