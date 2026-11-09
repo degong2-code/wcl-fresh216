@@ -1,0 +1,43 @@
+{
+  "schema": 1,
+  "kind": "FRESH216_LEAN_BOSS_MEASURE_8X24_V1",
+  "status": "COMPLETED",
+  "incident": null,
+  "preflightCommit": "e3788d0d429ee0916707670ca7f3f373a598663b",
+  "querySha256": "ea6637add9642f0d55c6b63e9bfa5ac375b7791a762a7c15c04fd2161f2220d1",
+  "attemptedWclGraphqlCalls": 1,
+  "attemptedOauthExchanges": 1,
+  "observedPoints": 17.89,
+  "budget": {
+    "maxObservedPoints": 30,
+    "safeHourly": 3240
+  },
+  "output": {
+    "status": "EXACT_PARITY_PASS",
+    "querySha256": "ea6637add9642f0d55c6b63e9bfa5ac375b7791a762a7c15c04fd2161f2220d1",
+    "reports": 8,
+    "fights": 8,
+    "targetActors": 24,
+    "exact": 24,
+    "missing": 0,
+    "mismatch": 0,
+    "unknownPoints": false,
+    "points": 17.89,
+    "appPoints": 0,
+    "databasePoints": null,
+    "wallMs": 7036,
+    "bytes": 1222227,
+    "issue": null
+  },
+  "appQuota": {
+    "limitPerHour": 3600,
+    "spentThisHour": 28.08
+  },
+  "rawActorNamesSaved": false,
+  "rawResponsesSaved": false,
+  "noWclRetry": true,
+  "sheetsWrites": 0,
+  "cPromotions": 0,
+  "originalGoldUnmodified": true,
+  "responseSha256": "14b5b8c5d6291cf041ebb4de90669c2647a2c1bfa56a96b07b10094febffd86b"
+}
