@@ -72,7 +72,12 @@ export async function runPrivateBossTechnicalBenchmark({
   const request=JSON.parse(fs.readFileSync(requestFile,'utf8'));
   const productRoot=path.resolve(path.dirname(fileURLToPath(import.meta.url)),'..');
   const productHead=git(productRoot,'rev-parse','HEAD');
-  const controlHead=git(root,'rev-parse','HEAD');
+  // The signed owner-request commit must modify ONLY the request.
+  // Pin to its fully audited immediate parent, avoiding a self-SHA.
+  const controlHead=git(root,'rev-parse','HEAD^');
+  need(git(root,'diff-tree','--no-commit-id','--name-only','-r',
+    'HEAD')==='projects/wcl-fresh216/bench/REQUEST.json',
+    'BOSS_BENCH_OWNER_REQUEST_ONLY_COMMIT_REQUIRED');
   validatePrivateBossTechnicalBenchmark({
     request,env,productHead,controlHead
   });
