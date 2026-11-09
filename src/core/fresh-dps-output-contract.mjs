@@ -11,6 +11,7 @@
  */
 import {createHash} from 'node:crypto';
 import {summarizeJobSnapshot} from './job-kpis.mjs';
+import {canonicalFresh216JobLabel} from './fresh216-boss-identities.mjs';
 
 const need=(ok,code)=>{if(!ok)throw Error(code);};
 const sha256=x=>createHash('sha256').update(JSON.stringify(x)).digest('hex');
@@ -130,10 +131,16 @@ export function summarizeFreshDpsJob({
     'DPS_TOTAL_SNAPSHOT_OR_RANK_DRIFT');
   const joined=withExactProofs(slots,verifiedProofs);
   const sourceKpis=summarizeJobSnapshot(joined);
+  const canonical=canonicalFresh216JobLabel(first.jobKey,first.encounterId);
   const independent=officialBossRankedMetrics(
     bossPage,first.jobKey,first.snapshotSha);
   return {
     schema:1,scopeKey:first.scopeKey,jobKey:first.jobKey,
+    // Canonical names are presentation-only. Original jobKey remains the
+    // trusted witness identity for A/B/C joins and frozen snapshot hashes.
+    canonicalJobKey:canonical.canonicalJobKey,
+    bossDisplayName:canonical.bossDisplayName,
+    bossNameCorrectedFromFrozen:canonical.correctedFromFrozenLabel,
     snapshotSha:first.snapshotSha,
     proofOrigin:'NEW_SAME_FIGHT_ACTOR',
     status:sourceKpis.status,verifiedRanks:sourceKpis.verifiedRanks,
