@@ -1,0 +1,20 @@
+{
+  "schema": 1,
+  "kind": "FRESH216_LEAN_BOSS_MEASURE_8X24_V1",
+  "approved": true,
+  "mode": "one-shot",
+  "scope": "Eight new frozen bulk fights across five encounters, 24 independently official BossDPS witnessed actors. Exactly one new lean DamageDone GraphQL query; no fresh official BossDPS, metadata or total re-query.",
+  "ref": "work/fresh216-lean-boss-alternate-once-20261109",
+  "parentCommit": "45090580d868c5603aa092e0cd38488772a69ef9",
+  "goldGitBlobSha": "4643245c4a0ed3e0ac4274b2d6860a248ae34900",
+  "codeGitBlobSha": "cfd672a0c6f4b01f41eed5e0199fb7cadbab1f07",
+  "fights": 8,
+  "actors": 24,
+  "maxWclGraphqlCalls": 1,
+  "maxObservedAppPoints": 30,
+  "safeHourlyAppPoints": 3240,
+  "authorization": "User approved proceeding to independent alternate-fight lean-query validation, 2026-11-09, previous first 8-fight one-shot was 17.89 WCL points",
+  "noAutomaticRetry": true,
+  "noCOrSheetsPromotion": true,
+  "originalProofAndDataUnchanged": true
+}
