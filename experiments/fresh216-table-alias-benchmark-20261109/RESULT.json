@@ -1,0 +1,79 @@
+{
+  "schema": 1,
+  "status": "COMPLETED",
+  "preflightHead": "6c1b39338196a3ddc318d12ba6bb89f0c676d54d",
+  "source": "PUBLIC_FIXTURE_ONLY",
+  "attemptedWclCalls": 17,
+  "observedPoints": 37,
+  "costsVerified": true,
+  "noPrivateData": true,
+  "sheetsWrites": 0,
+  "rawActorDataSaved": false,
+  "variants": [
+    {
+      "size": 1,
+      "points": 8,
+      "databasePoints": 0,
+      "wallMs": 2725,
+      "bytes": 832263,
+      "requests": 8,
+      "fields": 8
+    },
+    {
+      "size": 2,
+      "points": 8,
+      "databasePoints": 0,
+      "wallMs": 755,
+      "bytes": 831690,
+      "requests": 4,
+      "fields": 8
+    },
+    {
+      "size": 4,
+      "points": 8,
+      "databasePoints": 0,
+      "wallMs": 403,
+      "bytes": 831450,
+      "requests": 2,
+      "fields": 8
+    },
+    {
+      "size": 8,
+      "points": 8,
+      "databasePoints": 0,
+      "wallMs": 193,
+      "bytes": 831307,
+      "requests": 1,
+      "fields": 8
+    }
+  ],
+  "incident": null,
+  "quota": {
+    "appLimit": 3600,
+    "appRemaining": 3599,
+    "dbLimitDisplayed": 250,
+    "pointCost": 1
+  },
+  "metadata": {
+    "pointCost": 4,
+    "wallMs": 702,
+    "bossTargets": [
+      1,
+      1,
+      3,
+      2
+    ],
+    "reports": 2,
+    "fights": 4
+  },
+  "overlaps": 24,
+  "overlapsEqual": 24,
+  "summary": {
+    "sameEightDistinctTableFields": true,
+    "observedTableFields": 32,
+    "metadataQueryCount": 1,
+    "queryPacks": 15,
+    "includesHeroic": true,
+    "usesGameIDBossFilter": true
+  }
+}
