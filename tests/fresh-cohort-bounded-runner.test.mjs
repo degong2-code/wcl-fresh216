@@ -162,7 +162,8 @@ test('synthetic 9-alias run covers all 216 jobs, exact100 export, and refuses 8-
 
 const hourly=(spent=20,reset=120)=>({
   limitPerHour:3600,pointsSpentThisHour:spent,pointsResetIn:reset,
-  databaseLimitPerHour:250,databasePointsSpentThisHour:10
+  databaseLimitPerHour:250,databasePointsSpentThisHour:10,
+  currentRequest:JSON.stringify({total:1})
 });
 test('checkpoint with >90 lifetime points resumes under fresh hourly allowance',async()=>{
  const s=store();
@@ -188,6 +189,8 @@ test('checkpoint with >90 lifetime points resumes under fresh hourly allowance',
  assert.equal(rankCalls,2);
  assert.equal(probes,1);
  assert.equal(next.hourlyQuotaProbes,1);
+ assert.equal(next.quotaProbePointsObserved,1);
+ assert.ok(Math.abs(next.totalInvocationApiPointsObserved-19.02)<1e-8);
  assert.equal(next.budgetBasis,'APPROVED_INVOCATION');
  assert.ok(next.lifetimePointsBeforeInvocation>90);
  assert.equal(next.completedJobs,117);
@@ -223,7 +226,8 @@ test('near-exhausted hour pauses without any rank HTTP or checkpoint write',asyn
 test('database-point shortage blocks only if explicitly required',async()=>{
  const s=store(),quota={
    limitPerHour:3600,pointsSpentThisHour:40,pointsResetIn:42,
-   databaseLimitPerHour:250,databasePointsSpentThisHour:245
+   databaseLimitPerHour:250,databasePointsSpentThisHour:245,
+   currentRequest:JSON.stringify({total:1})
  };
  const r=await runBoundedFreshCohortBatches({
    store:s,manifest,approved:true,jobsPerRequest:9,
@@ -245,6 +249,8 @@ test('failed quota probe never writes a source marker or sends data HTTP',async(
    transport:async()=>{calls++;throw Error('MUST_NOT_SEND_SOURCE')}
  });
  assert.equal(r.status,'HOURLY_QUOTA_UNAVAILABLE');
+ assert.equal(r.hourlyQuotaProbes,1);
+ assert.equal(r.quotaProbePointsObserved,null);
  assert.equal(r.attemptedRequests,0);
  assert.equal(calls,0);
  assert.equal(s.commits.length,0);
