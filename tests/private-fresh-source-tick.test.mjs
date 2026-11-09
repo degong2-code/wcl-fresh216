@@ -43,10 +43,17 @@ test('candidate 9-alias bounded request is an isolated explicitly capped operati
  assert.equal(validateFreshSourceTickRequest(candidate,{
    env,productHead,stateHead
  }),true);
+ assert.equal(validateFreshSourceTickRequest({
+   ...candidate,maxRequests:24,maxObservedPoints:3600,reservePoints:15,
+   databaseReservePoints:10
+ },{env,productHead,stateHead}),true);
  for(const drift of [
-   {...candidate,maxRequests:9},
+   {...candidate,maxRequests:33},
    {...candidate,maxRequests:0},
    {...candidate,maxRequests:undefined},
+   {...candidate,maxObservedPoints:3601},
+   {...candidate,databaseReservePoints:-1},
+   {...candidate,reservePoints:101},
    {...candidate,jobsPerRequest:10},
    {...candidate,jobsPerRequest:1},
    {...candidate,approved:false},
