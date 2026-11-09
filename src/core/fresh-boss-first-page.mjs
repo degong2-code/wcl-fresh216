@@ -1,5 +1,5 @@
 /**
- * Fresh216 BossDPS leaderboard page-1, eight specs per GraphQL request.
+ * Fresh216 BossDPS leaderboard page-1 with independent 1..9 spec batch sizing.
  * Pure source-boundary only: never sends HTTP, changes checkpoint or Sheets.
  * Production needs a wave-level pre-HTTP durable attempt on the SAME
  * private Git checkpoint before the first charged query.
@@ -31,32 +31,64 @@ const immutableJob=(slots,job)=>{
   return first.snapshotSha;
 };
 
-/** Canonical 32-batch plan using saved TotalDPS rows. Never re-rank. */
-export function planFreshBossFirstPages(sourceSlots){
-  const full=planFull216(sourceSlots);
-  need(full.difficulty===4,'FRESH_BOSS_HEROIC_SCOPE_REQUIRED');
-  const manifest=makeFreshDatedHeroicManifest(full.scopeKey);
-  const canon=planFreshCohortBatches(manifest);
+/**
+ * Independent B leaderboard planner from frozen A-ranked slots.
+ * jobsPerRequest is for B only; it MUST NOT inherit the source A batch
+ * size. By default require all 216 A jobs, matching the legacy behavior.
+ * allowPartialSource is READ-ONLY preview ONLY: never a paid journal plan.
+ */
+export function planFreshBossFirstPages(sourceSlots,{
+  jobsPerRequest=8,allowPartialSource=false
+}={}){
+  need(Array.isArray(sourceSlots)&&sourceSlots.length>0&&
+    Number.isSafeInteger(jobsPerRequest)&&
+    jobsPerRequest>=1&&jobsPerRequest<=9&&
+    typeof allowPartialSource==='boolean',
+    'FRESH_BOSS_PLAN_OPTIONS_INVALID');
+  if(!allowPartialSource)planFull216(sourceSlots);
+  need(sourceSlots.length%100===0,
+    'FRESH_BOSS_PARTIAL_NOT_EXACT100');
+  const scopeKey=sourceSlots[0].scopeKey;
+  const manifest=makeFreshDatedHeroicManifest(scopeKey);
+  const canonical=planFreshCohortBatches(manifest,{jobsPerRequest});
+  const known=new Set(canonical.batches.flatMap(b=>
+    b.jobs.map(j=>j.jobKey)));
   const byJob=new Map();
   for(const s of sourceSlots){
+    need(known.has(s.jobKey)&&s.scopeKey===scopeKey,
+      'FRESH_BOSS_UNKNOWN_A_JOB');
     const rows=byJob.get(s.jobKey)??[];
     rows.push(s);byJob.set(s.jobKey,rows);
   }
-  const batches=canon.batches.map(b=>({
-    batchIndex:b.batchIndex,
-    encounterId:b.encounterId,
-    difficulty:4,filter:FILTER,partitionMode:'LATEST_DEFAULT',
-    scopeKey:full.scopeKey,
-    jobs:b.jobs.map(j=>{
-      const slots=(byJob.get(j.jobKey)??[]).slice().sort((a,b)=>a.rank-b.rank);
-      const job={...j,encounterId:b.encounterId};
-      const snapshotSha=immutableJob(slots,job);
-      return {...job,snapshotSha,slots};
-    })
-  }));
-  need(batches.length===32&&batches.reduce((n,b)=>n+b.jobs.length,0)===216,
+  need(byJob.size<=216&&
+    (allowPartialSource||byJob.size===216),
+    'FRESH_BOSS_SOURCE_COVERAGE_DRIFT');
+  const batches=[];
+  for(const b of canonical.batches){
+    const jobs=b.jobs.filter(j=>byJob.has(j.jobKey)).map(j=>{
+      const slots=byJob.get(j.jobKey).slice()
+        .sort((x,y)=>x.rank-y.rank);
+      const snapshotSha=immutableJob(slots,{
+        ...j,encounterId:b.encounterId
+      });
+      need(slots[0].scopeKey===scopeKey,
+        'FRESH_BOSS_SCOPE_DRIFT');
+      return {...j,snapshotSha,slots};
+    });
+    if(jobs.length===0)continue;
+    const batchIndex=batches.length;
+    batches.push({
+      ...(jobsPerRequest===8?{}:{bossJobsPerRequest:jobsPerRequest}),
+      batchIndex,encounterId:b.encounterId,
+      difficulty:4,filter:FILTER,partitionMode:'LATEST_DEFAULT',
+      scopeKey,jobs
+    });
+  }
+  need(batches.reduce((n,b)=>n+b.jobs.length,0)===byJob.size&&
+    (allowPartialSource||batches.length===canonical.requestCount),
     'FRESH_BOSS_BATCH_PLAN_INCOMPLETE');
-  return {sourceJobs:216,sourceRows:21600,batches,
+  return {sourceJobs:byJob.size,sourceRows:sourceSlots.length,
+    batches,jobsPerRequest,partialSource:byJob.size!==216,
     readyForAutomaticDispatch:false};
 }
 
@@ -65,7 +97,7 @@ export function makeFreshBossFirstPageQuery(batch){
   need(batch&&batch.difficulty===4&&batch.filter===FILTER&&
     batch.partitionMode==='LATEST_DEFAULT'&&
     Number.isSafeInteger(batch.encounterId)&&batch.encounterId>0&&
-    Array.isArray(batch.jobs)&&batch.jobs.length>=1&&batch.jobs.length<=8,
+    Array.isArray(batch.jobs)&&batch.jobs.length>=1&&batch.jobs.length<=9,
     'FRESH_BOSS_BATCH_INVALID');
   const defs=['$id:Int!','$difficulty:Int!','$filter:String!'];
   const variables={id:batch.encounterId,difficulty:4,filter:FILTER};

@@ -197,3 +197,45 @@ test('global point-admission policy may pause without a WCL call',async()=>{
     Object.keys(before.sourceRequests)[0]].result.jobs[0].snapshotSha,
     before.sourceRequests[Object.keys(before.sourceRequests)[0]].result.jobs[0].snapshotSha);
 });
+
+test('pipeline switches B independently of original A8, reuses same B9 journal and C KPI',async()=>{
+  const store=memory(initial),boss9=planFreshBossFirstPages(source.slots,{
+    jobsPerRequest:9
+  });
+  const prior=inspectFreshDpsPipeline(initial,{bossJobsPerRequest:9});
+  assert.equal(prior.summary.sourceJobs,216);
+  assert.equal(prior.summary.bossPage1BatchesRequired,24);
+  assert.equal(prior.summary.nextBossBatchIndex,0);
+  assert.equal(prior.summary.bossJobsPerRequest,9);
+  let calls=0;
+  const executed=await runFreshBossPage1Sweep({
+    store,mode:'execute',approved:true,
+    maxRequests:1,bossJobsPerRequest:9,
+    admissionPolicy:{notBeforeMs:0,maxObservedPoints:300,
+      reservePoints:10},clock:()=>100,
+    transport:async q=>{
+      calls++;
+      assert.equal((q.query.match(/metric:bossdps/g)||[]).length,9);
+      assert.equal(store.read().bossPageRequests['page1:0'].status,'IN_FLIGHT');
+      return reply(boss9.batches[0]);
+    }
+  });
+  assert.equal(executed.status,'BOSS_PAGE1_PARTIAL');
+  assert.equal(executed.requestsAttempted,1);
+  assert.equal(executed.summary.bossJobsCompleted,9);
+  assert.equal(executed.summary.bossPage1BatchesRequired,24);
+  assert.equal(executed.summary.bossRankRows,900);
+  assert.equal(executed.summary.sameFightProofs,900);
+  assert.equal(executed.summary.uYCells,45);
+  assert.equal(executed.summary.nextBossBatchIndex,1);
+  assert.equal(calls,1);
+  assert.throws(()=>inspectFreshDpsPipeline(store.read(),{
+    bossJobsPerRequest:8
+  }),/FRESH_DPS_BOSS_CHECKPOINT_IDENTITY/);
+  const resumed=await runFreshBossPage1Sweep({
+    store,mode:'preview',bossJobsPerRequest:9
+  });
+  assert.equal(resumed.status,'PREVIEW');
+  assert.equal(resumed.summary.nextBossBatchIndex,1);
+  assert.equal(calls,1);
+});

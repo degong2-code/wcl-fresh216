@@ -1,0 +1,195 @@
+name: Fresh216 private C-delta replay audit (read-only)
+
+on:
+  push:
+    branches:
+      - work/fresh216-adaptive-archive-delta-20261031
+    paths:
+      - .github/workflows/fresh216-private-c-delta-replay-audit.yml
+      - tools/audit-fresh216-private-c-delta-inputs.mjs
+      - tools/lib/fresh216-c-delta.mjs
+      - tools/lib/fresh216-archive-c-delta.mjs
+      - src/adapters/private-fresh-cohort-host.mjs
+      - src/adapters/fresh216-priority-map.mjs
+      - src/core/fresh-cohort-source.mjs
+      - src/core/fresh-boss-first-page.mjs
+
+permissions:
+  contents: read
+
+concurrency:
+  group: fresh216-private-c-delta-replay-audit
+  cancel-in-progress: false
+
+jobs:
+  replay-audit:
+    if: github.repository == 'degong2-code/wcl-fresh216' && github.ref == 'refs/heads/work/fresh216-adaptive-archive-delta-20261031'
+    environment: fresh216-private-read
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    permissions:
+      contents: read
+    steps:
+      - name: Checkout current PR feature code
+        uses: actions/checkout@v4
+        with:
+          ref: ${{ github.sha }}
+          path: evidence/product-current
+          persist-credentials: false
+
+      - name: Verify private read credential presence without disclosure
+        shell: bash
+        env:
+          FRESH216_PRIVATE_READ_TOKEN: ${{ secrets.FRESH216_PRIVATE_READ_TOKEN }}
+        run: |
+          set -euo pipefail
+          if [[ -z "${FRESH216_PRIVATE_READ_TOKEN:-}" ]]; then
+            echo 'FRESH216_PRIVATE_READ_TOKEN_MISSING (value not disclosed)'
+            exit 1
+          fi
+          echo 'FRESH216_PRIVATE_READ_TOKEN_PRESENT (value not disclosed)'
+
+      - name: Checkout immutable A source
+        uses: actions/checkout@v4
+        with:
+          repository: degong2-code/ai-project-lab
+          ref: 39573a118f2a57f9dc6758936e9d73e9aa6cebf5
+          token: ${{ secrets.FRESH216_PRIVATE_READ_TOKEN }}
+          persist-credentials: false
+          path: evidence/source
+
+      - name: Checkout immutable C base and 231 Delta chain
+        uses: actions/checkout@v4
+        with:
+          repository: degong2-code/ai-project-lab
+          ref: d56befacce6ff8062878ed3a4edec6a55cd91b07
+          token: ${{ secrets.FRESH216_PRIVATE_READ_TOKEN }}
+          persist-credentials: false
+          path: evidence/delta
+
+      - name: Checkout immutable Report20 state
+        uses: actions/checkout@v4
+        with:
+          repository: degong2-code/ai-project-lab
+          ref: 0d6d00e53b240eccb4977a8d70e625072a557a7a
+          token: ${{ secrets.FRESH216_PRIVATE_READ_TOKEN }}
+          persist-credentials: false
+          path: evidence/report20
+
+      - name: Checkout immutable Report21-100 state
+        uses: actions/checkout@v4
+        with:
+          repository: degong2-code/ai-project-lab
+          ref: 20d13c718b70f1adfce1216b81f518733f11687c
+          token: ${{ secrets.FRESH216_PRIVATE_READ_TOKEN }}
+          persist-credentials: false
+          path: evidence/report80
+
+      - name: Checkout immutable Report1000 state
+        uses: actions/checkout@v4
+        with:
+          repository: degong2-code/ai-project-lab
+          ref: 7ec1e48f9bafa205026c89a8b9aad5809835b32a
+          token: ${{ secrets.FRESH216_PRIVATE_READ_TOKEN }}
+          persist-credentials: false
+          path: evidence/report1000
+
+      - name: Checkout immutable Remaining Report state
+        uses: actions/checkout@v4
+        with:
+          repository: degong2-code/ai-project-lab
+          ref: 5b302ee00483c1415fa9c3c73df43e8ac4f89dc1
+          token: ${{ secrets.FRESH216_PRIVATE_READ_TOKEN }}
+          persist-credentials: false
+          path: evidence/report-remaining
+
+      - name: Checkout immutable Priority Plan
+        uses: actions/checkout@v4
+        with:
+          repository: degong2-code/ai-project-lab
+          ref: 811c4e67878f9b70e420fccb4ecf84301d211223
+          token: ${{ secrets.FRESH216_PRIVATE_READ_TOKEN }}
+          persist-credentials: false
+          path: evidence/plan
+
+      - name: Checkout immutable product baseline
+        uses: actions/checkout@v4
+        with:
+          repository: degong2-code/wcl-fresh216
+          ref: 8bb96e64add3703a9c9d60c973754943b64d57be
+          path: evidence/product-baseline
+          persist-credentials: false
+
+      - name: Set up Node.js 22
+        uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+
+      - name: Replay actual private C-delta chain (read-only)
+        shell: bash
+        env:
+          FRESH216_PRODUCT_CODE_SHA: ${{ github.sha }}
+        run: |
+          set -euo pipefail
+          output="$RUNNER_TEMP/fresh216-c-delta-audit.json"
+          errors="$RUNNER_TEMP/fresh216-c-delta-audit-errors.txt"
+          if ! env -u WCL_CLIENT_ID -u WCL_CLIENT_SECRET \
+            node evidence/product-current/tools/audit-fresh216-private-c-delta-inputs.mjs \
+              "$GITHUB_WORKSPACE/evidence/source" \
+              "$GITHUB_WORKSPACE/evidence/delta" \
+              "$GITHUB_WORKSPACE/evidence/report20" \
+              "$GITHUB_WORKSPACE/evidence/report80" \
+              "$GITHUB_WORKSPACE/evidence/report1000" \
+              "$GITHUB_WORKSPACE/evidence/report-remaining" \
+              "$GITHUB_WORKSPACE/evidence/plan" \
+              "$GITHUB_WORKSPACE/evidence/product-baseline" \
+              "$GITHUB_WORKSPACE/evidence/product-current" \
+              > "$output" 2> "$errors"; then
+            code="$(grep -oE 'FRESH216_CDELTA_[A-Z_]+' "$errors" | tail -n 1 || true)"
+            if [[ -n "$code" ]]; then
+              echo "FRESH216_PRIVATE_CDELTA_AUDIT_FAIL=$code"
+            else
+              echo 'FRESH216_PRIVATE_CDELTA_AUDIT_FAIL=UNCLASSIFIED (private diagnostics withheld)'
+            fi
+            exit 1
+          fi
+          node - "$output" <<'NODE'
+          const fs = require('node:fs');
+          const r = JSON.parse(fs.readFileSync(process.argv[2], 'utf8'));
+          if (r.result !== 'FRESH216_PRIVATE_CDELTA_INPUTS_READONLY_PASS' ||
+              r.sourceSlots !== 21600 || r.deltaParts !== 231 ||
+              r.applied !== 2423 || r.totalExactC !== 21252 ||
+              r.priorityGroups !== 2256 || r.prioritySlots !== 2432 ||
+              r.reportStateCommits !== 4 || r.reportBatchFiles !== 195 ||
+              r.exactUyTotal !== 861 || r.reportStateCommitLookupCalls !== 0 ||
+              r.wclGraphqlCalls !== 0 || r.oauthCalls !== 0 ||
+              r.observedPoints !== 0 || r.cDeltaAppends !== 0 ||
+              r.canonicalPromotions !== 0 || r.sheetsWrites !== 0 ||
+              r.repositoryWrites !== 0) {
+            throw new Error('FRESH216_PRIVATE_CDELTA_AUDIT_RECEIPT_POLICY_DRIFT');
+          }
+          const safe = {
+            result: r.result, sourceSlots: r.sourceSlots, baseRows: r.baseRows,
+            deltaParts: r.deltaParts, applied: r.applied, totalExactC: r.totalExactC,
+            priorityGroups: r.priorityGroups, prioritySlots: r.prioritySlots,
+            reportStateCommits: r.reportStateCommits, reportBatchFiles: r.reportBatchFiles,
+            exactUy: r.exactUy, exactUyTotal: r.exactUyTotal,
+            reportStateCommitLookupCalls: r.reportStateCommitLookupCalls,
+            wclGraphqlCalls: r.wclGraphqlCalls, oauthCalls: r.oauthCalls,
+            observedPoints: r.observedPoints, cDeltaAppends: r.cDeltaAppends,
+            canonicalPromotions: r.canonicalPromotions, sheetsWrites: r.sheetsWrites,
+            repositoryWrites: r.repositoryWrites
+          };
+          console.log(JSON.stringify(safe));
+          fs.appendFileSync(process.env.GITHUB_STEP_SUMMARY,
+            '### Private C-delta replay audit: PASS (sanitized aggregates only)\n' +
+            'Source slots: ' + safe.sourceSlots + '; C base: ' + safe.baseRows +
+            '; applied Delta rows: ' + safe.applied + '; Delta files: ' + safe.deltaParts +
+            '; exact C: ' + safe.totalExactC + '; U:Y total: ' + safe.exactUyTotal + '\n' +
+            'Priority groups/slots: ' + safe.priorityGroups + '/' + safe.prioritySlots +
+            '; Report-state commits: ' + safe.reportStateCommits +
+            '; Remaining batches: ' + safe.reportBatchFiles + '\n' +
+            'WCL/OAuth/points: 0/0/0; C append/promotions/Sheets/repository writes: 0/0/0/0\n');
+          NODE
+
+      # No HMAC secret, WCL credentials, artifacts, archive writes, or Git writes are used.

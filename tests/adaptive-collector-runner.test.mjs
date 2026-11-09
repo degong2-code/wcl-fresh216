@@ -1,5 +1,6 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
+import {createHash} from 'node:crypto';
 import {newCheckpoint,checkpointStats,committedProofs}
   from '../src/core/checkpoint.mjs';
 import {prepareAdaptiveNext,runOneAdaptiveStep}
@@ -8,6 +9,7 @@ import {calibrateAdaptiveEconomics}
   from '../src/core/observed-cost-calibration.mjs';
 
 const scopeKey='heroic:full216',sha='a'.repeat(64);
+const shaHex=v=>createHash('sha256').update(v).digest('hex');
 function full216(shared=false){
  const out=[];
  for(let boss=0;boss<8;boss++)for(let spec=0;spec<27;spec++)
@@ -108,7 +110,16 @@ test('shared fights choose one 4-fight Report wave and persist 108 actor proofs'
      calls++;assert.equal(q.query.match(/:rankings\(/g).length,8);
      const wave=prepareAdaptiveNext({slots,
        state:newCheckpoint(scopeKey,'unregistered')}).wave;
-     return reportBody(wave);
+     const response=reportBody(wave);
+     return {...response,rawBodyBytes:Buffer.from(
+       JSON.stringify(response.body),'utf8')};
+   },
+   onVerifiedWave:async input=>{
+     const waveSha=shaHex(JSON.stringify(input.wave));
+     return {schema:1,sourceSha256:'b'.repeat(64),waveId:input.wave.waveId,
+       waveSha256:waveSha,
+       witnessRef:'report-wave-witnesses/'+waveSha+'.json.br',
+       witnessSha256:'c'.repeat(64)};
    }});
  assert.equal(first.kind,'REPORT_WAVE');
  assert.equal(first.status,'RECORDED');assert.equal(first.fights,4);
@@ -116,14 +127,32 @@ test('shared fights choose one 4-fight Report wave and persist 108 actor proofs'
  assert.equal(committedProofs(store.read()).length,108);
  assert.equal(checkpointStats(store.read()).witnessedPoints,17.5);
  const second=prepareAdaptiveNext({slots,state:store.read()});
- assert.equal(second.kind,'REPORT_WAVE');assert.equal(second.resumed,true);
- const original=prepareAdaptiveNext({slots,
-   state:newCheckpoint(scopeKey,'empty')}).wave;
- assert.notDeepEqual(second.wave.fightGroups.map(g=>g.fightId),
-   original.fightGroups.map(g=>g.fightId));
- assert.equal(second.wave.fightGroups.some(g=>
-   original.fightGroups.some(old=>
-     g.reportCode===old.reportCode&&g.fightId===old.fightId)),false);
+ assert.equal(second.kind,'ARCHIVE_PUBLISH');
+ assert.equal(second.publication.wave.fightGroups.length,4);
+ let wclCalls=0,publishCalls=0;
+ const approval=await runOneAdaptiveStep({slots,store,mode:'execute',
+   archivePublishApproved:false,
+   rankTransport:async()=>{wclCalls++;throw Error('NO_RANK');},
+   reportTransport:async()=>{wclCalls++;throw Error('NO_REPORT');}});
+ assert.equal(approval.status,'ARCHIVE_PUBLISH_APPROVAL_REQUIRED');
+ assert.equal(wclCalls,0);
+ const committed=await runOneAdaptiveStep({slots,store,mode:'execute',
+   archivePublishApproved:true,
+   witnessReader:async ref=>({witnessRef:ref}),
+   evidencePublisher:async input=>{
+     publishCalls++;
+     assert.equal(input.evidence.witnessRef,approval.witnessRef);
+     return {status:'COMMITTED',
+       archiveReceipt:{status:'VERIFIED',waveSha256:input.evidence.waveSha256,
+         manifestSha256:'d'.repeat(64),archiveCount:4,
+         verifiedSlots:108,unresolvedSlots:0},
+       cDeltaReceipt:{status:'APPENDED',sourceSha256:input.evidence.sourceSha256,
+         deltaIndex:36,deltaSha256:'e'.repeat(64),addedExactC:108}};
+   }});
+ assert.equal(committed.status,'COMMITTED');
+ assert.equal(publishCalls,1);
+ assert.equal(wclCalls,0);
+ assert.equal(checkpointStats(store.read()).evidenceCommitted,4);
 });
 test('observed rank points alone never fabricates a Report cost calibration',()=>{
  const state={schema:1,entries:{},rankRequests:{

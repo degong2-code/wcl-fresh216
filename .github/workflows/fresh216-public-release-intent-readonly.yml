@@ -1,0 +1,77 @@
+name: Fresh216 exact signed wave release (read-only preflight then conditional writer)
+on:
+  push:
+    branches:
+      - work/fresh216-autonomous-host-20261031
+    paths:
+      - .github/workflows/fresh216-public-release-intent-readonly.yml
+      - projects/wcl-fresh216/release-intents/public-actor-wave-v1.json
+permissions:
+  contents: read
+concurrency:
+  group: fresh216-public-signed-wave-release
+  cancel-in-progress: false
+jobs:
+  review-approved-intent-readonly:
+    outputs:
+      intent_present: ${{ steps.preflight.outputs.intent_present }}
+    if: >-
+      github.repository == 'degong2-code/wcl-fresh216' &&
+      github.ref == 'refs/heads/work/fresh216-autonomous-host-20261031' &&
+      github.event_name == 'push'
+    runs-on: ubuntu-22.04
+    timeout-minutes: 5
+    steps:
+      - name: Checkout reviewed protected-branch code without persisted credentials
+        uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+      - name: Set up Node 22
+        uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+      - name: Read-only exact release intent validation
+        id: preflight
+        shell: bash
+        run: |
+          set -euo pipefail
+          node tools/run-public-relay-release-preflight.mjs
+          # Successful validation is not a publication authorization by itself.
+          if [[ -f projects/wcl-fresh216/release-intents/public-actor-wave-v1.json ]]; then
+            echo 'intent_present=true' >> "$GITHUB_OUTPUT"
+          else
+            echo 'intent_present=false' >> "$GITHUB_OUTPUT"
+          fi
+          echo 'Read-only release intent check only. No HMAC, WCL, private token or Git write permissions.' >> "$GITHUB_STEP_SUMMARY"
+
+  publish-approved-public-wave:
+    needs: review-approved-intent-readonly
+    if: >-
+      needs.review-approved-intent-readonly.outputs.intent_present == 'true' &&
+      github.repository == 'degong2-code/wcl-fresh216' &&
+      github.ref == 'refs/heads/work/fresh216-autonomous-host-20261031' &&
+      github.event_name == 'push'
+    environment: fresh216-private-read
+    runs-on: ubuntu-22.04
+    timeout-minutes: 10
+    permissions:
+      contents: write
+    steps:
+      - name: Checkout exact protected push commit with no stored credentials
+        uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+          ref: ${{ github.sha }}
+      - name: Set up Node 22
+        uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+      - name: Publish only a pinned, previously signed private wave
+        env:
+          FRESH216_PRIVATE_READ_TOKEN: ${{ secrets.FRESH216_PRIVATE_READ_TOKEN }}
+          GITHUB_TOKEN: ${{ github.token }}
+        shell: bash
+        run: |
+          set -euo pipefail
+          node tools/run-public-relay-release-publisher.mjs
+          echo 'Exact private commit and wave; native public token; no WCL, private HMAC or C-delta.' >> "$GITHUB_STEP_SUMMARY"

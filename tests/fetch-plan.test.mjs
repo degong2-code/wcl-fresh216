@@ -7,7 +7,8 @@ const slot = (changes = {}) => ({
   jobKey: 'BossA|Hunter|Marksmanship', rank: 3,
   snapshotSha: 'a'.repeat(64), status: 'PENDING',
   className: 'Hunter', specName: 'Marksmanship',
-  totalDps: 1000, reportCode: 'SYNTHETIC-REPORT-1',
+  totalDps: 1000, startTime:1792600000000,
+  reportCode: 'SYNTHETIC-REPORT-1',
   fightId: 12, encounterId: 3470, difficulty: 4,
   reportRevision: 5, ...changes
 });
@@ -23,6 +24,7 @@ test('cross-job same fight is planned once but rank provenance stays separate', 
   assert.equal(p.groups[0].slots.length, 2);
   assert.notEqual(p.groups[0].slots[0].snapshotSha, p.groups[0].slots[1].snapshotSha);
   assert.deepEqual(p.groups[0].slots.map(x => x.totalDps), [1000, 901]);
+  assert.equal(p.groups[0].slots[0].startTime, a.startTime);
   assert.equal('bossDps' in p.groups[0], false);
 });
 

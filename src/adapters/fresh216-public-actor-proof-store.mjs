@@ -5,7 +5,8 @@
  */
 import {
   verifyActorProofArchive,buildActorProofWaveManifest,
-  verifyActorProofWaveManifest,ACTOR_PROOF_ARCHIVE_MAX_BYTES
+  verifyActorProofWaveManifest,ACTOR_PROOF_ARCHIVE_MAX_BYTES,
+  inspectActorProofArchivePublic,inspectActorProofWaveManifestPublic
 } from '../core/fresh216-actor-proof-archive.mjs';
 import {PILOT_JOURNAL} from './fresh216-public-pilot-journal.mjs';
 
@@ -26,12 +27,16 @@ const apiPath=p=>'https://api.github.com/repos/'+PILOT_JOURNAL.repo+
 const readUrl=p=>apiPath(p)+'?ref='+encodeURIComponent(PILOT_JOURNAL.branch);
 
 export function createPublicActorProofArchiveStore({
-  token,hmacKey,fetchImpl=fetch
+  token,hmacKey,fetchImpl=fetch,relayOnly=false
 }={}){
   need(typeof token==='string'&&token.length>20&&
     typeof fetchImpl==='function','PUBLIC_ACTOR_ARCHIVE_STORE_CONFIG');
   // Fail before any GitHub network call if the dedicated key is missing.
-  verifyActorProofArchiveKey(hmacKey);
+  need(typeof relayOnly==='boolean','PUBLIC_ACTOR_RELAY_MODE_INVALID');
+  if(relayOnly){
+    need(hmacKey===undefined||hmacKey===null,
+      'PUBLIC_ACTOR_RELAY_HMAC_MUST_STAY_PRIVATE');
+  }else verifyActorProofArchiveKey(hmacKey);
   const headers={
     Authorization:'Bearer '+token,
     Accept:'application/vnd.github+json',
@@ -89,6 +94,7 @@ export function createPublicActorProofArchiveStore({
     return {path:p,commitSha:receipt.commit.sha,blobSha:back.blobSha,data:back.data};
   }
   async function persist(archive){
+    need(!relayOnly,'PUBLIC_ACTOR_RELAY_ONLY');
     verifyActorProofArchive(archive,{hmacKey});
     const p=archivePath(archive.archiveId);
     const saved=await writeCreateOnly(p,archive,
@@ -100,31 +106,177 @@ export function createPublicActorProofArchiveStore({
       unresolvedSlots:v.unresolvedSlots
     };
   }
-  async function persistWave(archives,{createdAtMs=Date.now()}={}){
-    // Validate the entire immutable wave and check the manifest path BEFORE
-    // any archive write. The manifest is committed only after every archive
-    // has been independently read back and verified.
-    const manifest=buildActorProofWaveManifest({
+  async function persistWave(archives,{
+    createdAtMs=Date.now(),preSignedManifest=null,
+    approvedPrivateStageCommit=null,checkedOutPrivateStageCommit=null,
+    expectedPublicEvidenceHead=null
+  }={}){
+    const relay=preSignedManifest!==null;
+    if(relay){
+      need(relayOnly&&commitSha(approvedPrivateStageCommit)&&
+        commitSha(expectedPublicEvidenceHead)&&
+        checkedOutPrivateStageCommit===approvedPrivateStageCommit,
+        'PUBLIC_ACTOR_RELAY_PRIVATE_COMMIT_NOT_PINNED');
+      inspectActorProofWaveManifestPublic(preSignedManifest,{archives});
+    }else need(!relayOnly,'PUBLIC_ACTOR_RELAY_UNSIGNED_PATH_FORBIDDEN');
+    // One Git Data commit makes all missing fight archives + the manifest
+    // visible atomically. Existing exact objects are reused after HMAC and
+    // byte-equivalent JSON verification; conflicting objects fail closed.
+    const manifest=relay?preSignedManifest:buildActorProofWaveManifest({
       archives,hmacKey,createdAtMs
     });
-    const p=wavePath(manifest.waveSha256);
-    need((await read(p))===null,'PUBLIC_ACTOR_WAVE_MANIFEST_ALREADY_EXISTS_STOP');
     const ordered=archives.slice().sort((a,b)=>
       a.archiveId.localeCompare(b.archiveId));
-    const archiveReceipts=[];
-    for(const archive of ordered)archiveReceipts.push(await persist(archive));
-    verifyActorProofWaveManifest(manifest,{hmacKey,archives:ordered});
-    const saved=await writeCreateOnly(p,manifest,
-      'fresh216: seal redacted actor proof wave '+manifest.waveSha256.slice(0,12));
-    const verified=verifyActorProofWaveManifest(saved.data,{
-      hmacKey,archives:ordered
+    const manifestFile={path:wavePath(manifest.waveSha256),data:manifest};
+    const archiveFiles=ordered.map(archive=>({
+      path:archivePath(archive.archiveId),data:archive
+    }));
+    const allFiles=[...archiveFiles,manifestFile];
+    const existing=new Map();
+    for(const file of allFiles){
+      const back=await read(file.path);
+      if(!back)continue;
+      if(file.path===manifestFile.path){
+        if(relay)inspectActorProofWaveManifestPublic(back.data,{archives:ordered});
+        else verifyActorProofWaveManifest(back.data,{hmacKey,archives:ordered});
+      }else{
+        if(relay)inspectActorProofArchivePublic(back.data);
+        else verifyActorProofArchive(back.data,{hmacKey});
+      }
+      need(JSON.stringify(back.data)===JSON.stringify(file.data),
+        'PUBLIC_ACTOR_WAVE_EXISTING_OBJECT_CONFLICT_STOP');
+      existing.set(file.path,back);
+    }
+    if(existing.has(manifestFile.path)){
+      need(archiveFiles.every(x=>existing.has(x.path)),
+        'PUBLIC_ACTOR_WAVE_MANIFEST_WITH_MISSING_ARCHIVE_STOP');
+      return summarizeWave(existing,archiveFiles,manifestFile,null,true,existing,relay);
+    }
+    const missing=allFiles.filter(x=>!existing.has(x.path));
+    const contents=missing.map(file=>{
+      const text=JSON.stringify(file.data,null,2)+'\n';
+      need(Buffer.byteLength(text,'utf8')<=ACTOR_PROOF_ARCHIVE_MAX_BYTES,
+        'PUBLIC_ACTOR_ARCHIVE_SIZE_LIMIT');
+      return {path:file.path,mode:'100644',type:'blob',content:text};
     });
+    let commitShaWritten=null,refUpdateAttempted=false;
+    try{
+      const refUrl='https://api.github.com/repos/'+PILOT_JOURNAL.repo+
+        '/git/ref/heads/'+PILOT_JOURNAL.branch;
+      const refResponse=await http(refUrl);
+      need(refResponse.status===200,'PUBLIC_ACTOR_WAVE_REF_READ_FAILED');
+      const refData=await refResponse.json().catch(()=>null);
+      const parentSha=refData?.object?.sha;
+      need(commitSha(parentSha),'PUBLIC_ACTOR_WAVE_REF_SHAPE');
+      if(relay)need(parentSha===expectedPublicEvidenceHead,
+        'PUBLIC_ACTOR_RELAY_APPROVED_HEAD_DRIFT_STOP');
+      const parentResponse=await http(
+        'https://api.github.com/repos/'+PILOT_JOURNAL.repo+
+        '/git/commits/'+parentSha
+      );
+      need(parentResponse.status===200,'PUBLIC_ACTOR_WAVE_PARENT_READ_FAILED');
+      const parentData=await parentResponse.json().catch(()=>null);
+      const baseTreeSha=parentData?.tree?.sha;
+      need(commitSha(baseTreeSha),'PUBLIC_ACTOR_WAVE_PARENT_TREE_SHAPE');
+      const treeResponse=await http(
+        'https://api.github.com/repos/'+PILOT_JOURNAL.repo+'/git/trees',
+        {method:'POST',body:JSON.stringify({
+          base_tree:baseTreeSha,tree:contents
+        })}
+      );
+      need(treeResponse.status===201,'PUBLIC_ACTOR_WAVE_TREE_CREATE_FAILED');
+      const treeData=await treeResponse.json().catch(()=>null);
+      need(commitSha(treeData?.sha),'PUBLIC_ACTOR_WAVE_TREE_SHAPE');
+      const commitResponse=await http(
+        'https://api.github.com/repos/'+PILOT_JOURNAL.repo+'/git/commits',
+        {method:'POST',body:JSON.stringify({
+          message:'fresh216: atomically append actor proof wave '+
+            manifest.waveSha256.slice(0,12),
+          tree:treeData.sha,parents:[parentSha]
+        })}
+      );
+      need(commitResponse.status===201,
+        'PUBLIC_ACTOR_WAVE_COMMIT_CREATE_FAILED');
+      const commitData=await commitResponse.json().catch(()=>null);
+      need(commitSha(commitData?.sha),'PUBLIC_ACTOR_WAVE_COMMIT_SHAPE');
+      commitShaWritten=commitData.sha;
+      refUpdateAttempted=true;
+      await http(
+        'https://api.github.com/repos/'+PILOT_JOURNAL.repo+
+        '/git/refs/heads/'+PILOT_JOURNAL.branch,
+        {method:'PATCH',body:JSON.stringify({
+          sha:commitShaWritten,force:false
+        })}
+      ).then(async response=>{
+        if(response.status!==200){
+          // A concurrent update or an uncertain ref response is reconciled
+          // only by exact readback below. Never force or blindly retry.
+          commitShaWritten=null;
+        }
+      }).catch(()=>{
+        // Ref outcome may be unknown. Exact readback below decides.
+        commitShaWritten=null;
+      });
+    }catch(_error){
+      // Approval head drift is deterministically known BEFORE any Git write.
+      // Do not downgrade it to an uncertain-write recovery path.
+      if(_error?.message==='PUBLIC_ACTOR_RELAY_APPROVED_HEAD_DRIFT_STOP')
+        throw _error;
+      // Pre-ref failures are safe to report; a ref timeout is reconciled by
+      // reading every deterministic path below. No second write is attempted.
+      commitShaWritten=null;
+    }
+    const readbacks=new Map();
+    for(const file of allFiles){
+      const back=await read(file.path);
+      if(!back)continue;
+      if(file.path===manifestFile.path){
+        if(relay)inspectActorProofWaveManifestPublic(back.data,{archives:ordered});
+        else verifyActorProofWaveManifest(back.data,{hmacKey,archives:ordered});
+      }else if(relay)inspectActorProofArchivePublic(back.data);
+      else verifyActorProofArchive(back.data,{hmacKey});
+      need(JSON.stringify(back.data)===JSON.stringify(file.data),
+        'PUBLIC_ACTOR_WAVE_READBACK_MISMATCH_STOP');
+      readbacks.set(file.path,back);
+    }
+    if(!allFiles.every(x=>readbacks.has(x.path))){
+      throw Error(refUpdateAttempted?
+        'PUBLIC_ACTOR_WAVE_COMMIT_UNCONFIRMED_STOP':
+        'PUBLIC_ACTOR_WAVE_WRITE_NOT_ATTEMPTED');
+    }
+    return summarizeWave(readbacks,archiveFiles,manifestFile,
+      commitShaWritten,false,existing,relay);
+  }
+  function summarizeWave(readbacks,archiveFiles,manifestFile,
+    publishedCommitSha,reused,existing=new Map(),relay=false){
+    const archiveReceipts=archiveFiles.map(file=>{
+      const back=readbacks.get(file.path);
+      const v=relay?inspectActorProofArchivePublic(back.data):
+        verifyActorProofArchive(back.data,{hmacKey});
+      return {archiveId:file.data.archiveId,path:file.path,
+        commitSha:publishedCommitSha,blobSha:back.blobSha,
+        reused:reused||existing.has(file.path),
+        verifiedSlots:v.verifiedSlots,
+        unresolvedSlots:v.unresolvedSlots};
+    });
+    const signedManifest=readbacks.get(manifestFile.path).data;
+    const committedArchives=archiveFiles.map(x=>x.data);
+    const verified=relay?inspectActorProofWaveManifestPublic(
+      signedManifest,{archives:committedArchives}):
+      verifyActorProofWaveManifest(signedManifest,{
+        hmacKey,archives:committedArchives
+      });
     return {
-      waveSha256:manifest.waveSha256,manifestSha256:manifest.manifestSha256,
-      manifestPath:p,manifestCommitSha:saved.commitSha,manifestBlobSha:saved.blobSha,
+      waveSha256:manifestFile.data.waveSha256,
+      manifestSha256:manifestFile.data.manifestSha256,
+      manifestPath:manifestFile.path,
+      manifestCommitSha:publishedCommitSha,
+      manifestBlobSha:readbacks.get(manifestFile.path).blobSha,
       archiveReceipts,archiveCount:verified.archiveCount,
       verifiedSlots:verified.verifiedSlots,
-      unresolvedSlots:verified.unresolvedSlots
+      unresolvedSlots:verified.unresolvedSlots,
+      reused:reused||existing.has(manifestFile.path),
+      reconciled:!reused&&!publishedCommitSha
     };
   }
   return {

@@ -159,3 +159,26 @@ the first eight specs of Heroic Nek'zali only; do not generalize
 no original character/report/fight rows. So no persisted Oct22–27
 source jobs are counted yet (0/216). The 32-request complete source
 collector is code-tested, not activated in a persistent host.
+
+
+## 2026-10-31 adaptive Report-wave archive-to-C integration update
+
+The existing adaptive collector and its single schema-1 checkpoint remain the only execution spine. PR #21 adds the following offline-only integration on `work/fresh216-adaptive-archive-delta-20261031`:
+
+- `private-fresh-cohort-host.mjs` now exposes `runPrivateAdaptiveStep`, which runs `runOneAdaptiveStep` under the existing private single-owner lease. It does not add another planner, scheduler, or journal.
+- `makePrivateWclTransport` is lazy: constructing the transport does not exchange OAuth. The runner first persists IN_FLIGHT, then its transport invocation obtains the token and performs the request. The Report-wave request body is sent unchanged.
+- `private-wave-witness-store.mjs` stores exact Fetch response bytes and request/wave/source digests in the private volume with create-only semantics, restrictive permissions, and readback verification. An interrupted/uncertain operation is not redispatched.
+- `derivePinnedFresh216SourceSlots` requires the immutable source checkpoint version 0, verifies the `sourceRequests` digest against the C-delta v1 `SOURCE_SHA256`, and derives all 21,600 A slots through `exportVerifiedFreshCohort`. A caller-provided slot array is accepted only if its canonical digest matches the derived slots.
+- `fresh216-evidence-publisher.mjs` rejects a source SHA different from the existing C-delta v1 source identity before public archive writes. It verifies the private witness, canonical proof join, archive HMAC replay, atomic archive+manifest publication/readback, and then invokes an injected `cDeltaAppender`.
+- `fresh216-archive-c-delta.mjs` and the existing `fresh216-c-delta.mjs` preserve the established C-delta v1 format and hash chain. No second C format is introduced.
+- The private host's `createPrivateFresh216EvidenceHooks` binds the pinned A source, witness store, archive publisher and C-delta callback. The caller must still provide a verified archive store and a configured `createFresh216ArchiveCDeltaAppender` callback with pinned base bytes, the existing contiguous delta directory, verified priority map, and an authentic `getReportStateCommit` provider.
+
+### Current offline verification
+
+- Public Offline Core run [#41185754950](https://github.com/degong2-code/wcl-fresh216/actions/runs/41185754950): PASS, 56/56 suites.
+- Dedicated C-delta adapter run [#41185755093](https://github.com/degong2-code/wcl-fresh216/actions/runs/41185755093): PASS, codec 3/3 and adapter 7/7.
+- WCL/OAuth/live pilot, private inventory, public archive write, C append/promotion and Sheets/GAS were not executed.
+
+### Remaining integration work
+
+The concrete `createFresh216ArchiveCDeltaAppender` now loads the contiguous local delta chain, validates the pinned base and existing union with `applyCDeltas`, appends create-only, and independently replays the full union after each append. New delta rows bind response-body, archive-wave and archive-manifest digests. The private host still needs to supply the real pinned base bytes and 231-part chain, derive the verified priority map, and provide an authentic report-state commit provider. A persistent private host must also be provisioned and verified. Until those gates pass, keep PR #21 in draft and do not authorize a new WCL request, canonical C promotion or Sheets write.
