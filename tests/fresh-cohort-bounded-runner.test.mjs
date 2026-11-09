@@ -158,3 +158,121 @@ test('synthetic 9-alias run covers all 216 jobs, exact100 export, and refuses 8-
   }),/FRESH_COHORT_BATCH_SIZE_DRIFT/);
   assert.equal(calls,24);
 });
+
+
+const hourly=(spent=20,reset=120)=>({
+  limitPerHour:3600,pointsSpentThisHour:spent,pointsResetIn:reset,
+  databaseLimitPerHour:250,databasePointsSpentThisHour:10,
+  currentRequest:JSON.stringify({total:1})
+});
+test('checkpoint with >90 lifetime points resumes under fresh hourly allowance',async()=>{
+ const s=store();
+ const old=await runBoundedFreshCohortBatches({
+   store:s,manifest,approved:true,
+   jobsPerRequest:9,maxRequests:11,
+   admissionPolicy:budget,clock,
+   transport:async q=>response(q)
+ });
+ assert.equal(old.completedJobs,99);
+ assert.ok(old.observedPoints>90);
+ let probes=0,rankCalls=0;
+ const next=await runBoundedFreshCohortBatches({
+   store:s,manifest,approved:true,jobsPerRequest:9,
+   maxRequests:3,admissionPolicy:{
+     notBeforeMs:0,maxObservedPoints:25,reservePoints:10
+   },clock,
+   quotaReader:async()=>{probes++;return hourly(120)},
+   transport:async q=>{rankCalls++;return response(q)}
+ });
+ assert.equal(next.status,'BUDGET_PAUSED');
+ assert.equal(next.recordedRequests,2);
+ assert.equal(rankCalls,2);
+ assert.equal(probes,1);
+ assert.equal(next.hourlyQuotaProbes,1);
+ assert.equal(next.quotaProbePointsObserved,1);
+ assert.ok(Math.abs(next.totalInvocationApiPointsObserved-19.02)<1e-8);
+ assert.equal(next.budgetBasis,'APPROVED_INVOCATION');
+ assert.ok(next.lifetimePointsBeforeInvocation>90);
+ assert.equal(next.completedJobs,117);
+ assert.equal(next.nextBatchIndex,13);
+});
+test('near-exhausted hour pauses without any rank HTTP or checkpoint write',async()=>{
+ const s=store();let rankCalls=0;
+ const paused=await runBoundedFreshCohortBatches({
+   store:s,manifest,approved:true,jobsPerRequest:9,
+   maxRequests:3,admissionPolicy:budget,clock,
+   quotaReader:async()=>hourly(3597,28),
+   transport:async q=>{rankCalls++;return response(q)}
+ });
+ assert.equal(paused.status,'HOURLY_RATE_WAIT');
+ assert.equal(paused.waitMs,29000);
+ assert.equal(paused.attemptedRequests,0);
+ assert.equal(paused.recordedRequests,0);
+ assert.equal(paused.hourlyQuotaProbes,1);
+ assert.equal(rankCalls,0);
+ assert.equal(s.commits.length,0);
+ const fresh=await runBoundedFreshCohortBatches({
+   store:s,manifest,approved:true,jobsPerRequest:9,
+   maxRequests:2,admissionPolicy:budget,clock,
+   quotaReader:async()=>hourly(12,3590),
+   transport:async q=>{rankCalls++;return response(q)}
+ });
+ assert.equal(fresh.status,'MAX_REQUESTS_REACHED');
+ assert.equal(fresh.recordedRequests,2);
+ assert.equal(fresh.nextBatchIndex,2);
+ assert.equal(fresh.hourlyQuotaProbes,1);
+ assert.equal(rankCalls,2);
+});
+test('database-point shortage blocks only if explicitly required',async()=>{
+ const s=store(),quota={
+   limitPerHour:3600,pointsSpentThisHour:40,pointsResetIn:42,
+   databaseLimitPerHour:250,databasePointsSpentThisHour:245,
+   currentRequest:JSON.stringify({total:1})
+ };
+ const r=await runBoundedFreshCohortBatches({
+   store:s,manifest,approved:true,jobsPerRequest:9,
+   maxRequests:2,admissionPolicy:{
+     ...budget,databaseReservePoints:10
+   },clock,quotaReader:async()=>quota,
+   transport:async()=>{throw Error('NO_SOURCE_REQUEST')}
+ });
+ assert.equal(r.status,'HOURLY_RATE_WAIT');
+ assert.equal(r.waitMs,43000);
+ assert.equal(s.commits.length,0);
+});
+test('failed quota probe never writes a source marker or sends data HTTP',async()=>{
+ const s=store();let calls=0;
+ const r=await runBoundedFreshCohortBatches({
+   store:s,manifest,approved:true,jobsPerRequest:9,
+   maxRequests:1,admissionPolicy:budget,clock,
+   quotaReader:async()=>{throw Error('PROBE_NETWORK_UNKNOWN')},
+   transport:async()=>{calls++;throw Error('MUST_NOT_SEND_SOURCE')}
+ });
+ assert.equal(r.status,'HOURLY_QUOTA_UNAVAILABLE');
+ assert.equal(r.hourlyQuotaProbes,1);
+ assert.equal(r.quotaProbePointsObserved,null);
+ assert.equal(r.attemptedRequests,0);
+ assert.equal(calls,0);
+ assert.equal(s.commits.length,0);
+});
+test('hour reset never clears unknown source attempt or auto-replays HTTP',async()=>{
+ const s=store();let rankCalls=0,quotaCalls=0;
+ const first=await runBoundedFreshCohortBatches({
+   store:s,manifest,approved:true,jobsPerRequest:9,
+   maxRequests:2,admissionPolicy:budget,clock,
+   quotaReader:async()=>{quotaCalls++;return hourly()},
+   transport:async()=>{rankCalls++;return response({}, {httpStatus:503})}
+ });
+ assert.equal(first.status,'NEEDS_REVIEW');
+ assert.equal(rankCalls,1);
+ const second=await runBoundedFreshCohortBatches({
+   store:s,manifest,approved:true,jobsPerRequest:9,
+   maxRequests:2,admissionPolicy:budget,clock,
+   quotaReader:async()=>{quotaCalls++;return hourly(0)},
+   transport:async()=>{rankCalls++;throw Error('REPLAY')}
+ });
+ assert.equal(second.status,'NEEDS_REVIEW');
+ assert.equal(second.attemptedRequests,0);
+ assert.equal(rankCalls,1);
+ assert.equal(quotaCalls,1);
+});

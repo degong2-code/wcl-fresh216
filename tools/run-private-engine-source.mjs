@@ -9,7 +9,7 @@
 import fs from 'node:fs';
 import os from 'node:os';
 import path from 'node:path';
-import {fileURLToPath} from 'node:url';
+import {fileURLToPath,pathToFileURL} from 'node:url';
 import {execFileSync} from 'node:child_process';
 import {performance} from 'node:perf_hooks';
 import {newCheckpoint} from '../src/core/checkpoint.mjs';
@@ -20,6 +20,9 @@ import {makeFreshDatedHeroicManifest,
   from '../src/core/fresh-cohort-source.mjs';
 import {runBoundedFreshCohortBatches}
   from '../src/core/fresh-cohort-bounded-runner.mjs';
+import * as sourceCore from '../src/core/fresh-cohort-source.mjs';
+import {attestFreshCohortExecutionCompatibility}
+  from '../src/core/fresh-cohort-execution-compat.mjs';
 import {makeGitDurableStore,commitState}
   from './run-private-github-fresh216.mjs';
 
@@ -64,16 +67,25 @@ export function validateFreshSourceTickRequest(request,{
         (request.maxRequests==null||request.maxRequests===1)):
       ([8,9].includes(request.jobsPerRequest)&&
         Number.isSafeInteger(request.maxRequests)&&
-        request.maxRequests>=1&&request.maxRequests<=8))&&
+        request.maxRequests>=1&&request.maxRequests<=32))&&
     Number.isSafeInteger(request.maxObservedPoints)&&
-    request.maxObservedPoints>=1&&request.maxObservedPoints<=100&&
+    request.maxObservedPoints>=1&&
+    request.maxObservedPoints<=(request.mode==='source-bounded'?3600:100)&&
     Number.isSafeInteger(request.reservePoints)&&
-    request.reservePoints>=1&&request.reservePoints<=100,
+    request.reservePoints>=1&&request.reservePoints<=100&&
+    request.reservePoints<=request.maxObservedPoints&&
+    (request.databaseReservePoints==null||
+      Number.isSafeInteger(request.databaseReservePoints)&&
+      request.databaseReservePoints>=0&&request.databaseReservePoints<=100)&&
+    (request.compatibleSourceOriginCommit==null||
+      request.mode==='source-bounded'&&request.jobsPerRequest===9&&
+      request.compatibleSourceOriginCommit===
+        '0d2c3de4d34ea7dccdba3d4f9a4326d8c0e34179'),
     'FRESH_SOURCE_REQUEST_NOT_PINNED');
   return true;
 }
 export async function runOnePrivateFreshSourceTick({
-  requestFile,stateRoot,env=process.env
+  requestFile,stateRoot,originProductRoot=null,env=process.env
 }={}){
   need(typeof requestFile==='string'&&path.isAbsolute(requestFile)&&
     typeof stateRoot==='string'&&path.isAbsolute(stateRoot),
@@ -94,6 +106,11 @@ export async function runOnePrivateFreshSourceTick({
       git(stateRoot,'remote','get-url','origin')),
     'FRESH_SOURCE_WORKTREE_INVALID');
   const savedPath=path.join(stateRoot,run.file);
+  // A compatibility continuation MUST have an existing immutable A state.
+  // Never create a new origin checkpoint with the predecessor's identity.
+  need(request.compatibleSourceOriginCommit==null||
+    fs.existsSync(savedPath),
+    'FRESH_SOURCE_COMPAT_EXISTING_ONLY');
   const manifest=makeFreshDatedHeroicManifest(run.scope);
   const temp=fs.mkdtempSync(path.join(os.tmpdir(),'fresh216-new-source-'));
   let remoteGitCommitMs=0,remoteGitCommits=0;
@@ -126,10 +143,49 @@ export async function runOnePrivateFreshSourceTick({
     });
     const before=local.read();
     need(before.scopeKey===run.scope&&before.status==='ACTIVE'&&
-      before.sourceCodeCommit===productHead&&
       (!before.sourceJobsPerRequest||
         before.sourceJobsPerRequest===request.jobsPerRequest),
       'FRESH_SOURCE_STATE_DRIFT');
+    let compatibility=null;
+    if(before.sourceCodeCommit!==productHead){
+      // Only an explicit owner-pinned successor can execute over the A90
+      // origin. Both Git trees are attested BEFORE any paid HTTP or
+      // mutable Git checkpoint write. The origin SHA stays in the state.
+      need(request.mode==='source-bounded'&&
+        request.compatibleSourceOriginCommit===before.sourceCodeCommit&&
+        typeof originProductRoot==='string'&&
+        path.isAbsolute(originProductRoot),
+        'FRESH_SOURCE_COMPAT_OWNER_PIN_REQUIRED');
+      const root=fs.realpathSync(originProductRoot);
+      need(git(root,'rev-parse','HEAD')===before.sourceCodeCommit&&
+        git(root,'status','--porcelain','--untracked-files=all')===''&&
+        /(?:^|[:/])degong2-code\/wcl-fresh216(?:\.git)?$/.test(
+          git(root,'remote','get-url','origin')),
+        'FRESH_SOURCE_COMPAT_ORIGIN_REPOSITORY_INVALID');
+      // Exact audited core Git objects block an unreviewed helper change
+      // even when the exported functions still look textually identical.
+      need(git(root,'rev-parse',
+        'HEAD:src/core/fresh-cohort-source.mjs')===
+          '3c59982bb0a866f8f91a2b98053f93b51dd97ee9'&&
+        git(sourceRoot,'rev-parse',
+          'HEAD:src/core/fresh-cohort-source.mjs')===
+          '21709015b45bba3e44a4c1c53fcc7b04f4f26262',
+        'FRESH_SOURCE_COMPAT_CORE_BLOB_DRIFT');
+      const moduleFile=path.join(root,'src/core/fresh-cohort-source.mjs');
+      need(fs.existsSync(moduleFile)&&
+        fs.lstatSync(moduleFile).isFile()&&
+        !fs.lstatSync(moduleFile).isSymbolicLink(),
+        'FRESH_SOURCE_COMPAT_MODULE_MISSING');
+      const originCore=await import(pathToFileURL(moduleFile).href);
+      compatibility=attestFreshCohortExecutionCompatibility({
+        sourceState:before,originCore,successorCore:sourceCore,
+        expectedScopeKey:run.scope,
+        expectedOriginCommit:before.sourceCodeCommit
+      });
+    }else{
+      need(request.compatibleSourceOriginCommit==null,
+        'FRESH_SOURCE_COMPAT_UNNECESSARY_OVERRIDE');
+    }
     const preview=await runOneFreshCohortBatch({
       store:durable,manifest,mode:'preview',
       jobsPerRequest:request.jobsPerRequest
@@ -144,13 +200,30 @@ export async function runOnePrivateFreshSourceTick({
     });
     // Both modes run through the same bounded coordinator; source-one
     // preserves its previous one-request contract by selecting max=1.
+    // Hourly quota GET is a small WCL API request, not a source-rank
+    // request. It cannot produce rank/actor evidence and is never retried
+    // automatically after a network or GraphQL ambiguity.
+    const quotaReader=request.mode==='source-bounded'?async()=>{
+      const response=await transport({query:
+        'query Fresh216HourlyQuota { rateLimitData { '+
+        'limitPerHour pointsSpentThisHour pointsResetIn '+
+        'databaseLimitPerHour databasePointsSpentThisHour currentRequest } }',
+        variables:{}});
+      need(response?.httpStatus===200&&
+        response.body?.errors==null&&
+        response.body?.data?.rateLimitData,
+        'FRESH_SOURCE_HOURLY_QUOTA_UNAVAILABLE');
+      return response.body.data.rateLimitData;
+    }:null;
     const receipt=await runBoundedFreshCohortBatches({
       store:durable,manifest,approved:true,
       transport,jobsPerRequest:request.jobsPerRequest,
       maxRequests:request.mode==='source-one'?1:request.maxRequests,
+      quotaReader,
       admissionPolicy:{notBeforeMs:0,
         maxObservedPoints:request.maxObservedPoints,
-        reservePoints:request.reservePoints}
+        reservePoints:request.reservePoints,
+        databaseReservePoints:request.databaseReservePoints??0}
     });
     const after=local.read();
     const status=nextFreshCohortBatch(after,manifest);
@@ -168,6 +241,14 @@ export async function runOnePrivateFreshSourceTick({
       stateVersion:after.version,
       remoteGitCommits,
       remoteGitCommitMs:Math.round(remoteGitCommitMs),
+      hourlyQuotaProbes:receipt.hourlyQuotaProbes,
+      hourlyQuotaProbePoints:receipt.quotaProbePointsObserved,
+      invocationApiPointsObserved:receipt.totalInvocationApiPointsObserved,
+      nextWindowWaitMs:receipt.waitMs,
+      budgetBasis:receipt.budgetBasis,
+      sourceCompatibility:compatibility?.status??'EXACT_SOURCE_CODE',
+      sourceOriginCommit:before.sourceCodeCommit,
+      executionCodeCommit:productHead,
       privateCheckpointBytes:fs.statSync(savedPath).size,
       sourceReady:
         status.kind==='SOURCE_COMPLETE',
@@ -178,15 +259,18 @@ export async function runOnePrivateFreshSourceTick({
 const entry=path.resolve(fileURLToPath(import.meta.url));
 if(process.argv[1]&&path.resolve(process.argv[1])===entry){
   try{
-    need(process.argv.length===4,'FRESH_SOURCE_ARGS_REQUIRED');
+    need(process.argv.length===4||process.argv.length===5,
+      'FRESH_SOURCE_ARGS_REQUIRED');
     const result=await runOnePrivateFreshSourceTick({
       requestFile:path.resolve(process.argv[2]),
-      stateRoot:path.resolve(process.argv[3])
+      stateRoot:path.resolve(process.argv[3]),
+      originProductRoot:process.argv[4]?path.resolve(process.argv[4]):null
     });
     console.log(JSON.stringify(result));
     const acceptable=result.mode==='source-bounded'?
-      ['MAX_REQUESTS_REACHED','SOURCE_COMPLETE','BUDGET_PAUSED']
-        .includes(result.status)&&result.recordedRequests>0:
+      (['MAX_REQUESTS_REACHED','SOURCE_COMPLETE','BUDGET_PAUSED']
+        .includes(result.status)&&result.recordedRequests>0)||
+      result.status==='HOURLY_RATE_WAIT':
       result.status==='RECORDED'&&result.recordedRequests===1;
     if(!acceptable)process.exitCode=2;
   }catch(e){
