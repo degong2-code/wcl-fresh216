@@ -115,3 +115,51 @@ these eight fights. Promote only after testing alternate boss variants /
 phases and verifying that the same actor, revision and duration contracts
 hold on additional data. Do not reimplement collectors or checkpoint
 logic. This 8-fight gain is not a guaranteed 3,380-fight cost estimate.
+
+## Alternate-fight one-shot result — independent bulk gold (2026-11-09)
+
+A separate **one-request** WCL measurement checked **eight NEW report/fights,
+24 actor witnesses** selected from the existing private bulk 88-fight/200-actor
+proofs. All actors had independently been checked against the official
+BossDPS metric in the preexisting 224-actor audit. Five encounters covered:
+3421,3445,3455,3470,3492. Each of the eight Report codes is distinct
+from the original eight-fight pilot.
+
+- Result receipt: https://github.com/degong2-code/wcl-fresh216/blob/work/fresh216-lean-boss-alternate-once-20261109/experiments/fresh216-lean-boss-alternate-20261109/RESULT.json
+- Frozen source branch result commit: 6be1818f7f162d2b33f37257a785f8dadda2aa4e
+- **24/24 exact**, missing 0, mismatch 0, WCL GraphQL 1, OAuth exchange 1,
+  no automatic retry, no original gold/official/metadata/Total refetch.
+- Observed request cost **19.42 total WCL points**,
+  **8113 ms**, **1290439 JSON bytes**.
+- Combined two one-shot tests: **16 distinct fights / 48 exact actor
+  witnesses, 2 WCL GraphQL requests, 37.31 total points**.
+- This alternate batch has no freshly measured full-metadata control; **do
+  not claim a measured 30% saving on the second batch**. The initial
+  original-eight 29.98% reduction remains the directly paired comparison.
+- Three encounters (3420,3429,3497) still have only the original pilot
+  official witness, no *alternate* fight in this batch. A different fight
+  per encounter and phase variance remain a separate risk; 16 fights are
+  not universal registry coverage.
+
+### Integration decision — reuse the batching engine, do not rebuild it
+
+The existing private batch collector already performs **8 cross-report
+fight queries** with a Brotli batch checkpoint. Its old path is:
+`metadataQuery(batch) -> decodeMetadata -> tableQuery(meta.targets,'boss')
+-> decodeTables -> decodeBulkBossEvidence`.
+
+The measured lean query merges the first metadata discovery and Boss table
+fetch into ONE request and uses the frozen encounter-bound NPC gameIDs,
+while preserving Report revision, Fight identity and duration, names and
+exact BossDPS. **Prefer replacing just this request/decode chain** in the
+existing batch collection design; keep original planning, dedupe, admission,
+Brotli checkpoint and no-replay semantics. The old B1000 204-fight runner
+must not silently be treated as current B500 production input.
+
+The separate public `report-wave-plan`/`report-wave-runner` currently groups
+fights within one Report and decodes **two rankings metrics**, not DamageDone.
+Changing only its GraphQL text would break the decoder and lose cross-report
+8-field packing for the mostly one-fight-per-report B500 residuals.
+Do not swap those modules naïvely or claim end-to-end operation. Add an
+explicit strategy adapter only where genuinely needed, after reusing the
+existing cross-report batch checkpoint and selected named-only groups.
