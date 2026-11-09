@@ -162,6 +162,15 @@ export async function runOnePrivateFreshSourceTick({
         /(?:^|[:/])degong2-code\/wcl-fresh216(?:\.git)?$/.test(
           git(root,'remote','get-url','origin')),
         'FRESH_SOURCE_COMPAT_ORIGIN_REPOSITORY_INVALID');
+      // Exact audited core Git objects block an unreviewed helper change
+      // even when the exported functions still look textually identical.
+      need(git(root,'rev-parse',
+        'HEAD:src/core/fresh-cohort-source.mjs')===
+          '3c59982bb0a866f8f91a2b98053f93b51dd97ee9'&&
+        git(sourceRoot,'rev-parse',
+          'HEAD:src/core/fresh-cohort-source.mjs')===
+          '21709015b45bba3e44a4c1c53fcc7b04f4f26262',
+        'FRESH_SOURCE_COMPAT_CORE_BLOB_DRIFT');
       const moduleFile=path.join(root,'src/core/fresh-cohort-source.mjs');
       need(fs.existsSync(moduleFile)&&
         fs.lstatSync(moduleFile).isFile()&&
