@@ -191,6 +191,8 @@ export async function runOnePrivateFreshSourceTick({
       remoteGitCommits,
       remoteGitCommitMs:Math.round(remoteGitCommitMs),
       hourlyQuotaProbes:receipt.hourlyQuotaProbes,
+      hourlyQuotaProbePoints:receipt.quotaProbePointsObserved,
+      invocationApiPointsObserved:receipt.totalInvocationApiPointsObserved,
       nextWindowWaitMs:receipt.waitMs,
       budgetBasis:receipt.budgetBasis,
       privateCheckpointBytes:fs.statSync(savedPath).size,
