@@ -1,0 +1,40 @@
+name: Fresh216 alternate fights lean Boss (one approved GraphQL)
+on:
+  push:
+    branches: [work/fresh216-lean-boss-alternate-once-20261109]
+    paths:
+      - experiments/fresh216-lean-boss-alternate-20261109/REQUEST.json
+concurrency:
+  group: fresh216-lean-boss-alternate-once-20261109
+  cancel-in-progress: false
+permissions: {}
+jobs:
+  approved-single-query:
+    if: >-
+      github.repository == 'degong2-code/wcl-fresh216' &&
+      github.event_name == 'push' &&
+      github.ref == 'refs/heads/work/fresh216-lean-boss-alternate-once-20261109' &&
+      github.run_attempt == 1
+    runs-on: ubuntu-22.04
+    timeout-minutes: 8
+    permissions:
+      contents: write
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 2
+          persist-credentials: true
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+      - name: Offline contract and code checks before WCL
+        run: |
+          set -euo pipefail
+          node --check tools/lib/fresh216-lean-boss-table-query.mjs
+          node --check tools/run-actions-lean-boss-alternate-once-20261109.mjs
+          node --test tests/fresh216-lean-boss-table-query.test.mjs
+      - name: Compare 24 historic official witnesses in eight alternate fights
+        env:
+          WCL_CLIENT_ID: ${{ secrets.WCL_CLIENT_ID }}
+          WCL_CLIENT_SECRET: ${{ secrets.WCL_CLIENT_SECRET }}
+        run: node tools/run-actions-lean-boss-alternate-once-20261109.mjs
