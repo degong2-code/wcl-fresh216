@@ -1,0 +1,237 @@
+{
+  "schema": 1,
+  "kind": "FRESH216_LEAN_8FIGHT_24ACTOR_GOLD_V1",
+  "sources": {
+    "pilotCommit": "c349b174ae1e0e3a64edad488748596461e16ed7",
+    "bossRegistryCommit": "5bb5a3ee24a5b6078b1f8fe85183a357c4263d5a"
+  },
+  "targetRegistry": [
+    {
+      "encounterID": 3470,
+      "npcGameIDs": [
+        259927,
+        263050
+      ]
+    },
+    {
+      "encounterID": 3445,
+      "npcGameIDs": [
+        258557,
+        258558
+      ]
+    },
+    {
+      "encounterID": 3455,
+      "npcGameIDs": [
+        259181
+      ]
+    },
+    {
+      "encounterID": 3497,
+      "npcGameIDs": [
+        261584,
+        261835,
+        261843,
+        261848
+      ]
+    },
+    {
+      "encounterID": 3420,
+      "npcGameIDs": [
+        257347
+      ]
+    },
+    {
+      "encounterID": 3421,
+      "npcGameIDs": [
+        257361,
+        257368
+      ]
+    },
+    {
+      "encounterID": 3429,
+      "npcGameIDs": [
+        257911,
+        259854
+      ]
+    },
+    {
+      "encounterID": 3492,
+      "npcGameIDs": [
+        257758,
+        259555,
+        267460
+      ]
+    }
+  ],
+  "fights": [
+    {
+      "reportCode": "Zc7QygjkhaF8m43x",
+      "fightId": 15,
+      "encounterId": 3470,
+      "difficulty": 4,
+      "expectedRevision": 59,
+      "expectedActors": [
+        {
+          "actorNameSha256": "0a10a91cd2b44aa83c807ffdd41403826aa132e85e70457ae99910d6413d2bb7",
+          "bossDps": 205349.1441397482
+        },
+        {
+          "actorNameSha256": "8042e10a477650a3cb45e03ebcbfc94bd6dee6e4d56268e014fc44346e454cda",
+          "bossDps": 191629.10120035132
+        },
+        {
+          "actorNameSha256": "6286121a6d454ae93b7a7e4160859cfcb40833b1be175d4f4fb7d997f692ef26",
+          "bossDps": 212302.84766273055
+        },
+        {
+          "actorNameSha256": "2e022b5914a7ac2653b45510ef8c36dbfb8a9cb1b54344a439cba941ff6aa9cb",
+          "bossDps": 187657.17575875865
+        }
+      ]
+    },
+    {
+      "reportCode": "YbPGNBMjR8XtfyZz",
+      "fightId": 61,
+      "encounterId": 3445,
+      "difficulty": 4,
+      "expectedRevision": 3,
+      "expectedActors": [
+        {
+          "actorNameSha256": "85430ec1c469125cfa8260063de8d1824f544099751c148891cbf4cbb4725409",
+          "bossDps": 221461.97039965205
+        },
+        {
+          "actorNameSha256": "9b3901ef7efb5a5e43374c6d7b349648072f00570c1abb0f003593c49fb084f0",
+          "bossDps": 238174.6566936661
+        },
+        {
+          "actorNameSha256": "2e1b98b333d2252b031e92b3ffe45936885340802cef4cd20205f9d117307386",
+          "bossDps": 247039.37526644187
+        }
+      ]
+    },
+    {
+      "reportCode": "wMKZ1Rk3AgmvnbdN",
+      "fightId": 38,
+      "encounterId": 3455,
+      "difficulty": 4,
+      "expectedRevision": 28,
+      "expectedActors": [
+        {
+          "actorNameSha256": "e3218ac7d037df779c777c44fa3bdc38029f29facbcbaa826313f59ab55a93af",
+          "bossDps": 197794.6741141196
+        },
+        {
+          "actorNameSha256": "168ba58316c59bca6300dcf69e808088c1624cacd8f93a70bba841f7e97834a4",
+          "bossDps": 211309.08669735698
+        },
+        {
+          "actorNameSha256": "77d787ecddc7006ea7d0ba825d1be36eb834c11af9be239c2534979650ce2e5f",
+          "bossDps": 209589.40043001212
+        },
+        {
+          "actorNameSha256": "e42bd38c3837fb4a6038a8b83d3ab5b5ff4a54155184b6feee39ada21c501841",
+          "bossDps": 218741.58817368836
+        },
+        {
+          "actorNameSha256": "1b880cc18ddb2b211a1d0f2b1e555f35842438fb0f27a6655be6df8733f286ac",
+          "bossDps": 199284.48987448736
+        }
+      ]
+    },
+    {
+      "reportCode": "Fk79hwqJCAzG6WpM",
+      "fightId": 21,
+      "encounterId": 3497,
+      "difficulty": 4,
+      "expectedRevision": 1,
+      "expectedActors": [
+        {
+          "actorNameSha256": "637ace7690ee3529996fc3b8abae90c4dfa84e3ee546a2e6e15bea4fc72cfd29",
+          "bossDps": 312404.6416355103
+        },
+        {
+          "actorNameSha256": "c3068373cabe5ead8cb81c883cba796a3384f7cf8bf9fcb550836df7241e82c4",
+          "bossDps": 325957.7532946199
+        }
+      ]
+    },
+    {
+      "reportCode": "QtAfC3dYnhkKrb4L",
+      "fightId": 42,
+      "encounterId": 3420,
+      "difficulty": 4,
+      "expectedRevision": 28,
+      "expectedActors": [
+        {
+          "actorNameSha256": "579e905fee4f9acd1e78291fe7574095d6d5904ac3fb645809a05a8f70477bfb",
+          "bossDps": 206073.75350425136
+        }
+      ]
+    },
+    {
+      "reportCode": "27HDXhdWymTVpbYx",
+      "fightId": 27,
+      "encounterId": 3421,
+      "difficulty": 4,
+      "expectedRevision": 23,
+      "expectedActors": [
+        {
+          "actorNameSha256": "b7feee2e96adc7009d84499217b4ea821b81cb5e2b5dd07b51be8a13261e0fb7",
+          "bossDps": 299494.81440269336
+        },
+        {
+          "actorNameSha256": "9e6e126d4893c1105f0471e79e53cd29694f96fdf86d4a0fdfd5811222d0e64d",
+          "bossDps": 263779.216240121
+        }
+      ]
+    },
+    {
+      "reportCode": "f3jbCFHZkanPRDcq",
+      "fightId": 27,
+      "encounterId": 3429,
+      "difficulty": 4,
+      "expectedRevision": 1,
+      "expectedActors": [
+        {
+          "actorNameSha256": "715339616a01364ce31864af3f71d009a0286b7b3bcedb2e4c8fc79ec1b5949e",
+          "bossDps": 312750.1506286426
+        },
+        {
+          "actorNameSha256": "492ae902685bc0cf9cc40502a152efe1b9bf50a1b519f5e87699f2825d92f3d6",
+          "bossDps": 305803.06911213335
+        }
+      ]
+    },
+    {
+      "reportCode": "zTvb1aDX7ZrRKctk",
+      "fightId": 40,
+      "encounterId": 3492,
+      "difficulty": 4,
+      "expectedRevision": 99,
+      "expectedActors": [
+        {
+          "actorNameSha256": "4fec10c6c1552d0fc51d16311499c9f11dcace243548e9b4313e5f501c01abfa",
+          "bossDps": 215695.81313878545
+        },
+        {
+          "actorNameSha256": "74f0454ec0d9dfff718bca63813798f809a7a8a148f1c6a39f4fb066ad1ea800",
+          "bossDps": 210955.2794925429
+        },
+        {
+          "actorNameSha256": "f0abafdceaa4cb72e6de5ea8fd6753318995bed3a4eaf0aa5d8c63200ee4ce06",
+          "bossDps": 198281.44142305665
+        },
+        {
+          "actorNameSha256": "ff3bd5dcff7b7ee4038a65e81c5de6efe94311c61a16d489cc468d6ed494b432",
+          "bossDps": 181151.31370848426
+        },
+        {
+          "actorNameSha256": "0f82f91ea43c7e0b63f279d2a787b8d1aeb3bebe62b1632e02bc511fd94d8bb2",
+          "bossDps": 189227.64144686496
+        }
+      ]
+    }
+  ]
+}
