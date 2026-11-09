@@ -1,0 +1,28 @@
+name: Fresh216 lean boss-table candidate (offline only)
+on:
+  push:
+    branches: [work/fresh216-lean-boss-table-study-20261109]
+    paths:
+      - tools/lib/fresh216-lean-boss-table-query.mjs
+      - tests/fresh216-lean-boss-table-query.test.mjs
+      - .github/workflows/fresh216-lean-boss-study-offline-20261109.yml
+permissions:
+  contents: read
+jobs:
+  synthetic-query-contract:
+    if: github.repository == 'degong2-code/wcl-fresh216'
+    runs-on: ubuntu-22.04
+    timeout-minutes: 4
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+      - name: Check query candidate and fail-closed receipt contract
+        run: |
+          set -euo pipefail
+          node --check tools/lib/fresh216-lean-boss-table-query.mjs
+          node --test tests/fresh216-lean-boss-table-query.test.mjs
+          echo "Only synthetic test vectors. WCL API calls = 0, Sheets writes = 0." >> "$GITHUB_STEP_SUMMARY"
