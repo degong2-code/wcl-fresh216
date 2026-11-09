@@ -51,7 +51,7 @@ export async function runBoundedFreshCohortBatches({
   let attempted=0,recorded=0,points=0,wallMs=0;
   let reason='MAX_REQUESTS_REACHED',waitMs=0;
   let sampled=null,sampledAt=null,spendSinceSample=0;
-  let quotaProbeCalls=0;
+  let quotaProbeCalls=0,quotaProbePoints=0;
   for(let i=0;i<maxRequests;i++){
     const state=store.read();
     const current=nextFreshCohortBatch(state,manifest);
@@ -68,6 +68,13 @@ export async function runBoundedFreshCohortBatches({
         try{
           sampled=await quotaReader();
           quotaProbeCalls++;
+          // rateLimitData.currentRequest.total includes the minimum
+          // application point cost of the quota GET itself.
+          let probe=sampled?.currentRequest;
+          if(typeof probe==='string')probe=JSON.parse(probe);
+          need(point(probe?.total)&&probe.total>0,
+            'HOURLY_QUOTA_PROBE_POINT_WITNESS_MISSING');
+          quotaProbePoints+=probe.total;
           // Validate the WCL response before writing ANY source checkpoint.
           evaluateWclHourlyQuota(sampled,{
             reservePoints:policy.reservePoints,
@@ -137,6 +144,8 @@ export async function runBoundedFreshCohortBatches({
     budgetBasis:'APPROVED_INVOCATION',
     lifetimePointsBeforeInvocation:initialPoints,
     hourlyQuotaProbes:quotaProbeCalls,
+    quotaProbePointsObserved:quotaProbePoints,
+    totalInvocationApiPointsObserved:points+quotaProbePoints,
     waitMs,automaticRetries:0
   };
 }
