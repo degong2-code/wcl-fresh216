@@ -1,4 +1,6 @@
 import {createHash,randomUUID} from 'node:crypto';
+import {bossesForFreshScope}
+  from './fresh216-boss-identities.mjs';
 import {planFull216} from './full-scope-plan.mjs';
 import {checkpointStats} from './checkpoint.mjs';
 import {evaluateRequestAdmission} from './request-admission.mjs';
@@ -12,16 +14,9 @@ const validText=x=>typeof x==='string'&&x.length>0&&x.length<=128;
 const DATE_FILTER='date.1792594800000.1793113200000';
 // Frozen WCL 8-boss/27-spec job roster from the user's imported original
 // Apps Script Code.js. Names and IDs are metadata, never private actor rows.
-export const FRESH_HEROIC_BOSSES=Object.freeze([
-  {name:'네크잘리',encounterId:3470},
-  {name:'파수꾼',encounterId:3445},
-  {name:'탐험가',encounterId:3455},
-  {name:'바쉬니크',encounterId:3497},
-  {name:'스조라크',encounterId:3420},
-  {name:'쌍곳니',encounterId:3421},
-  {name:'똬리',encounterId:3429},
-  {name:'울라텍',encounterId:3492}
-]);
+// Correct canonical WCL boss names for NEW cohorts.
+export const FRESH_HEROIC_BOSSES=Object.freeze(
+  bossesForFreshScope(null).map(Object.freeze));
 export const FRESH_DPS_SPECS=Object.freeze([
   ['DeathKnight','Frost'],['DeathKnight','Unholy'],
   ['DemonHunter','Havoc'],['DemonHunter','Devourer'],
@@ -39,7 +34,7 @@ export function makeFreshDatedHeroicManifest(scopeKey){
   need(typeof scopeKey==='string'&&scopeKey.length>0,
     'FRESH_COHORT_SCOPE_KEY_INVALID');
   return {scopeKey,difficulty:4,partitionMode:'LATEST_DEFAULT',
-    filter:DATE_FILTER,bosses:copy(FRESH_HEROIC_BOSSES),
+    filter:DATE_FILTER,bosses:bossesForFreshScope(scopeKey),
     specs:copy(FRESH_DPS_SPECS)};
 }
 
@@ -72,7 +67,7 @@ export function validateFreshCohortManifest(m){
       'FRESH_COHORT_SPEC_DUPLICATE_OR_INVALID');
     specs.add(s.className+'|'+s.specName);
   }
-  need(JSON.stringify(m.bosses)===JSON.stringify(FRESH_HEROIC_BOSSES)&&
+  need(JSON.stringify(m.bosses)===JSON.stringify(bossesForFreshScope(m.scopeKey))&&
     JSON.stringify(m.specs)===JSON.stringify(FRESH_DPS_SPECS),
     'FRESH_COHORT_ROSTER_NOT_ATTESTED');
   return digest({scopeKey:m.scopeKey,difficulty:4,
