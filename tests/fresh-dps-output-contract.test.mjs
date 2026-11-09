@@ -154,3 +154,32 @@ test('cannot claim unique identity when two TotalDPS ranks share same report-fig
     totalRankSlots:f.totalRankSlots,bossPage:f.bossPage,
     verifiedProofs:f.proofs}),/DPS_MASKED_OR_COLLIDING_ACTOR/);
 });
+
+test('frozen 3rd/4th boss A/B/C evidence keeps original identity but corrected output labels',()=>{
+  for(const [encounterId,oldName,newName] of [
+    [3455,'탐험가','바쉬니크'],
+    [3497,'바쉬니크','길 잃은 탐험가']
+  ]){
+    const f=fixture(),oldKey=oldName+'|Shaman|Enhancement';
+    for(const s of f.totalRankSlots){
+      s.encounterId=encounterId;s.jobKey=oldKey;
+    }
+    f.bossPage.jobKey=oldKey;
+    for(const p of f.proofs){
+      p.jobKey=oldKey;p.proof.encounterId=encounterId;
+    }
+    const o=summarizeFreshDpsJob({
+      totalRankSlots:f.totalRankSlots,bossPage:f.bossPage,
+      verifiedProofs:f.proofs
+    });
+    assert.equal(o.jobKey,oldKey);
+    assert.equal(o.canonicalJobKey,newName+'|Shaman|Enhancement');
+    assert.equal(o.bossDisplayName,newName);
+    assert.equal(o.bossNameCorrectedFromFrozen,true);
+    assert.equal(o.snapshotSha,snapshotSha);
+    assert.equal(o.verifiedRanks,100);
+    assert.equal(o.bossRankingStatus,'EXACT100');
+    assert.equal(o.totalDpsMetrics[0],200000);
+    assert.equal(o.bossRankedDpsMetrics[0],180000);
+  }
+});
