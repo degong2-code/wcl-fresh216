@@ -31,7 +31,7 @@ test('9 -> 27 -> 54 -> 108 pure query shape and all 4,320 full rank fields',()=>
   for(const c of cases){
     assert.match(c.query,/metric:bossdps/);
     assert.match(c.query,/page:1/);
-    assert.match(c.query,/date/,{});
+    assert.equal(c.variables.f,'date.1792594800000.1793113200000');
     assert.equal(c.fields.length,c.fieldCount);
     assert.equal(new Set(c.fields.map(f=>
       [f.encounterAlias,f.rankAlias].join(':'))).size,c.fieldCount);
