@@ -156,7 +156,7 @@ export async function runOnePrivateFreshSourceTick({
       const response=await transport({query:
         'query Fresh216HourlyQuota { rateLimitData { '+
         'limitPerHour pointsSpentThisHour pointsResetIn '+
-        'databaseLimitPerHour databasePointsSpentThisHour } }',
+        'databaseLimitPerHour databasePointsSpentThisHour currentRequest } }',
         variables:{}});
       need(response?.httpStatus===200&&
         response.body?.errors==null&&
