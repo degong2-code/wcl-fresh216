@@ -1,0 +1,20 @@
+{
+  "schema": 1,
+  "status": "IN_FLIGHT",
+  "mode": "ONE_SHOT_ONE_GRAPHQL",
+  "requestHead": "abea43add7ac2ac2806160df3a53d02e723a1950",
+  "expected": {
+    "fights": 8,
+    "actors": 24,
+    "tables": 8
+  },
+  "bounds": {
+    "maxGraphqlCalls": 1,
+    "maxObservedPoints": 30,
+    "safeHourlyAppPoints": 3240
+  },
+  "querySha256": "ea6637add9642f0d55c6b63e9bfa5ac375b7791a762a7c15c04fd2161f2220d1",
+  "rawResponsesPersisted": false,
+  "noBaselineRefetch": true,
+  "noCOrSheets": true
+}
