@@ -64,11 +64,16 @@ export function validateFreshSourceTickRequest(request,{
         (request.maxRequests==null||request.maxRequests===1)):
       ([8,9].includes(request.jobsPerRequest)&&
         Number.isSafeInteger(request.maxRequests)&&
-        request.maxRequests>=1&&request.maxRequests<=8))&&
+        request.maxRequests>=1&&request.maxRequests<=32))&&
     Number.isSafeInteger(request.maxObservedPoints)&&
-    request.maxObservedPoints>=1&&request.maxObservedPoints<=100&&
+    request.maxObservedPoints>=1&&
+    request.maxObservedPoints<=(request.mode==='source-bounded'?3600:100)&&
     Number.isSafeInteger(request.reservePoints)&&
-    request.reservePoints>=1&&request.reservePoints<=100,
+    request.reservePoints>=1&&request.reservePoints<=100&&
+    request.reservePoints<=request.maxObservedPoints&&
+    (request.databaseReservePoints==null||
+      Number.isSafeInteger(request.databaseReservePoints)&&
+      request.databaseReservePoints>=0&&request.databaseReservePoints<=100),
     'FRESH_SOURCE_REQUEST_NOT_PINNED');
   return true;
 }
@@ -144,13 +149,30 @@ export async function runOnePrivateFreshSourceTick({
     });
     // Both modes run through the same bounded coordinator; source-one
     // preserves its previous one-request contract by selecting max=1.
+    // Hourly quota GET is a small WCL API request, not a source-rank
+    // request. It cannot produce rank/actor evidence and is never retried
+    // automatically after a network or GraphQL ambiguity.
+    const quotaReader=request.mode==='source-bounded'?async()=>{
+      const response=await transport({query:
+        'query Fresh216HourlyQuota { rateLimitData { '+
+        'limitPerHour pointsSpentThisHour pointsResetIn '+
+        'databaseLimitPerHour databasePointsSpentThisHour } }',
+        variables:{}});
+      need(response?.httpStatus===200&&
+        response.body?.errors==null&&
+        response.body?.data?.rateLimitData,
+        'FRESH_SOURCE_HOURLY_QUOTA_UNAVAILABLE');
+      return response.body.data.rateLimitData;
+    }:null;
     const receipt=await runBoundedFreshCohortBatches({
       store:durable,manifest,approved:true,
       transport,jobsPerRequest:request.jobsPerRequest,
       maxRequests:request.mode==='source-one'?1:request.maxRequests,
+      quotaReader,
       admissionPolicy:{notBeforeMs:0,
         maxObservedPoints:request.maxObservedPoints,
-        reservePoints:request.reservePoints}
+        reservePoints:request.reservePoints,
+        databaseReservePoints:request.databaseReservePoints??0}
     });
     const after=local.read();
     const status=nextFreshCohortBatch(after,manifest);
@@ -168,6 +190,9 @@ export async function runOnePrivateFreshSourceTick({
       stateVersion:after.version,
       remoteGitCommits,
       remoteGitCommitMs:Math.round(remoteGitCommitMs),
+      hourlyQuotaProbes:receipt.hourlyQuotaProbes,
+      nextWindowWaitMs:receipt.waitMs,
+      budgetBasis:receipt.budgetBasis,
       privateCheckpointBytes:fs.statSync(savedPath).size,
       sourceReady:
         status.kind==='SOURCE_COMPLETE',
@@ -185,8 +210,9 @@ if(process.argv[1]&&path.resolve(process.argv[1])===entry){
     });
     console.log(JSON.stringify(result));
     const acceptable=result.mode==='source-bounded'?
-      ['MAX_REQUESTS_REACHED','SOURCE_COMPLETE','BUDGET_PAUSED']
-        .includes(result.status)&&result.recordedRequests>0:
+      (['MAX_REQUESTS_REACHED','SOURCE_COMPLETE','BUDGET_PAUSED']
+        .includes(result.status)&&result.recordedRequests>0)||
+      result.status==='HOURLY_RATE_WAIT':
       result.status==='RECORDED'&&result.recordedRequests===1;
     if(!acceptable)process.exitCode=2;
   }catch(e){
