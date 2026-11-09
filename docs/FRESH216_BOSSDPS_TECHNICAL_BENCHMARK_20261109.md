@@ -51,11 +51,23 @@ The real four-call batch used **2 Git commits**; measured preflight/final
 commit+push time **1262+967=2229ms**, versus 8 commits under old 2-per-request
 protocol (counterfactual count, NOT a measured speedup).
 
-**Critical feasibility:** `characterRankings` is a [Database Points]
-field. At the verified 250 DB points/hour, 4320 database points represent
-**17.28 hourly quotas, 18 hourly windows** and cannot fit in 1–3 hours,
-even if 40 GraphQL requests are very fast. 4320 app points also exceed
-one 3600-point application window. TotalDPS source A is not reread.
+**Corrected quota interpretation (2026-11-09):** The `databaseLimitPerHour=250`
+and `currentRequest.database` fields are also displayed to **legacy, non-opted-in**
+API keys, as explicitly stated in WCL's RateLimitData schema and 2026-10-20
+beta announcement. A previous live same-project B1000 pilot
+[Actions #41013626639](https://github.com/degong2-code/ai-project-lab/actions/runs/41013626639)
+successfully used **2,162.16 WCL points on 216 GraphQL calls / 2,160 ranking
+aliases in 3m35s**, with 250 database limit displayed, 3,600 application
+limit displayed, and no database throttling. Therefore the prior assertion
+that 4,320 database points **necessarily require 18 hourly windows** is
+**retracted**. The currently observed 3,600 application limit also matches
+the old non-opted-in point system, while the 2026 beta free-tier app
+limit is 1,000. Account-specific current beta opt-in state is not
+independently confirmed: inspect API Client Settings / "Use New Limits"
+without opting in. Under the old regime, 4,320 ranking fields at ~1
+application point each require ~4,320 **application** points and at least
+one quota reset, but not necessarily 18 hours. Deeper page costs are
+not guaranteed to stay 1 point. TotalDPS source A is not reread.
 
 ## Production decision boundary
 
