@@ -26,7 +26,7 @@ test('official encounter ID 3455 is Vashnik and 3497 is Lost Explorers',()=>{
   const swapped=structuredClone(canonical);
   swapped.bosses[2].name='탐험가';
   assert.throws(()=>validateFreshCohortManifest(swapped),
-    /FRESH_COHORT_MANIFEST_INVALID/);
+    /FRESH_COHORT_ROSTER_NOT_ATTESTED/);
 });
 
 test('frozen A216 manifest fingerprint is BYTE-COMPATIBLE with immutable evidence',()=>{
