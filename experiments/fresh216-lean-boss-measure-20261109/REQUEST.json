@@ -1,0 +1,20 @@
+{
+  "schema": 1,
+  "kind": "FRESH216_LEAN_BOSS_MEASURE_8X24_V1",
+  "approved": true,
+  "mode": "one-shot",
+  "scope": "Eight previously official-comparable Heroic fights only, 24 frozen actor hashes; exactly one new lean DamageDone GraphQL; no other WCL GraphQL",
+  "ref": "work/fresh216-lean-boss-measure-once-20261109",
+  "parentCommit": "9512fc12880e2c1b226c6c424f1517b5a679b771",
+  "goldGitBlobSha": "e121ecb3984b44efc9476369e6752c78a9281290",
+  "codeGitBlobSha": "cfd672a0c6f4b01f41eed5e0199fb7cadbab1f07",
+  "fights": 8,
+  "actors": 24,
+  "maxWclGraphqlCalls": 1,
+  "maxObservedAppPoints": 30,
+  "safeHourlyAppPoints": 3240,
+  "authorization": "Owner follow-up '진행' after explicitly scoped one-request <=30 App-points measurement (2026-11-09)",
+  "noAutomaticRetry": true,
+  "noMetadataOrOfficialRefetch": true,
+  "noCOrSheetsPromotion": true
+}
