@@ -80,3 +80,41 @@ Compared original A-origin source code at
 Offline CI proof: https://github.com/degong2-code/wcl-fresh216/actions/runs/42548407822
 76 pure-core suites PASS; private inventory and WCL jobs SKIPPED.
 Temporary CI branch trigger reverted byte-for-byte before PR review.
+
+## P1.1 A90 execution-code compatibility adapter (2026-11-09)
+
+- `sourceCodeCommit` in the private A90 checkpoint stays the original
+  immutable provenance `0d2c3de4d34ea7dccdba3d4f9a4326d8c0e34179`.
+- The owner request can separately pin the execution code (`productCommit`)
+  and the explicitly audited `compatibleSourceOriginCommit`. For the
+  current A90 only, the compatible origin must match exactly that original
+  SHA. `source-one` and other modes reject origin compatibility override.
+- The private runner reads BOTH original and successor product Git trees,
+  checking their HEAD SHA, source-module blob identities, clean worktrees,
+  and origin repository address. It then compares 11 paid-path functions,
+  every one of the 24 immutable nine-alias GraphQL queries, the exact
+  next batch, and all already committed rank-row snapshot hashes via
+  the shared projector. All checks precede OAuth, data HTTP or state writes.
+- Exact allowed source-module blob pair:
+  original `3c59982bb0a866f8f91a2b98053f93b51dd97ee9`,
+  successor `21709015b45bba3e44a4c1c53fcc7b04f4f26262`.
+- The generic `attestFreshCohortExecutionCompatibility` function is
+  read-only and has synthetic positive/tamper/uncertain-state regression.
+- On successful explicit future paid operation, only standard checkpoint
+  transitions update version and A job count; the origin code commit is
+  never rewritten, and execution code SHA is only included in the
+  sanitized operation receipt.
+- Existing active private control request remains preview/approved=false.
+  This adapter alone is not permission for WCL API calls or auto-resume.
+
+### Remaining promotion gates
+
+1. Product PR #24 offline suite PASS after all P1.1 changes.
+2. Separate private `preview` job imports original and successor product
+   code, reads the actual A90 checkpoint and checks 9,000 original rows.
+3. A private owner-reviewed source-bounded workflow may check out the
+   new exact P1.1 code commit only after its preview integration PASS.
+4. Any paid continuation still needs an explicit owner request pinning
+   product HEAD, source HEAD, origin SHA, request bound and hourly budget.
+
+No historical C, new B or Sheets state is promoted by this change.
