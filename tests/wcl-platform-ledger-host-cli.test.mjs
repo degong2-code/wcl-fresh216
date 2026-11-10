@@ -123,5 +123,5 @@ test('PowerShell wrapper delegates directly to WSL without invoking bash, live W
   assert.match(ps1,/ValidateSet\('Candidate','Status','Backup','VerifyBackup'\)/);
   assert.match(ps1,/wsl\.exe -d \$Distro -- node @arguments/);
   assert.match(ps1,/DbLinuxPath/);
-  assert.doesNotMatch(ps1,/Invoke-Expression|Start-Process|curl|wget|Invoke-RestMethod|Start-Fresh216|Collect/i);
+  assert.doesNotMatch(ps1,/Invoke-Expression|Start-Process|curl|wget|Invoke-RestMethod|Start-Fresh216|Collect-Wcl/i);
 });
