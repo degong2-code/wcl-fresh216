@@ -121,6 +121,8 @@ export async function buildEvidenceGatedWclPolicy({
     const verdict=await verifyEvidence({
       sourceKind:r.evidence.sourceKind,sourceRef:r.evidence.sourceRef,
       sourceSha256:r.evidence.sourceSha256,claimSha256,
+      capturedAtMs:r.evidence.capturedAtMs,
+      validUntilMs:r.evidence.validUntilMs,
       claim:JSON.parse(JSON.stringify(r.claim)),scope:{...scope},nowMs
     });
     if(verdict?.status==='UNVERIFIED'){rejected++;continue;}
