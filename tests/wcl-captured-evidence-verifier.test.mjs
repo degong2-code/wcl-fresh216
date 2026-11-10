@@ -40,6 +40,7 @@ const scenario=()=>{
       encounters:[{journalEncounterID:300},{journalEncounterID:301}]}]
   },'WOW_CLIENT_JOURNAL','wow-client-export',
   'EJ_GetInstanceByIndex+EJ_GetEncounterInfoByIndex','synthetic-retail');
+  journal.clientBuild='12.0.1';
   const specBinding={wclClassId:8,wclSpecId:3,
     blizzardClassId:8,blizzardSpecId:63,
     wclSourceSha256:wcl.sourceSha256,blizzardSourceSha256:spec.sourceSha256};
@@ -107,7 +108,7 @@ test('manifest digest alone, without a trusted capture pin, never grants a role'
 test('wrong WCL namespace, expansion and claim digest are UNVERIFIED without reads',async()=>{
   const s=scenario(),v=s.verify();
   const claim=s.manifest.records[0].claim;
-  const base={sourceKind:s.spec.sourceKind,sourceRef:s.spec.sourceRef,
+  const base={nowMs:100,sourceKind:s.spec.sourceKind,sourceRef:s.spec.sourceRef,
     sourceSha256:s.spec.sourceSha256,claim,
     claimSha256:'a'.repeat(64),
     scope:{sourceNamespace:'synthetic-retail',expansionId:99}};
@@ -134,7 +135,7 @@ test('operator-pinned crosswalk must be explicit; coincidental WCL and Blizzard 
   const v=s.verify({specCrosswalks:[{...s.specBinding,blizzardSpecId:3}]});
   const claim=s.manifest.records[0].claim,scope={sourceNamespace:'synthetic-retail',expansionId:99};
   const claimSha256=shaText(canonicalCatalogJson({scope,claim}));
-  await assert.rejects(()=>v({claim,scope,claimSha256,
+  await assert.rejects(()=>v({claim,scope,nowMs:100,claimSha256,
     sourceKind:s.spec.sourceKind,sourceRef:s.spec.sourceRef,
     sourceSha256:s.spec.sourceSha256}),/BLIZZARD_SPEC_ORIGIN_INVALID/);
 });
@@ -237,6 +238,41 @@ test('oversized or absent immutable bytes never count as a verified witness',asy
   await assert.rejects(()=>buildEvidenceGatedWclPolicy({
     manifest:s.manifest,verifyEvidence:v,sha256:shaText,nowMs:100}),
     /CAPTURE_BYTES_UNAVAILABLE_OR_UNBOUNDED/);
+});
+
+test('same WCL journalID assigned to two encounter IDs is rejected before classification',async()=>{
+  const s=scenario();
+  const body=JSON.parse(new TextDecoder().decode(s.captures.get(s.wcl.sourceRef)));
+  body.zones.data.worldData.zones[0].encounters[1].journalID=300;
+  s.captures.set(s.wcl.sourceRef,encode(body));
+  const wclPin={...s.wcl,sourceSha256:shaBytes(s.captures.get(s.wcl.sourceRef))};
+  const binding={...s.specBinding,wclSourceSha256:wclPin.sourceSha256};
+  const v=s.verify({wclPin,specCrosswalks:[binding]});
+  await assert.rejects(()=>buildEvidenceGatedWclPolicy({
+    manifest:s.manifest,verifyEvidence:v,sha256:shaText,nowMs:100}),
+    /WCL_CAPTURE_JOURNAL_ID_DUPLICATE/);
+});
+
+test('manifest cannot extend an externally pinned source expiry or use an earlier verifier clock',async()=>{
+  const s=scenario();
+  const p=await buildEvidenceGatedWclPolicy({
+    manifest:s.manifest,verifyEvidence:s.verify({verifiedAtMs:50}),
+    sha256:shaText,nowMs:100});
+  assert.equal(p.diagnostics.accepted,0); // timestamp mismatch returns UNVERIFIED
+  assert.equal(s.getReads(),0);
+  const old=s.verify({sourcePins:[s.spec,{...s.journal,validUntilMs:99}]});
+  await assert.rejects(()=>buildEvidenceGatedWclPolicy({
+    manifest:s.manifest,verifyEvidence:old,sha256:shaText,nowMs:100}),
+    /CAPTURE_PIN_EXPIRED_OR_FUTURE/);
+});
+
+test('client build drift does not certify an alleged journal raid mapping',async()=>{
+  const s=scenario();
+  const altered={...s.journal,clientBuild:'12.9.0'};
+  const p=await buildEvidenceGatedWclPolicy({
+    manifest:s.manifest,verifyEvidence:s.verify({sourcePins:[s.spec,altered]}),
+    sha256:shaText,nowMs:100});
+  assert.equal(p.classifyZone({id:901,name:'Synthetic Raid'},{id:99}),null);
 });
 
 test('capture verifier produces no network client, Secrets reader, or automatic requests',()=>{
