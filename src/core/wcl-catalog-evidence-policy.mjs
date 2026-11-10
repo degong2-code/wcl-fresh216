@@ -9,6 +9,8 @@
  * difficulty/partition support. It does NOT certify NPC gameIDs/BossDPS.
  */
 import {canonicalCatalogJson} from './environment-discovery.mjs';
+import {createWclCatalogPort} from './wcl-catalog-port.mjs';
+const issuedPolicies=new WeakSet();
 
 const fail=code=>{throw new Error(code);};
 const ok=(v,code)=>{if(!v)fail(code);};
@@ -180,8 +182,29 @@ export async function buildEvidenceGatedWclPolicy({
     npcRulesCertified:0,bossDpsPolicyCertified:false,
     trustedVerifierRequired:true
   });
-  return Object.freeze({
+  const policy=Object.freeze({
     policyVersion:version,classifyZone,classifySpec,
     confirmEncounterSupport,diagnostics
+  });
+  issuedPolicies.add(policy);
+  return policy;
+}
+
+/**
+ * Only binds policies created and attested in this process, with exact WCL
+ * endpoint namespace + expansion ID. Fails closed before either query.
+ */
+export function bindEvidenceGatedWclCatalogPort({
+  policy,sourceNamespace,expansionId,queryGraphql,...bounds
+}={}){
+  ok(policy&&issuedPolicies.has(policy)&&
+    sourceNamespace===policy.diagnostics.sourceNamespace&&
+    expansionId===policy.diagnostics.expansionId,
+    'POLICY_CATALOG_SCOPE_MISMATCH');
+  return createWclCatalogPort({
+    ...bounds,sourceNamespace,expansionId,queryGraphql,
+    policyVersion:policy.policyVersion,
+    classifyZone:policy.classifyZone,classifySpec:policy.classifySpec,
+    confirmEncounterSupport:policy.confirmEncounterSupport
   });
 }
