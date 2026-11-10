@@ -211,11 +211,10 @@ test('even non-raid journal is not enough to call a WCL zone a dungeon',async()=
 
 test('source expired or captured in future aborts before reading any bytes',async()=>{
   const s=scenario();
-  const p=await buildEvidenceGatedWclPolicy({
+  await assert.rejects(()=>buildEvidenceGatedWclPolicy({
     manifest:s.manifest,verifyEvidence:s.verify({
       wclPin:{...s.wcl,validUntilMs:100}}),
-    sha256:shaText,nowMs:100});
-  assert.equal(p.diagnostics.accepted,0);
+    sha256:shaText,nowMs:100}),/CAPTURE_PIN_EXPIRED_OR_FUTURE/);
   assert.equal(s.getReads(),0);
 });
 
