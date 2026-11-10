@@ -23,7 +23,7 @@ jobs:
   attested-policy:
     if: github.repository == 'degong2-code/wcl-fresh216'
     runs-on: ubuntu-latest
-    timeout-minutes: 7
+    timeout-minutes: 12
     steps:
       - uses: actions/checkout@v4
         with:
@@ -46,6 +46,8 @@ jobs:
             tests/wcl-catalog-port.test.mjs \
             tests/wcl-catalog-integration.test.mjs \
             tests/environment-discovery.test.mjs
+      - name: Verify full existing offline core regression
+        run: node tools/ci.mjs
       - name: Report strict boundaries
         if: always()
         run: |
