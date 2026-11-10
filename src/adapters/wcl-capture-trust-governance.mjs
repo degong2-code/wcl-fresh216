@@ -143,7 +143,8 @@ export async function admitGovernedSignedWclCapture({
   // This is the only side effect and MUST be implemented as trusted durable CAS.
   // A failed/missing/ambiguous acknowledgement cannot authorize the capture.
   const committed=await commitHead({
-    expectedHeadSha256:priorDigest,nextHead,nextHeadSha256:nextDigest
+    expectedHeadSha256:priorDigest,nextHead,nextHeadSha256:nextDigest,
+    registrySha256,signerId:key.keyId
   });
   need(committed?.committed===true&&
     committed.headSha256===nextDigest,
