@@ -260,6 +260,19 @@ test('uninitialized scope, memory DB path and unsupported DB schema fail closed'
   f.reopen();
 }));
 
+test('a corrupted persisted admission row blocks new CAS without rewriting the head',()=>withStore(async f=>{
+  await f.admit();
+  const external=new DatabaseSync(f.dbPath);
+  external.prepare('UPDATE capture_admissions SET signed_payload_sha256=? WHERE capture_set_id=?')
+    .run('e'.repeat(64),'set-01');
+  external.close();
+  await assert.rejects(()=>f.admit({
+    signedBundle:f.signBundle({id:'set-02',issuedAtMs:70})
+  }),/SQLITE_LEDGER_AUDIT_CHAIN_BROKEN/);
+  assert.equal(f.readHead().generation,1);
+  assert.equal(f.currentLedger().readAdmission('set-02'),null);
+});
+
 test('ledger persists only compact metadata, not signed keys or raw capture bytes',()=>withStore(async f=>{
   await f.admit();
   const sql=new DatabaseSync(f.dbPath);
