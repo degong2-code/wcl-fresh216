@@ -153,7 +153,7 @@ export function openSqliteCaptureLedger({dbPath}={}){
         namespace,expansionId);
       const prior=old.generation>0?getAdmission.get(old.lastCaptureSetId):null;
       need(old.generation===0||
-        (prior?.head_sha256===expectedHeadSha256&&
+        (prior?.head_sha256===governanceDigest(old)&&
           prior.registry_revision===old.registryRevision),
         'SQLITE_LEDGER_AUDIT_CHAIN_BROKEN');
       if(governanceDigest(old)!==expectedHeadSha256 ||
