@@ -1,0 +1,49 @@
+name: WCL platform trusted capture crosswalk (offline only)
+
+on:
+  push:
+    branches:
+      - work/wcl-platform-trusted-witness-20261110-v1
+    paths:
+      - src/core/wcl-captured-evidence-verifier.mjs
+      - tests/wcl-captured-evidence-verifier.test.mjs
+      - src/core/wcl-catalog-evidence-policy.mjs
+      - src/core/wcl-catalog-port.mjs
+      - tools/ci.mjs
+      - .github/workflows/wcl-platform-trusted-capture-offline.yml
+
+permissions:
+  contents: read
+
+jobs:
+  captured-witness:
+    if: github.repository == 'degong2-code/wcl-fresh216'
+    runs-on: ubuntu-latest
+    timeout-minutes: 12
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+      - name: Check exact-source trust verifier syntax
+        run: |
+          set -euo pipefail
+          node --check src/core/wcl-captured-evidence-verifier.mjs
+          node --check tests/wcl-captured-evidence-verifier.test.mjs
+      - name: Verify exact source bytes and WCL crosswalk
+        run: |
+          set -euo pipefail
+          node --test tests/wcl-captured-evidence-verifier.test.mjs \
+            tests/wcl-catalog-evidence-policy.test.mjs \
+            tests/wcl-catalog-port.test.mjs \
+            tests/wcl-catalog-integration.test.mjs \
+            tests/environment-discovery.test.mjs
+      - name: Verify complete existing offline core regression
+        run: node tools/ci.mjs
+      - name: Disclose evidence and security boundary
+        if: always()
+        run: |
+          echo '### Pinned capture verifier: synthetic only' >> "$GITHUB_STEP_SUMMARY"
+          echo 'No WCL/Blizzard API, OAuth/Secrets, file persistence, historical Checkpoint/C/KPI/Sheets or Cloudflare. Captures and source pins are synthetic.' >> "$GITHUB_STEP_SUMMARY"
