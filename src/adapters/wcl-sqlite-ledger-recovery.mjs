@@ -242,7 +242,7 @@ export function verifyAnchoredWclSqliteBackup({
   const path=checkedPath(dbPath);
   need(hashFile(path)===expectedFileSha256,'LEDGER_BACKUP_BYTES_CHANGED');
   const {audit,result}=readSnapshot(path,trustedAnchors);
-  return {status:'BACKUP_BYTES_AND_ANCHORS_VERIFIED',
-    ...result,sha256:expectedFileSha256,scopeCount:audit.scopeCount,
+  return {...result,status:'BACKUP_BYTES_AND_ANCHORS_VERIFIED',
+    sha256:expectedFileSha256,scopeCount:audit.scopeCount,
     admissionCount:audit.admissionCount};
 }
