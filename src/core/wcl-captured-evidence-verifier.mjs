@@ -189,7 +189,7 @@ export function createTrustedCapturedEvidenceVerifier({
     return safeParsed(bytes);
   }
   return async function verifyEvidence({sourceKind,sourceRef,
-    sourceSha256,claimSha256,claim,scope,nowMs}={}){
+    sourceSha256,claimSha256,claim,scope,nowMs,capturedAtMs,validUntilMs}={}){
     const unverified={status:'UNVERIFIED'};
     if(!scope||!positive(scope.expansionId)||
       scope.sourceNamespace!==wcl.namespace ||
@@ -199,7 +199,10 @@ export function createTrustedCapturedEvidenceVerifier({
     const pin=sources.get(sourceRef);
     if(!pin || pin.sourceKind!==sourceKind ||
       pin.sourceSha256!==sourceSha256 ||
-      pin.locale!==wcl.locale)return unverified;
+      pin.locale!==wcl.locale ||
+      capturedAtMs!==pin.capturedAtMs ||
+      !positive(validUntilMs) || validUntilMs>pin.validUntilMs ||
+      validUntilMs<=verifiedAtMs)return unverified;
     const calculated=await sha256Text(canonicalCatalogJson({scope,claim}));
     need(hash(calculated),'CAPTURE_CLAIM_DIGEST_INVALID');
     if(calculated!==claimSha256)return unverified;
