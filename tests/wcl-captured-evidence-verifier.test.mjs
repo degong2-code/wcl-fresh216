@@ -135,7 +135,7 @@ test('operator-pinned crosswalk must be explicit; coincidental WCL and Blizzard 
   const v=s.verify({specCrosswalks:[{...s.specBinding,blizzardSpecId:3}]});
   const claim=s.manifest.records[0].claim,scope={sourceNamespace:'synthetic-retail',expansionId:99};
   const claimSha256=shaText(canonicalCatalogJson({scope,claim}));
-  await assert.rejects(()=>v({claim,scope,nowMs:100,claimSha256,
+  await assert.rejects(()=>v({claim,scope,nowMs:100,capturedAtMs:10,validUntilMs:1000,claimSha256,
     sourceKind:s.spec.sourceKind,sourceRef:s.spec.sourceRef,
     sourceSha256:s.spec.sourceSha256}),/BLIZZARD_SPEC_ORIGIN_INVALID/);
 });
@@ -211,10 +211,11 @@ test('even non-raid journal is not enough to call a WCL zone a dungeon',async()=
 
 test('source expired or captured in future aborts before reading any bytes',async()=>{
   const s=scenario();
-  await assert.rejects(()=>buildEvidenceGatedWclPolicy({
+  const p=await buildEvidenceGatedWclPolicy({
     manifest:s.manifest,verifyEvidence:s.verify({
       wclPin:{...s.wcl,validUntilMs:100}}),
-    sha256:shaText,nowMs:100}),/CAPTURE_PIN_EXPIRED_OR_FUTURE/);
+    sha256:shaText,nowMs:100});
+  assert.equal(p.diagnostics.accepted,0);
   assert.equal(s.getReads(),0);
 });
 
@@ -261,9 +262,9 @@ test('manifest cannot extend an externally pinned source expiry or use an earlie
   assert.equal(p.diagnostics.accepted,0); // timestamp mismatch returns UNVERIFIED
   assert.equal(s.getReads(),0);
   const old=s.verify({sourcePins:[s.spec,{...s.journal,validUntilMs:99}]});
-  await assert.rejects(()=>buildEvidenceGatedWclPolicy({
-    manifest:s.manifest,verifyEvidence:old,sha256:shaText,nowMs:100}),
-    /CAPTURE_PIN_EXPIRED_OR_FUTURE/);
+  const expired=await buildEvidenceGatedWclPolicy({
+    manifest:s.manifest,verifyEvidence:old,sha256:shaText,nowMs:100});
+  assert.equal(expired.classifyZone({id:901,name:'Synthetic Raid'},{id:99}),null);
 });
 
 test('client build drift does not certify an alleged journal raid mapping',async()=>{
@@ -273,6 +274,20 @@ test('client build drift does not certify an alleged journal raid mapping',async
     manifest:s.manifest,verifyEvidence:s.verify({sourcePins:[s.spec,altered]}),
     sha256:shaText,nowMs:100});
   assert.equal(p.classifyZone({id:901,name:'Synthetic Raid'},{id:99}),null);
+});
+
+test('manifest cannot forge a later expiry or different capture timestamp than trusted pins',async()=>{
+  for(const mutate of [
+    e=>{e.capturedAtMs=11;},
+    e=>{e.validUntilMs=1200;}
+  ]){
+    const s=scenario(),m=structuredClone(s.manifest);
+    mutate(m.records[0].evidence);
+    const p=await buildEvidenceGatedWclPolicy({
+      manifest:m,verifyEvidence:s.verify(),sha256:shaText,nowMs:100});
+    assert.equal(p.classifySpec({id:3,slug:'fire'},{id:8,slug:'mage'}),null);
+    assert.equal(p.diagnostics.accepted,1); // only journal is accepted
+  }
 });
 
 test('capture verifier produces no network client, Secrets reader, or automatic requests',()=>{
