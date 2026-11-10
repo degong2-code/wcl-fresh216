@@ -9,6 +9,8 @@ on:
       - src/adapters/wcl-capture-trust-governance.mjs
       - src/adapters/wcl-signed-capture-admission.mjs
       - tests/wcl-sqlite-capture-ledger.test.mjs
+      - tests/wcl-platform-protected-preflight-contract.test.mjs
+      - .github/workflows/wcl-platform-protected-capture-preflight.yml
       - tests/wcl-capture-trust-governance.test.mjs
       - tools/ci.mjs
       - .github/workflows/wcl-platform-sqlite-ledger-offline.yml
