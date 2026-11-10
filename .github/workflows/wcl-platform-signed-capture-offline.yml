@@ -1,0 +1,53 @@
+name: WCL signed capture admission (offline only)
+
+on:
+  push:
+    branches:
+      - work/wcl-platform-signed-capture-admission-20261110-v1
+    paths:
+      - src/adapters/wcl-signed-capture-admission.mjs
+      - src/core/wcl-captured-evidence-verifier.mjs
+      - src/core/wcl-catalog-evidence-policy.mjs
+      - tests/wcl-signed-capture-admission.test.mjs
+      - tests/wcl-captured-evidence-verifier.test.mjs
+      - tools/ci.mjs
+      - .github/workflows/wcl-platform-signed-capture-offline.yml
+
+permissions:
+  contents: read
+
+jobs:
+  signed-capture:
+    if: github.repository == 'degong2-code/wcl-fresh216'
+    runs-on: ubuntu-latest
+    timeout-minutes: 12
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+      - name: Verify offline admission and existing evidence syntax
+        run: |
+          set -euo pipefail
+          node --check src/adapters/wcl-signed-capture-admission.mjs
+          node --check tests/wcl-signed-capture-admission.test.mjs
+          node --check src/core/wcl-captured-evidence-verifier.mjs
+      - name: Verify signed capture to profile evidence admission
+        run: |
+          set -euo pipefail
+          node --test \
+            tests/wcl-signed-capture-admission.test.mjs \
+            tests/wcl-captured-evidence-verifier.test.mjs \
+            tests/wcl-catalog-evidence-policy.test.mjs \
+            tests/wcl-catalog-port.test.mjs \
+            tests/wcl-catalog-integration.test.mjs \
+            tests/environment-discovery.test.mjs
+      - name: Verify entire existing offline core regression
+        run: node tools/ci.mjs
+      - name: Disclose strict verification scope
+        if: always()
+        run: |
+          echo '### Operator signed synthetic capture admission' >> "$GITHUB_STEP_SUMMARY"
+          echo 'No WCL or Blizzard API calls; no OAuth, Secrets, network, raw customer data, historical Checkpoint/C/KPI, Sheets, or Cloudflare. A signed capture is NOT official upstream authenticity.' >> "$GITHUB_STEP_SUMMARY"
