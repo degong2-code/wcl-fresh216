@@ -6,7 +6,7 @@
  * The --anchor-file MUST come from a separately trusted high-water registry.
  * Reading an arbitrary same-disk JSON file does not establish provenance.
  */
-import {readFileSync,statSync} from 'node:fs';
+import {readFileSync,lstatSync} from 'node:fs';
 import {
   inspectWclSqliteLedger,candidateWclLedgerAnchors,verifyWclLedgerAnchors,
   backupAnchoredWclSqliteLedger,verifyAnchoredWclSqliteBackup
@@ -36,8 +36,8 @@ function args(){
   return {cmd,obj};
 }
 function anchorsFrom(path){
-  const stat=statSync(path);
-  if(!stat.isFile()||stat.size>100_000)fail('LEDGER_ANCHOR_FILE_UNSAFE');
+  const stat=lstatSync(path);
+  if(!stat.isFile()||stat.isSymbolicLink()||stat.size>100_000)fail('LEDGER_ANCHOR_FILE_UNSAFE');
   const value=JSON.parse(readFileSync(path,'utf8'));
   if(!Array.isArray(value))fail('LEDGER_ANCHOR_FILE_NOT_LIST');
   return value;
