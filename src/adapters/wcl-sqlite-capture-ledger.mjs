@@ -77,7 +77,8 @@ function validatedHead(row,namespace,expansionId){
     ((head.generation===0&&head.registryRevision===0&&
       head.lastIssuedAtMs===0&&head.lastCaptureSetId===null&&
       head.lastPayloadSha256===null)||
-     (head.generation>0&&token(head.lastCaptureSetId)&&
+     (head.generation>0&&positive(head.registryRevision)&&
+      positive(head.lastIssuedAtMs)&&token(head.lastCaptureSetId)&&
       sha(head.lastPayloadSha256))) &&
     governanceDigest(head)===row.head_sha256,
     'SQLITE_LEDGER_HEAD_CORRUPT_OR_SCOPE_DRIFT');
@@ -154,7 +155,13 @@ export function openSqliteCaptureLedger({dbPath}={}){
       const prior=old.generation>0?getAdmission.get(old.lastCaptureSetId):null;
       need(old.generation===0||
         (prior?.head_sha256===governanceDigest(old)&&
-          prior.registry_revision===old.registryRevision),
+          prior.registry_revision===old.registryRevision&&
+          prior.capture_set_id===old.lastCaptureSetId&&
+          prior.signed_payload_sha256===old.lastPayloadSha256&&
+          prior.generation===old.generation&&
+          prior.source_namespace===namespace&&
+          prior.expansion_id===expansionId&&
+          prior.issued_at_ms===old.lastIssuedAtMs),
         'SQLITE_LEDGER_AUDIT_CHAIN_BROKEN');
       if(governanceDigest(old)!==expectedHeadSha256 ||
         nextHead.generation!==old.generation+1 ||
