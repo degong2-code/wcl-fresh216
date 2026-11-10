@@ -34,11 +34,13 @@ const unique=(items,key,code)=>{
 const validPin=p=>p&&text(p.sourceRef)&&text(p.sourceKind)&&
   hash(p.sourceSha256)&&text(p.originHost)&&text(p.endpoint)&&
   text(p.namespace)&&text(p.locale)&&nonnegative(p.capturedAtMs)&&
-  positive(p.validUntilMs)&&p.validUntilMs>p.capturedAtMs;
+  positive(p.validUntilMs)&&p.validUntilMs>p.capturedAtMs&&
+  (p.sourceKind!=='WOW_CLIENT_JOURNAL'||text(p.clientBuild));
 const pinCopy=p=>({
   sourceRef:p.sourceRef,sourceKind:p.sourceKind,sourceSha256:p.sourceSha256,
   originHost:p.originHost,endpoint:p.endpoint,namespace:p.namespace,
-  locale:p.locale,capturedAtMs:p.capturedAtMs,validUntilMs:p.validUntilMs
+  locale:p.locale,capturedAtMs:p.capturedAtMs,validUntilMs:p.validUntilMs,
+  ...(p.clientBuild?{clientBuild:p.clientBuild}:{})
 });
 const safeParsed=bytes=>{
   let payload;
@@ -75,6 +77,7 @@ function validateWclCatalog(capture,pin,scope) {
     need(positive(z?.id)&&text(z.name)&&Array.isArray(z.encounters),
       'WCL_CAPTURE_ZONE_INVALID');
     unique(z.encounters,e=>e?.id,'WCL_CAPTURE_ENCOUNTER_DUPLICATE');
+    unique(z.encounters,e=>e?.journalID,'WCL_CAPTURE_JOURNAL_ID_DUPLICATE');
     for(const e of z.encounters)
       need(positive(e?.id)&&text(e.name)&&positive(e.journalID),
         'WCL_CAPTURE_ENCOUNTER_INVALID');
@@ -109,7 +112,8 @@ function verifyRaidZone({claim,body,catalog,sourcePin,wclPin}){
     sourcePin.endpoint!=='EJ_GetInstanceByIndex+EJ_GetEncounterInfoByIndex'||
     sourcePin.namespace!==wclPin.namespace ||
     body.schema!=='WOW_CLIENT_EJ_EXPORT_V1'||
-    !text(body.clientBuild)||body.locale!==sourcePin.locale||
+    !text(body.clientBuild)||body.clientBuild!==sourcePin.clientBuild||
+    body.locale!==sourcePin.locale||
     !Array.isArray(body.instances))return false;
   const z=catalog.zones.find(z=>z.id===claim.wclZoneId);
   if(!z || z.name!==claim.wclZoneName || z.encounters.length===0 ||
@@ -185,10 +189,11 @@ export function createTrustedCapturedEvidenceVerifier({
     return safeParsed(bytes);
   }
   return async function verifyEvidence({sourceKind,sourceRef,
-    sourceSha256,claimSha256,claim,scope}={}){
+    sourceSha256,claimSha256,claim,scope,nowMs}={}){
     const unverified={status:'UNVERIFIED'};
     if(!scope||!positive(scope.expansionId)||
       scope.sourceNamespace!==wcl.namespace ||
+      nowMs!==verifiedAtMs ||
       !hash(claimSha256)||!hash(sourceSha256)||
       !claim||!text(sourceRef)||!text(sourceKind))return unverified;
     const pin=sources.get(sourceRef);
