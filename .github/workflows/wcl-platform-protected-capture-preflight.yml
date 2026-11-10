@@ -1,0 +1,54 @@
+name: WCL platform protected capture preflight (MANUAL TEST_ONLY)
+
+on:
+  workflow_dispatch:
+    inputs:
+      mode:
+        description: Offline-only protected preflight; no external APIs
+        required: true
+        type: choice
+        options:
+          - offline-sqlite-only
+
+permissions:
+  contents: read
+
+concurrency:
+  group: wcl-platform-offline-capture-preflight
+  cancel-in-progress: false
+
+jobs:
+  protected-preflight:
+    if: github.repository == 'degong2-code/wcl-fresh216' && github.ref == 'refs/heads/main' && inputs.mode == 'offline-sqlite-only'
+    runs-on: ubuntu-24.04
+    timeout-minutes: 10
+    environment:
+      name: wcl-platform-capture-preflight
+      deployment: false
+    steps:
+      - name: Reject unconfigured operator gate before checkout
+        env:
+          EXPECTED_GATE: ${{ vars.WCL_CAPTURE_PREFLIGHT_READY }}
+        run: |
+          set -euo pipefail
+          test "$EXPECTED_GATE" = "OFFLINE_TEST_ONLY_APPROVED_V1"
+      - name: Checkout exact reviewed commit
+        uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683 # v4.2.2
+        with:
+          persist-credentials: false
+      - name: Use pinned major Node runtime
+        uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+      - name: Verify disk-backed SQLite and signed-capture offline lifecycle
+        run: |
+          set -euo pipefail
+          node --test tests/wcl-sqlite-capture-ledger.test.mjs \
+            tests/wcl-capture-trust-governance.test.mjs \
+            tests/wcl-signed-capture-admission.test.mjs
+      - name: Report test-only state
+        if: always()
+        run: |
+          echo '### WCL protected operator preflight' >> "$GITHUB_STEP_SUMMARY"
+          echo 'TEST_ONLY: ephemeral runner SQLite, synthetic signatures and captures.' >> "$GITHUB_STEP_SUMMARY"
+          echo 'No WCL/Blizzard credentials, API points, live data, persistence across runs, artifact uploads or production authorization.' >> "$GITHUB_STEP_SUMMARY"
