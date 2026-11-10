@@ -248,7 +248,6 @@ test('uninitialized scope, memory DB path and unsupported DB schema fail closed'
   }),/SQLITE_LEDGER_UNINITIALIZED_OR_MALFORMED/);
   assert.throws(()=>openSqliteCaptureLedger({dbPath:':memory:'}),
     /SQLITE_LEDGER_FILE_PATH_REQUIRED/);
-  f.currentLedger().close();
   const remote=new DatabaseSync(f.dbPath);
   remote.exec('PRAGMA user_version = 99');
   remote.close();
