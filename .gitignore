@@ -40,3 +40,10 @@ artifacts/live/
 .idea/
 .DS_Store
 Thumbs.db
+
+# Capture-ledger SQLite journals and local host receipts
+*.sqlite-journal
+*.sqlite-wal
+*.sqlite-shm
+ledger-backups/
+*.ledger-anchor.json
