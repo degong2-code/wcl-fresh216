@@ -1,0 +1,56 @@
+name: WCL platform SQLite durable CAS (offline only)
+
+on:
+  push:
+    branches:
+      - work/wcl-platform-sqlite-cas-20261110-v1
+    paths:
+      - src/adapters/wcl-sqlite-capture-ledger.mjs
+      - src/adapters/wcl-capture-trust-governance.mjs
+      - src/adapters/wcl-signed-capture-admission.mjs
+      - tests/wcl-sqlite-capture-ledger.test.mjs
+      - tests/wcl-capture-trust-governance.test.mjs
+      - tools/ci.mjs
+      - .github/workflows/wcl-platform-sqlite-ledger-offline.yml
+
+permissions:
+  contents: read
+
+jobs:
+  sqlite-recovery:
+    if: github.repository == 'degong2-code/wcl-fresh216'
+    runs-on: ubuntu-24.04
+    timeout-minutes: 12
+    steps:
+      - uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683 # v4.2.2
+        with:
+          persist-credentials: false
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+      - name: Check Node and actual SQLite storage implementation
+        run: |
+          set -euo pipefail
+          node --version
+          node --check src/adapters/wcl-sqlite-capture-ledger.mjs
+          node --check src/adapters/wcl-capture-trust-governance.mjs
+          node --check tests/wcl-sqlite-capture-ledger.test.mjs
+      - name: Test real file-backed SQLite lifecycle and old metadata contracts
+        run: |
+          set -euo pipefail
+          node --test tests/wcl-sqlite-capture-ledger.test.mjs \
+            tests/wcl-capture-trust-governance.test.mjs \
+            tests/wcl-signed-capture-admission.test.mjs \
+            tests/wcl-captured-evidence-verifier.test.mjs \
+            tests/wcl-catalog-evidence-policy.test.mjs \
+            tests/wcl-catalog-port.test.mjs \
+            tests/wcl-catalog-integration.test.mjs \
+            tests/environment-discovery.test.mjs
+      - name: Run all historical offline core tests
+        run: node tools/ci.mjs
+      - name: Report verified boundary
+        if: always()
+        run: |
+          echo '### SQLite CAS and global ID uniqueness (offline only)' >> "$GITHUB_STEP_SUMMARY"
+          echo 'Uses real SQLite files under temporary CI directories; GitHub runner storage is NOT persistent between runs and NOT a production ledger.' >> "$GITHUB_STEP_SUMMARY"
+          echo 'No WCL/Blizzard calls, OAuth, Secrets, live reports, Checkpoint/C/KPI/Sheets writes, deployment or real-source attestation.' >> "$GITHUB_STEP_SUMMARY"
