@@ -244,8 +244,12 @@ test('capture limits bound every snapshot and the total',async()=>{
   await assert.rejects(()=>f.admission({maxCaptureBytes:4,maxTotalBytes:1000}),
     /SIGNED_CAPTURE_BYTES_UNAVAILABLE_OR_UNBOUNDED/);
   const g=fixture();
-  await assert.rejects(()=>g.admission({maxCaptureBytes:10000,maxTotalBytes:10000}),
-    /SIGNED_CAPTURE_INPUT_INVALID/); // cap valid but below maxCaptureBytes? configured equal, so this expectation may need adjustment
+  const lengths=[...g.captures.values()].map(bytes=>bytes.byteLength);
+  const largest=Math.max(...lengths);
+  assert.ok(lengths.reduce((a,b)=>a+b,0)>largest);
+  await assert.rejects(()=>g.admission({
+    maxCaptureBytes:largest,maxTotalBytes:largest
+  }),/SIGNED_CAPTURE_TOTAL_BYTES_EXCEEDED/);
 });
 
 test('a signed capture set with an unknown kind or wrong provenance cannot be admitted',async()=>{
