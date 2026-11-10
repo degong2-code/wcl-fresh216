@@ -1,0 +1,61 @@
+name: WCL platform anchored host recovery (offline only)
+
+on:
+  push:
+    branches:
+      - work/wcl-platform-host-recovery-20261110-v1
+    paths:
+      - src/adapters/wcl-sqlite-ledger-recovery.mjs
+      - src/adapters/wcl-sqlite-capture-ledger.mjs
+      - src/adapters/wcl-capture-trust-governance.mjs
+      - tests/wcl-sqlite-ledger-recovery.test.mjs
+      - tests/wcl-platform-ledger-host-cli.test.mjs
+      - tools/wcl-platform-ledger-host.mjs
+      - tools/Invoke-WclLedgerHost.ps1
+      - tools/ci.mjs
+      - .github/workflows/wcl-platform-host-recovery-offline.yml
+
+permissions:
+  contents: read
+
+jobs:
+  anchored-recovery:
+    if: github.repository == 'degong2-code/wcl-fresh216'
+    runs-on: ubuntu-24.04
+    timeout-minutes: 12
+    steps:
+      - uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683 # v4.2.2
+        with:
+          persist-credentials: false
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+      - name: Verify recovery modules and CLI syntax
+        run: |
+          set -euo pipefail
+          node --version
+          node --check src/adapters/wcl-sqlite-ledger-recovery.mjs
+          node --check tools/wcl-platform-ledger-host.mjs
+          node --check tests/wcl-sqlite-ledger-recovery.test.mjs
+          node --check tests/wcl-platform-ledger-host-cli.test.mjs
+      - name: Verify disk-backed SQLite anchor and backup behavior
+        run: |
+          set -euo pipefail
+          node --test tests/wcl-sqlite-ledger-recovery.test.mjs \
+            tests/wcl-platform-ledger-host-cli.test.mjs \
+            tests/wcl-sqlite-capture-ledger.test.mjs \
+            tests/wcl-capture-trust-governance.test.mjs \
+            tests/wcl-signed-capture-admission.test.mjs \
+            tests/wcl-captured-evidence-verifier.test.mjs \
+            tests/wcl-catalog-evidence-policy.test.mjs \
+            tests/wcl-catalog-port.test.mjs \
+            tests/wcl-catalog-integration.test.mjs \
+            tests/environment-discovery.test.mjs
+      - name: Run historical offline core regressions
+        run: node tools/ci.mjs
+      - name: Disclose test scope
+        if: always()
+        run: |
+          echo '### SQLite host backup and anchored recovery (TEST_ONLY)' >> "$GITHUB_STEP_SUMMARY"
+          echo 'CI uses ephemeral files, synthetic trust anchors and test-only SQLite admissions.' >> "$GITHUB_STEP_SUMMARY"
+          echo 'No live WCL/Blizzard, OAuth, Secrets, API points, restore, repository data writes, Cloudflare or production host assertions.' >> "$GITHUB_STEP_SUMMARY"
