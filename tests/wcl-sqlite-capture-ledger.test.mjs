@@ -271,7 +271,7 @@ test('a corrupted persisted admission row blocks new CAS without rewriting the h
   }),/SQLITE_LEDGER_AUDIT_CHAIN_BROKEN/);
   assert.equal(f.readHead().generation,1);
   assert.equal(f.currentLedger().readAdmission('set-02'),null);
-});
+}));
 
 test('ledger persists only compact metadata, not signed keys or raw capture bytes',()=>withStore(async f=>{
   await f.admit();
