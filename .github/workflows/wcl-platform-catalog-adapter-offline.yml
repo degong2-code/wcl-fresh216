@@ -1,0 +1,48 @@
+name: WCL platform metadata adapter (offline contract only)
+
+on:
+  push:
+    branches:
+      - work/wcl-platform-metadata-adapter-20261110-v1
+    paths:
+      - src/core/wcl-catalog-port.mjs
+      - src/core/environment-discovery.mjs
+      - src/core/analysis-scope.mjs
+      - tests/wcl-catalog-port.test.mjs
+      - tests/wcl-catalog-integration.test.mjs
+      - tests/environment-discovery.test.mjs
+      - .github/workflows/wcl-platform-catalog-adapter-offline.yml
+
+permissions:
+  contents: read
+
+jobs:
+  catalog-adapter:
+    if: github.repository == 'degong2-code/wcl-fresh216'
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+      - name: Check adapter and synthetic test syntax
+        run: |
+          set -euo pipefail
+          node --check src/core/wcl-catalog-port.mjs
+          node --check src/core/environment-discovery.mjs
+          node --check src/core/analysis-scope.mjs
+          node --check tests/wcl-catalog-port.test.mjs
+          node --check tests/wcl-catalog-integration.test.mjs
+      - name: Verify synthetic catalog -> profile -> scope
+        run: |
+          node --test tests/wcl-catalog-port.test.mjs \
+            tests/wcl-catalog-integration.test.mjs \
+            tests/environment-discovery.test.mjs
+      - name: Record boundary
+        if: always()
+        run: |
+          echo '### WCL platform metadata: synthetic-only contract' >> "$GITHUB_STEP_SUMMARY"
+          echo 'Read-only CI, no live WCL/OAuth, Secrets, Git publishing, Checkpoint, C/KPI, Sheets or Cloudflare.' >> "$GITHUB_STEP_SUMMARY"
