@@ -1,0 +1,40 @@
+name: WCL platform environment discovery (offline only)
+
+on:
+  push:
+    branches:
+      - work/wcl-platform-environment-discovery-20261110-v1
+    paths:
+      - src/core/environment-discovery.mjs
+      - src/core/analysis-scope.mjs
+      - tests/environment-discovery.test.mjs
+      - .github/workflows/wcl-platform-discovery-offline.yml
+
+permissions:
+  contents: read
+
+jobs:
+  environment-discovery:
+    if: github.repository == 'degong2-code/wcl-fresh216'
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+      - name: Syntax check new platform pure modules
+        run: |
+          set -euo pipefail
+          node --check src/core/environment-discovery.mjs
+          node --check src/core/analysis-scope.mjs
+          node --check tests/environment-discovery.test.mjs
+      - name: Run zero-state catalog/profile/scope regression
+        run: node --test tests/environment-discovery.test.mjs
+      - name: State validation boundary
+        if: always()
+        run: |
+          echo '### Offline platform discovery contract only' >> "$GITHUB_STEP_SUMMARY"
+          echo 'Synthetic catalog port; no WCL/OAuth/Secrets, private evidence, Git writes, Checkpoint/C/KPI/Sheets writes or Cloudflare.' >> "$GITHUB_STEP_SUMMARY"
