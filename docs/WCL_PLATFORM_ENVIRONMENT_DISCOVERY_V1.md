@@ -20,6 +20,7 @@
 The caller implements `catalogPort.readCatalog()` and returns a **normalized** object, not a raw `worldData` or `reportData` body. The current implementation intentionally does **not** guess which WCL GraphQL fields expose season, partition, or DPS specializations. The later WCL adapter must verify the actual upstream schema and map its available fields.
 
 ~~~js
+import {createHash} from 'node:crypto';
 const snapshot = {
   schema:'WCL_CATALOG_PORT_V1',
   catalogKey:'synthetic-season-v1', // adapter-produced source namespace, not inferred
@@ -34,7 +35,7 @@ const snapshot = {
     key:'Mage:Fire',className:'Mage',specName:'Fire',role:'dps'
   }]
 };
-const sha256 = input => /* injected trusted platform SHA256 function */;
+const sha256 = input => createHash('sha256').update(input).digest('hex'); // Node host
 const {profile,reused,changed} = await discoverEnvironment({
   catalogPort:{readCatalog:async()=>snapshot},
   sha256,observedAtMs:Date.now(),previousProfile:null
