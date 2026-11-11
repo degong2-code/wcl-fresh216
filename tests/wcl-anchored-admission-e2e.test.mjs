@@ -1,7 +1,7 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import {createHash,generateKeyPairSync,sign} from 'node:crypto';
-import {mkdtempSync,rmSync} from 'node:fs';
+import {mkdtempSync,rmSync,mkdirSync} from 'node:fs';
 import {tmpdir} from 'node:os';
 import {join} from 'node:path';
 import {canonicalCatalogJson} from '../src/core/environment-discovery.mjs';
@@ -23,7 +23,6 @@ const clone=o=>structuredClone(o);
 function fixture(){
   const root=mkdtempSync(join(tmpdir(),'wcl-full-e2e-'));
   const dbPath=join(root,'captures.sqlite');
-  const {mkdirSync}=requireNotUsed();
   // The temporary backup root belongs only to this synthetic test.
   const backupRoot=join(root,'backups');
   mkdirSync(backupRoot);
@@ -138,7 +137,6 @@ function fixture(){
     reopen:()=>{ledger.close();ledger=openSqliteCaptureLedger({dbPath});},
     close:()=>{ledger.close();rmSync(root,{recursive:true,force:true});}};
 }
-function requireNotUsed(){return {mkdirSync:globalThis.__noop_missing__};}
 async function setupTest(run){const f=fixture();try{await run(f);}finally{f.close();}}
 
 test('whole chain: signed captures -> SQLite -> independent anchor -> WCL role/raid -> backup -> restart',()=>setupTest(async f=>{
