@@ -1,0 +1,48 @@
+name: WCL existing v155-v242 source reuse (offline only)
+
+on:
+  push:
+    branches:
+      - work/wcl-platform-v155-v242-source-reuse-20261113-v1
+    paths:
+      - src/adapters/wcl-v155-stage-reuse.mjs
+      - tests/wcl-v155-stage-reuse.test.mjs
+      - tools/ci.mjs
+      - .github/workflows/wcl-platform-v155-source-reuse-offline.yml
+
+permissions:
+  contents: read
+
+jobs:
+  reused-existing-source:
+    if: github.repository == 'degong2-code/wcl-fresh216'
+    runs-on: ubuntu-24.04
+    timeout-minutes: 12
+    steps:
+      - uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683 # v4.2.2
+        with:
+          persist-credentials: false
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+      - name: Check read-only source reuse and test syntax
+        run: |
+          set -euo pipefail
+          node --version
+          node --check src/adapters/wcl-v155-stage-reuse.mjs
+          node --check tests/wcl-v155-stage-reuse.test.mjs
+      - name: Test existing v155/v242 report contract and zero-refetch discovery
+        run: |
+          set -euo pipefail
+          node --test tests/wcl-v155-stage-reuse.test.mjs \
+            tests/wcl-catalog-port.test.mjs \
+            tests/wcl-catalog-integration.test.mjs \
+            tests/environment-discovery.test.mjs
+      - name: Run full existing offline core
+        run: node tools/ci.mjs
+      - name: Explicit evidence boundary
+        if: always()
+        run: |
+          echo '### Existing WCL source reuse: offline contract only' >> "$GITHUB_STEP_SUMMARY"
+          echo 'Reuses v155/v242 STRUCTURE with synthetic pinned report bytes; no original private source report copied into public CI.' >> "$GITHUB_STEP_SUMMARY"
+          echo 'No OAuth, WCL API points, live GraphQL calls, new collector, real season certification, or production promotion.' >> "$GITHUB_STEP_SUMMARY"
